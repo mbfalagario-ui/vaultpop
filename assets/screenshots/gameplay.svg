@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="430" height="932" viewBox="0 0 430 932">
+  <rect width="430" height="932" fill="#070A12"/>
+  <rect x="34" y="54" width="362" height="824" rx="34" fill="#0D1322" stroke="#27324A"/>
+  <circle cx="350" cy="120" r="38" fill="#F6C65B" opacity="0.18"/>
+  <circle cx="76" cy="182" r="44" fill="#43D9FF" opacity="0.12"/>
+  <text x="58" y="146" fill="#43D9FF" font-family="Arial" font-size="13" font-weight="800">VAULTPOP IOS V1</text>
+  <text x="58" y="194" fill="#F8FBFF" font-family="Arial" font-size="38" font-weight="800">Classic Mode</text>
+  <text x="58" y="230" fill="#AAB6CE" font-family="Arial" font-size="17">8 x 8 coin tile board</text>
+  
+      <rect x="58" y="258" width="314" height="54" rx="10" fill="#151D2E" stroke="#27324A"/>
+      <text x="78" y="292" fill="#F8FBFF" font-family="Arial" font-size="18" font-weight="700">Score 1240</text>
+      <rect x="58" y="340" width="314" height="54" rx="10" fill="#151D2E" stroke="#27324A"/>
+      <text x="78" y="374" fill="#F8FBFF" font-family="Arial" font-size="18" font-weight="700">Time 42s</text>
+      <rect x="58" y="422" width="314" height="54" rx="10" fill="#151D2E" stroke="#27324A"/>
+      <text x="78" y="456" fill="#F8FBFF" font-family="Arial" font-size="18" font-weight="700">Combo 4x</text>
+      <rect x="58" y="504" width="314" height="54" rx="10" fill="#151D2E" stroke="#27324A"/>
+      <text x="78" y="538" fill="#F8FBFF" font-family="Arial" font-size="18" font-weight="700">Vault Meter 72%</text>
+  <rect x="58" y="760" width="314" height="28" rx="14" fill="#151D2E"/>
+  <rect x="58" y="760" width="226" height="28" rx="14" fill="#43D9FF"/>
+  <text x="58" y="824" fill="#AAB6CE" font-family="Arial" font-size="13">Generated reference from implemented in-app screen copy.</text>
+</svg>
