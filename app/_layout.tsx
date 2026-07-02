@@ -1,12 +1,17 @@
+import { AdLifecycle } from "@/components/ad-lifecycle";
+import { RootErrorBoundary } from "@/components/root-error-boundary";
+import { initializePersistentStorage } from "@/storage/client-storage";
 import { colors } from "@/theme";
 import { StatusBar } from "expo-status-bar";
 import Stack from "expo-router/stack";
+import { useEffect, useState } from "react";
+import { InteractionManager } from "react-native";
 
 export default function RootLayout() {
   return (
-    <>
+    <RootErrorBoundary>
       <StatusBar style="light" />
-      <AdLifecycle />
+      <DeferredLaunchServices />
       <Stack
         screenOptions={{
           headerStyle: { backgroundColor: colors.surface },
@@ -27,7 +32,34 @@ export default function RootLayout() {
         <Stack.Screen name="settings" options={{ title: "Settings" }} />
         <Stack.Screen name="legal" options={{ title: "Privacy and Support" }} />
       </Stack>
-    </>
+    </RootErrorBoundary>
   );
 }
-import { AdLifecycle } from "@/components/ad-lifecycle";
+
+function DeferredLaunchServices() {
+  const [storageReady, setStorageReady] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+    const task = InteractionManager.runAfterInteractions(() => {
+      timeout = setTimeout(() => {
+        void initializePersistentStorage().finally(() => {
+          if (active) {
+            setStorageReady(true);
+          }
+        });
+      }, 1_000);
+    });
+
+    return () => {
+      active = false;
+      task.cancel();
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+    };
+  }, []);
+
+  return storageReady ? <AdLifecycle /> : null;
+}

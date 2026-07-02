@@ -5,8 +5,6 @@ import { StatusPill } from "@/components/status-pill";
 import { useSaveProfile } from "@/storage/use-save-profile";
 import { colors, spacing, typography } from "@/theme";
 import { Text, View } from "react-native";
-import { InteractionManager } from "react-native";
-import { useEffect } from "react";
 
 export function HomeScreen() {
   const [profile] = useSaveProfile();
@@ -15,13 +13,6 @@ export function HomeScreen() {
     profile.highScores.dailyVault,
     profile.highScores.streak
   );
-
-  useEffect(() => {
-    const task = InteractionManager.runAfterInteractions(() => {
-      void initializeAdsAfterHome();
-    });
-    return () => task.cancel();
-  }, []);
 
   return (
     <ScreenShell
@@ -55,5 +46,4 @@ export function HomeScreen() {
     </ScreenShell>
   );
 }
-import { initializeAdsAfterHome } from "@/ads/ad-service";
 import { AdBanner } from "@/components/ad-banner";

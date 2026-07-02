@@ -33,7 +33,7 @@ import {
 import { useSaveProfile } from "@/storage/use-save-profile";
 import { colors, spacing, typography } from "@/theme";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Text, View } from "react-native";
+import { InteractionManager, Text, View } from "react-native";
 import type { Purchase } from "react-native-iap";
 
 export function ShopScreen() {
@@ -77,33 +77,37 @@ export function ShopScreen() {
 
   useEffect(() => {
     let active = true;
-    void createStoreSession({
-      onPurchase: processPurchase,
-      onError: setStatus
-    })
-      .then(async (session) => {
-        if (!active) {
-          await session.close();
-          return;
-        }
-        sessionRef.current = session;
-        const products = await session.fetchCatalog();
-        if (active) {
-          setStoreProducts(products);
-          setStatus(
-            products.length > 0
-              ? "App Store products loaded."
-              : "Products are unavailable from the App Store right now."
-          );
-        }
+    const task = InteractionManager.runAfterInteractions(() => {
+      void createStoreSession({
+        onPurchase: processPurchase,
+        onError: setStatus
       })
-      .catch(() => {
-        if (active) {
-          setStatus("The App Store is unavailable right now.");
-        }
+        .then(async (session) => {
+          if (!active) {
+            await session.close();
+            return;
+          }
+          sessionRef.current = session;
+          const products = await session.fetchCatalog();
+          if (active) {
+            setStoreProducts(products);
+            setStatus(
+              products.length > 0
+                ? "App Store products loaded."
+                : "Products are unavailable from the App Store right now."
+            );
+          }
+        })
+        .catch(() => {
+          if (active) {
+            setStatus("The App Store is unavailable right now.");
+          }
+        });
       });
+
     return () => {
       active = false;
+      task.cancel();
       const session = sessionRef.current;
       sessionRef.current = null;
       if (session) {

@@ -6,7 +6,7 @@ import {
   normalizeSaveProfile,
   type SaveProfile
 } from "@/storage/save-model";
-import { useStoredValue } from "@/storage/client-storage";
+import { clientStorage, useStoredValue } from "@/storage/client-storage";
 
 type SaveProfileUpdater = SaveProfile | ((profile: SaveProfile) => SaveProfile);
 const installDefaultProfile = createDefaultSaveProfile();
@@ -20,7 +20,7 @@ export function useSaveProfile() {
   const profile = normalizeSaveProfile(storedProfile);
 
   useEffect(() => {
-    if (localStorage.getItem(STORAGE_KEYS.saveProfile) === null) {
+    if (!clientStorage.has(STORAGE_KEYS.saveProfile)) {
       setStoredProfile(installDefaultProfile);
     }
   }, [setStoredProfile]);
@@ -41,10 +41,5 @@ export function useSaveProfile() {
 }
 
 function clientSafeValue(key: string, fallback: SaveProfile): SaveProfile {
-  try {
-    const rawValue = localStorage.getItem(key);
-    return rawValue ? (JSON.parse(rawValue) as SaveProfile) : fallback;
-  } catch {
-    return fallback;
-  }
+  return clientStorage.get(key, fallback);
 }

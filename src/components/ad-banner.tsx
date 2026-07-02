@@ -1,11 +1,11 @@
 import { canShowBanner, type AdPlacement } from "@/ads/ad-policy";
 import { ADMOB_IOS } from "@/ads/constants";
-import { initializeAdsAfterHome, isAdsInitialized } from "@/ads/ad-service";
+import { isAdsInitialized } from "@/ads/ad-service";
 import { isAdFree } from "@/monetization/entitlements";
 import { useSaveProfile } from "@/storage/use-save-profile";
 import { colors, spacing } from "@/theme";
 import { useEffect, useState } from "react";
-import { InteractionManager, View } from "react-native";
+import { View } from "react-native";
 
 type AdsModule = typeof import("react-native-google-mobile-ads");
 
@@ -14,17 +14,22 @@ export function AdBanner({ placement }: { placement: AdPlacement }) {
   const [adsModule, setAdsModule] = useState<AdsModule | null>(null);
 
   useEffect(() => {
+    if (!isAdsInitialized()) {
+      return undefined;
+    }
     let active = true;
-    const task = InteractionManager.runAfterInteractions(() => {
-      void initializeAdsAfterHome().then(async (ready) => {
-        if (ready && active) {
-          setAdsModule(await import("react-native-google-mobile-ads"));
+    void import("react-native-google-mobile-ads")
+      .then((module) => {
+        if (active) {
+          setAdsModule(module);
         }
+      })
+      .catch((error: unknown) => {
+        console.warn("VaultPop banner ads are unavailable.", error);
       });
-    });
+
     return () => {
       active = false;
-      task.cancel();
     };
   }, []);
 

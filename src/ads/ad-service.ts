@@ -7,7 +7,7 @@ let rewardedJustShown = false;
 let lastAppOpenAt = 0;
 
 export async function initializeAdsAfterHome(): Promise<boolean> {
-  if (__DEV__) {
+  if (__DEV__ || process.env.EXPO_OS !== "ios") {
     return false;
   }
   if (initialized) {
@@ -27,7 +27,11 @@ export async function initializeAdsAfterHome(): Promise<boolean> {
     await ads.default().initialize();
     initialized = true;
     return true;
-  })().catch(() => false);
+  })().catch((error: unknown) => {
+    initializing = null;
+    console.warn("VaultPop ads are unavailable.", error);
+    return false;
+  });
 
   return initializing;
 }
@@ -61,7 +65,7 @@ export async function showInterstitialAd(): Promise<boolean> {
 
 export async function showAppOpenAd(): Promise<boolean> {
   if (
-    !(await initializeAdsAfterHome()) ||
+    !initialized ||
     fullScreenAdShowing ||
     Date.now() - lastAppOpenAt < 4 * 60 * 60 * 1_000
   ) {
