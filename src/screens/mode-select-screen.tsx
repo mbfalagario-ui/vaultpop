@@ -1,3 +1,5 @@
+import { clearRewardedCooldown } from "@/ads/ad-service";
+import { AdBanner } from "@/components/ad-banner";
 import { ModeCard } from "@/components/mode-card";
 import { ScreenShell } from "@/components/screen-shell";
 import { GAME_MODES } from "@/game/constants";
@@ -17,7 +19,7 @@ export function ModeSelectScreen() {
   }, []);
 
   return (
-    <ScreenShell title="Choose Mode" lead="Three offline modes are ready for iOS v1.">
+    <ScreenShell title="Choose Mode" lead="Pick a challenge and start popping coin chains.">
       <View style={{ gap: spacing.md }}>
         {GAME_MODES.map((mode) => (
           <ModeCard
@@ -39,5 +41,3 @@ export function ModeSelectScreen() {
     </ScreenShell>
   );
 }
-import { clearRewardedCooldown } from "@/ads/ad-service";
-import { AdBanner } from "@/components/ad-banner";

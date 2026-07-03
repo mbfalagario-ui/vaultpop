@@ -32,7 +32,7 @@ FEATURES
 • Local best scores and daily progress
 • Unlockable visual themes and effects
 • Sound and haptic controls
-• Offline gameplay with no account required
+• Offline gameplay with no account required; optional sign-in is available for account-linked support and inventory
 • Optional in-app purchases and advertising
 
 All scores, points, coins, boosts, and rewards in VaultPop are fictional in-game content only.

@@ -31,7 +31,7 @@ VaultPop is an arcade puzzle game with fictional coin tiles and fictional in-gam
 ## Privacy
 
 - Contextual ads by default.
-- No ATT request and no IDFA use.
+- Advertising consent and App Tracking Transparency are deferred until ad initialization and never block core gameplay.
 - Purchases send App Store signed transaction data plus an anonymous install ID to the verification service.
 - Support may collect category, message, optional email, anonymous install ID, app/build version, device model, and priority-routing status.
 - No analytics SDK, account profile, location, contacts, camera, microphone, or photo access.

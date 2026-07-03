@@ -54,8 +54,27 @@ export type AdProgressSave = {
   lastInterstitialRound: number;
 };
 
+export type AccountBalanceSnapshot = {
+  vaultCoins: number;
+  bonusLives: number;
+  chainBoosts: number;
+  vaultBursts: number;
+  removeAds: boolean;
+  vaultPassExpiresAt: string | null;
+};
+
+export type AccountSave = {
+  accountId: string | null;
+  email: string | null;
+  role: "player" | "reviewer" | "admin" | null;
+  sessionToken: string | null;
+  sessionExpiresAt: string | null;
+  linkedInstallId: string | null;
+  balanceSnapshot: AccountBalanceSnapshot | null;
+};
+
 export type SaveProfile = {
-  schemaVersion: 2;
+  schemaVersion: 3;
   createdAt: string;
   updatedAt: string;
   highScores: HighScoreTable;
@@ -66,12 +85,13 @@ export type SaveProfile = {
   entitlements: EntitlementSave;
   support: SupportSave;
   ads: AdProgressSave;
+  account: AccountSave;
 };
 
 export function createDefaultSaveProfile(now = new Date()): SaveProfile {
   const timestamp = now.toISOString();
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     createdAt: timestamp,
     updatedAt: timestamp,
     highScores: {
@@ -116,6 +136,15 @@ export function createDefaultSaveProfile(now = new Date()): SaveProfile {
     ads: {
       completedRounds: 0,
       lastInterstitialRound: 0
+    },
+    account: {
+      accountId: null,
+      email: null,
+      role: null,
+      sessionToken: null,
+      sessionExpiresAt: null,
+      linkedInstallId: null,
+      balanceSnapshot: null
     }
   };
 }
@@ -127,7 +156,7 @@ export const defaultSaveProfile: SaveProfile = createDefaultSaveProfile(
 export function normalizeSaveProfile(input: Partial<SaveProfile> | null | undefined): SaveProfile {
   const fallback = createDefaultSaveProfile();
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     createdAt: input?.createdAt ?? fallback.createdAt,
     updatedAt: input?.updatedAt ?? fallback.updatedAt,
     highScores: {
@@ -171,6 +200,10 @@ export function normalizeSaveProfile(input: Partial<SaveProfile> | null | undefi
     ads: {
       ...fallback.ads,
       ...(input?.ads ?? {})
+    },
+    account: {
+      ...fallback.account,
+      ...(input?.account ?? {})
     }
   };
 }
@@ -253,7 +286,8 @@ export function resetLocalProgress(profile: SaveProfile, now = new Date()): Save
     },
     entitlements: profile.entitlements,
     support: profile.support,
-    ads: reset.ads
+    ads: reset.ads,
+    account: profile.account
   };
 }
 
@@ -278,7 +312,7 @@ function createInstallId(now: Date): string {
  * createDefaultSaveProfile so timestamps represent the current install.
  */
 export const defaultSaveProfileSnapshot: SaveProfile = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   createdAt: "",
   updatedAt: "",
   highScores: {
@@ -323,5 +357,14 @@ export const defaultSaveProfileSnapshot: SaveProfile = {
   ads: {
     completedRounds: 0,
     lastInterstitialRound: 0
+  },
+  account: {
+    accountId: null,
+    email: null,
+    role: null,
+    sessionToken: null,
+    sessionExpiresAt: null,
+    linkedInstallId: null,
+    balanceSnapshot: null
   }
 };

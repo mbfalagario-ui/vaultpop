@@ -6,8 +6,17 @@ import { ScreenShell } from "@/components/screen-shell";
 import { VaultMeter } from "@/components/vault-meter";
 import { BOARD_SIZE } from "@/game/constants";
 import { getDailySeed, getLocalDateKey } from "@/game/daily-seed";
-import { advanceTimer, createInitialRound, finishRound, resolveTap } from "@/game/engine";
+import {
+  advanceTimer,
+  applyBonusLife,
+  applyChainBoost,
+  applyVaultBurst,
+  createInitialRound,
+  finishRound,
+  resolveTap
+} from "@/game/engine";
 import type { GameModeId, RoundState } from "@/game/models";
+import { consumeBooster, type BoosterKind } from "@/monetization/economy";
 import { applyRoundResult, type DailyVaultSave } from "@/storage";
 import { useSaveProfile } from "@/storage/use-save-profile";
 import { colors, getVisualTheme, spacing, typography } from "@/theme";
@@ -146,6 +155,29 @@ export function GameplayScreen() {
     );
   }, []);
 
+  const useBooster = useCallback(
+    (booster: BoosterKind) => {
+      if (round.phase !== "playing" || profile.economy.boosters[booster] <= 0) {
+        return;
+      }
+      setRound((currentRound) =>
+        booster === "bonusLives"
+          ? applyBonusLife(currentRound)
+          : booster === "chainBoosts"
+            ? applyChainBoost(currentRound)
+            : applyVaultBurst(currentRound)
+      );
+      setProfile((currentProfile) => consumeBooster(currentProfile, booster));
+      void playHaptic(profile.settings.hapticsEnabled);
+    },
+    [
+      profile.economy.boosters,
+      profile.settings.hapticsEnabled,
+      round.phase,
+      setProfile
+    ]
+  );
+
   const modeLabel =
     modeId === "dailyVault" ? "Daily Vault" : modeId === "streak" ? "Streak Mode" : "Classic Mode";
 
@@ -184,6 +216,35 @@ export function GameplayScreen() {
         {round.board.tiles.flat().map((tile) => (
           <CoinTile key={tile.id} tile={tile} onPress={() => handleTilePress(tile.row, tile.column)} />
         ))}
+      </View>
+      <View style={{ gap: spacing.sm }}>
+        <Text selectable style={typography.sectionTitle}>
+          Boosters
+        </Text>
+        <ActionButton
+          label={`Bonus Life (${profile.economy.boosters.bonusLives})`}
+          detail="Add 15 seconds to the current round."
+          disabled={
+            round.phase !== "playing" || profile.economy.boosters.bonusLives <= 0
+          }
+          onPress={() => useBooster("bonusLives")}
+        />
+        <ActionButton
+          label={`Chain Boost (${profile.economy.boosters.chainBoosts})`}
+          detail="Raise the current combo by 2x."
+          disabled={
+            round.phase !== "playing" || profile.economy.boosters.chainBoosts <= 0
+          }
+          onPress={() => useBooster("chainBoosts")}
+        />
+        <ActionButton
+          label={`Vault Burst (${profile.economy.boosters.vaultBursts})`}
+          detail="Open the vault immediately and refresh the board."
+          disabled={
+            round.phase !== "playing" || profile.economy.boosters.vaultBursts <= 0
+          }
+          onPress={() => useBooster("vaultBursts")}
+        />
       </View>
       <View
         style={{

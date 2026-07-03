@@ -68,6 +68,9 @@ export function SupportScreen() {
 
   return (
     <ScreenShell title="Support" lead="Send a private support request from the app.">
+      <Text selectable style={typography.body}>
+        Support email: support@vaultpop.app
+      </Text>
       {priority ? <StatusPill label="VaultPass priority routing" tone="gold" /> : null}
       <View style={{ gap: spacing.sm }}>
         <Text selectable style={typography.sectionTitle}>
@@ -77,6 +80,9 @@ export function SupportScreen() {
           {SUPPORT_CATEGORIES.map((item) => (
             <Pressable
               key={item}
+              accessibilityLabel={`Support category: ${item}`}
+              accessibilityRole="button"
+              accessibilityState={{ selected: category === item }}
               onPress={() => setCategory(item)}
               style={{
                 backgroundColor: category === item ? colors.goldMuted : colors.surfaceRaised,

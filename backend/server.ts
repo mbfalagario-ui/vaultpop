@@ -2,6 +2,7 @@ import { createServer } from "node:http";
 
 import { ApplePurchaseVerifier } from "./apple-verifier";
 import { createApiHandler } from "./app";
+import { SqliteAccountStore } from "./sqlite-account-store";
 import { SqliteLedgerStore } from "./sqlite-ledger";
 
 const host = process.env.VAULTPOP_API_HOST ?? "127.0.0.1";
@@ -12,10 +13,29 @@ const certificatePaths = (process.env.APPLE_ROOT_CA_PATHS ?? "")
   .split(",")
   .map((path) => path.trim())
   .filter(Boolean);
+const accounts = new SqliteAccountStore(databasePath);
+
+accounts.upsertBootstrapAccount({
+  email: process.env.VAULTPOP_ADMIN_EMAIL ?? "mbfalagario@gmail.com",
+  password: requiredSecret("VAULTPOP_ADMIN_PASSWORD"),
+  role: "admin"
+});
+accounts.upsertBootstrapAccount({
+  email: process.env.VAULTPOP_REVIEWER_EMAIL ?? "reviewer@vaultpop.app",
+  password: requiredSecret("VAULTPOP_REVIEWER_PASSWORD"),
+  role: "reviewer",
+  initialBalance: {
+    vaultCoins: 1_000,
+    bonusLives: 5,
+    chainBoosts: 5,
+    vaultBursts: 3
+  }
+});
 
 const handler = createApiHandler({
   verifier: new ApplePurchaseVerifier(certificatePaths),
-  ledger: new SqliteLedgerStore(databasePath)
+  ledger: new SqliteLedgerStore(databasePath),
+  accounts
 });
 
 const server = createServer(async (incoming, outgoing) => {
@@ -36,3 +56,11 @@ const server = createServer(async (incoming, outgoing) => {
 });
 
 server.listen(port, host);
+
+function requiredSecret(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`${name} must be configured in the secure server environment.`);
+  }
+  return value;
+}

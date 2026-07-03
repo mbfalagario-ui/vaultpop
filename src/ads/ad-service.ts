@@ -5,6 +5,7 @@ let initializing: Promise<boolean> | null = null;
 let fullScreenAdShowing = false;
 let rewardedJustShown = false;
 let lastAppOpenAt = 0;
+let requestNonPersonalizedAdsOnly = true;
 
 export async function initializeAdsAfterHome(): Promise<boolean> {
   if (__DEV__ || process.env.EXPO_OS !== "ios") {
@@ -23,6 +24,12 @@ export async function initializeAdsAfterHome(): Promise<boolean> {
     if (!consent.canRequestAds) {
       return false;
     }
+    const tracking = await import("expo-tracking-transparency");
+    let permission = await tracking.getTrackingPermissionsAsync();
+    if (permission.status === "undetermined") {
+      permission = await tracking.requestTrackingPermissionsAsync();
+    }
+    requestNonPersonalizedAdsOnly = permission.status !== "granted";
     await ads.default().setRequestConfiguration({});
     await ads.default().initialize();
     initialized = true;
@@ -58,7 +65,7 @@ export async function showInterstitialAd(): Promise<boolean> {
   }
   const ads = await import("react-native-google-mobile-ads");
   const ad = ads.InterstitialAd.createForAdRequest(ADMOB_IOS.interstitial, {
-    requestNonPersonalizedAdsOnly: true
+    requestNonPersonalizedAdsOnly
   });
   return showFullScreenAd(ad, ads.AdEventType);
 }
@@ -73,7 +80,7 @@ export async function showAppOpenAd(): Promise<boolean> {
   }
   const ads = await import("react-native-google-mobile-ads");
   const ad = ads.AppOpenAd.createForAdRequest(ADMOB_IOS.appOpen, {
-    requestNonPersonalizedAdsOnly: true
+    requestNonPersonalizedAdsOnly
   });
   const shown = await showFullScreenAd(ad, ads.AdEventType);
   if (shown) {
@@ -91,7 +98,7 @@ export async function showRewardedBonusLifeAd(): Promise<{
   }
   const ads = await import("react-native-google-mobile-ads");
   const ad = ads.RewardedAd.createForAdRequest(ADMOB_IOS.rewarded, {
-    requestNonPersonalizedAdsOnly: true
+    requestNonPersonalizedAdsOnly
   });
 
   return new Promise((resolve) => {

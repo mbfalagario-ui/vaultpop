@@ -11,6 +11,9 @@ const allowedLegalPaths = [
   "docs/release/APP_REVIEW_NOTES.md",
   "docs/release/APP_PRIVACY_ANSWERS.md"
 ];
+const allowedTechnicalPaths = [
+  "backend/sqlite-account-store.ts"
+];
 
 const bannedTerms = [
   "earn",
@@ -78,7 +81,10 @@ for (const file of files) {
     if (!termPattern(term).test(text)) {
       continue;
     }
-    if (allowedLegalPaths.includes(relativePath)) {
+    if (
+      allowedLegalPaths.includes(relativePath) ||
+      allowedTechnicalPaths.includes(relativePath)
+    ) {
       allowed.push(`${relativePath}: ${term}`);
       continue;
     }

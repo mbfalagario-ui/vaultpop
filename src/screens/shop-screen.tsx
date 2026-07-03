@@ -204,7 +204,7 @@ export function ShopScreen() {
           Vault Coins are fictional in-game currency.
         </Text>
         <Text selectable style={typography.body}>
-          Use Vault Coins for boosters and cosmetic unlocks.
+          Use Vault Coins for fixed boosters that work during a round.
         </Text>
         <StatusPill label={status} tone="cyan" />
       </View>

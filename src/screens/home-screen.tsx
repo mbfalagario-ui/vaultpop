@@ -21,7 +21,7 @@ export function HomeScreen() {
       lead="Pop Coins. Complete the Chain."
     >
       <View style={{ gap: spacing.sm }}>
-        <StatusPill label="Offline iOS v1" tone="cyan" />
+        <StatusPill label="Ready to Play" tone="cyan" />
         <Text selectable style={typography.body}>
           Tap connected groups, build combos, fill the vault meter, and chase local high scores.
         </Text>

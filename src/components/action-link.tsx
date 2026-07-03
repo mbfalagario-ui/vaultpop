@@ -12,11 +12,15 @@ export function ActionLink({ href, label, detail }: ActionLinkProps) {
   return (
     <Link href={href as never} asChild>
       <Pressable
+        accessibilityHint={detail}
+        accessibilityLabel={label}
+        accessibilityRole="link"
         style={({ pressed }) => ({
           backgroundColor: pressed ? colors.goldMuted : colors.surfaceRaised,
           borderColor: colors.gold,
           borderRadius: 8,
           borderWidth: 1,
+          minHeight: 48,
           padding: spacing.md
         })}
       >

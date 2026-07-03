@@ -14,6 +14,12 @@
       "expo-router",
       "react-native-iap",
       [
+        "expo-tracking-transparency",
+        {
+          "userTrackingPermission": "VaultPop uses permission to measure and improve advertising. You can continue playing if you decline."
+        }
+      ],
+      [
         "react-native-google-mobile-ads",
         {
           "iosAppId": "ca-app-pub-6035003811280283~7349136854",

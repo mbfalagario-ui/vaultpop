@@ -4,6 +4,9 @@ import test from "node:test";
 import { getDailySeed } from "../src/game/daily-seed";
 import {
   advanceTimer,
+  applyBonusLife,
+  applyChainBoost,
+  applyVaultBurst,
   calculateClearScore,
   calculateVaultDelta,
   createBoard,
@@ -128,6 +131,21 @@ test("timer does not tick while paused", () => {
   const nextRound = advanceTimer(paused, 10);
   assert.equal(nextRound.secondsRemaining, 60);
   assert.equal(nextRound.phase, "paused");
+});
+
+test("all three boosters have deterministic gameplay effects", () => {
+  const round = createInitialRound("classic", { seed: "booster-test" });
+  const withLife = applyBonusLife({ ...round, secondsRemaining: 40 });
+  assert.equal(withLife.secondsRemaining, 55);
+
+  const withChain = applyChainBoost(round);
+  assert.equal(withChain.score.comboMultiplier, 3);
+
+  const withBurst = applyVaultBurst(round);
+  assert.equal(withBurst.score.current, 750);
+  assert.equal(withBurst.score.vaultBonuses, 1);
+  assert.equal(withBurst.vaultMeter.current, 0);
+  assert.equal(withBurst.board.turn, round.board.turn + 1);
 });
 
 test("local save model normalizes, scores, settings, and cosmetic unlocks", () => {

@@ -4,6 +4,7 @@ import { Pressable, Text, View } from "react-native";
 type ActionButtonProps = {
   label: string;
   detail?: string;
+  accessibilityHint?: string;
   tone?: "primary" | "danger" | "quiet";
   disabled?: boolean;
   onPress: () => void;
@@ -12,6 +13,7 @@ type ActionButtonProps = {
 export function ActionButton({
   label,
   detail,
+  accessibilityHint,
   tone = "primary",
   disabled = false,
   onPress
@@ -21,6 +23,10 @@ export function ActionButton({
 
   return (
     <Pressable
+      accessibilityHint={accessibilityHint ?? detail}
+      accessibilityLabel={label}
+      accessibilityRole="button"
+      accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => ({
@@ -32,6 +38,7 @@ export function ActionButton({
         borderColor,
         borderRadius: 8,
         borderWidth: 1,
+        minHeight: 48,
         opacity: disabled ? 0.55 : 1,
         padding: spacing.md
       })}
@@ -49,4 +56,3 @@ export function ActionButton({
     </Pressable>
   );
 }
-

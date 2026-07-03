@@ -1,6 +1,14 @@
 import { getProductDefinition } from "../src/monetization/catalog";
+import { adminPage } from "./admin-page";
 import { grantForTransaction } from "./grants";
-import type { LedgerStore, PurchaseVerifier } from "./types";
+import type {
+  AccountRole,
+  AccountStore,
+  LedgerBalance,
+  LedgerStore,
+  PublicAccount,
+  PurchaseVerifier
+} from "./types";
 
 const SUPPORT_CATEGORIES = new Set([
   "Purchase issue",
@@ -10,10 +18,12 @@ const SUPPORT_CATEGORIES = new Set([
   "Privacy request",
   "Other"
 ]);
+const loginAttempts = new Map<string, { count: number; resetAt: number }>();
 
 export function createApiHandler(dependencies: {
   verifier: PurchaseVerifier;
   ledger: LedgerStore;
+  accounts: AccountStore;
 }) {
   return async (request: Request): Promise<Response> => {
     const url = new URL(request.url);
@@ -23,14 +33,65 @@ export function createApiHandler(dependencies: {
     if (request.method === "GET" && url.pathname === "/privacy") {
       return html(
         "VaultPop Privacy",
-        "VaultPop stores game progress on your device. Apple processes purchases. Google AdMob serves contextual ads by default. Purchase verification uses an anonymous install ID and Apple-signed transaction data. Private support requests may include a category, message, optional email, anonymous install ID, app and build version, device model, and priority-routing status. VaultPop does not request App Tracking Transparency or access IDFA."
+        "VaultPop stores core game progress on your device. Optional account login links an email address, role, session, install ID, and account inventory to the VaultPop service. Apple processes purchases. Google AdMob may process device identifiers, coarse location, product interaction, advertising, performance, crash, and diagnostic data under its SDK disclosures for ad delivery, consent, measurement, and fraud prevention. VaultPop asks for consent and App Tracking Transparency permission when advertising initialization requires it. Private support requests may include a category, message, optional email, install ID, app and build version, device model, and priority-routing status."
       );
     }
     if (request.method === "GET" && url.pathname === "/support") {
       return html(
         "VaultPop Support",
-        "Open Support inside VaultPop to send a private request. Choose a category, describe the issue, and optionally include an email address for a reply."
+        "Email support@vaultpop.app or open Support inside VaultPop to send a private request. Support does not require an account. Choose a category, describe the issue, and optionally include an email address for a reply."
       );
+    }
+    if (request.method === "GET" && url.pathname === "/admin") {
+      return adminPage();
+    }
+
+    if (request.method === "POST" && url.pathname === "/v1/auth/login") {
+      const body = await readJson(request);
+      if (
+        !isEmail(body.email) ||
+        !isShortString(body.password, 200) ||
+        !isShortString(body.installId, 200)
+      ) {
+        return json({ error: "Invalid sign-in request." }, 400);
+      }
+      const attemptKey = loginAttemptKey(request, body.email);
+      if (loginBlocked(attemptKey)) {
+        return json({ error: "Too many sign-in attempts. Try again later." }, 429);
+      }
+      const session = dependencies.accounts.login({
+        email: body.email,
+        password: body.password,
+        installId: body.installId
+      });
+      if (!session) {
+        recordLoginFailure(attemptKey);
+      } else {
+        loginAttempts.delete(attemptKey);
+      }
+      return session
+        ? json(session)
+        : json({ error: "Email or password is incorrect." }, 401);
+    }
+
+    if (request.method === "POST" && url.pathname === "/v1/auth/logout") {
+      const token = bearerToken(request);
+      if (token) {
+        dependencies.accounts.revokeSession(token);
+      }
+      return json({ signedOut: true });
+    }
+
+    if (request.method === "GET" && url.pathname === "/v1/account") {
+      const account = authenticatedAccount(request, dependencies.accounts);
+      if (!account) {
+        return json({ error: "Authentication required." }, 401);
+      }
+      return json({ state: dependencies.accounts.getAccountState(account.id) });
+    }
+
+    if (url.pathname.startsWith("/v1/admin/")) {
+      return handleAdminRequest(request, url, dependencies.accounts);
     }
 
     if (request.method === "POST" && url.pathname === "/v1/purchases/verify") {
@@ -101,9 +162,13 @@ export function createApiHandler(dependencies: {
         return json({ error: "Invalid support request." }, 400);
       }
       const balance = dependencies.ledger.getBalance(body.installId);
+      const accountBalance =
+        dependencies.accounts.getAccountStateByInstallId(body.installId)?.balance;
       const priority = Boolean(
-        balance.vaultPassExpiresAt &&
-          new Date(balance.vaultPassExpiresAt).getTime() > Date.now()
+        (balance.vaultPassExpiresAt &&
+          new Date(balance.vaultPassExpiresAt).getTime() > Date.now()) ||
+          (accountBalance?.vaultPassExpiresAt &&
+            new Date(accountBalance.vaultPassExpiresAt).getTime() > Date.now())
       );
       const ticketId = dependencies.ledger.createSupportTicket({
         installId: body.installId,
@@ -122,6 +187,146 @@ export function createApiHandler(dependencies: {
   };
 }
 
+async function handleAdminRequest(
+  request: Request,
+  url: URL,
+  accounts: AccountStore
+): Promise<Response> {
+  const actor = authenticatedAccount(request, accounts);
+  if (!actor || actor.role !== "admin") {
+    return json({ error: "Admin authorization required." }, 403);
+  }
+
+  try {
+    if (request.method === "GET" && url.pathname === "/v1/admin/accounts") {
+      const roleValue = url.searchParams.get("role");
+      const role = isAccountRole(roleValue) ? roleValue : undefined;
+      return json({
+        accounts: accounts.listAccounts({
+          query: url.searchParams.get("q") ?? undefined,
+          role
+        })
+      });
+    }
+
+    if (request.method === "GET" && url.pathname === "/v1/admin/audit") {
+      return json({
+        entries: accounts.listAudit(actor, Number(url.searchParams.get("limit") ?? 100))
+      });
+    }
+
+    if (request.method === "POST" && url.pathname === "/v1/admin/accounts") {
+      const body = await readJson(request);
+      if (
+        !isEmail(body.email) ||
+        !isShortString(body.password, 200) ||
+        !isAccountRole(body.role)
+      ) {
+        return json({ error: "Invalid account request." }, 400);
+      }
+      return json({
+        state: accounts.createAccount(actor, {
+          email: body.email,
+          password: body.password,
+          role: body.role,
+          reason: optionalReason(body.reason)
+        })
+      }, 201);
+    }
+
+    const match = url.pathname.match(
+      /^\/v1\/admin\/accounts\/([^/]+)(?:\/(inventory|entitlements|disable|password|role))?$/
+    );
+    if (!match) {
+      return json({ error: "Not found." }, 404);
+    }
+    const accountId = decodeURIComponent(match[1] ?? "");
+    const action = match[2];
+    if (request.method === "GET" && !action) {
+      const state = accounts.getAccountState(accountId);
+      return state ? json(state) : json({ error: "Account not found." }, 404);
+    }
+    if (request.method !== "POST" || !action) {
+      return json({ error: "Not found." }, 404);
+    }
+
+    const body = await readJson(request);
+    if (action === "inventory") {
+      const delta = parseInventoryDelta(body.delta);
+      if (!delta) {
+        return json({ error: "Invalid inventory adjustment." }, 400);
+      }
+      return json({
+        state: accounts.adjustInventory(
+          actor,
+          accountId,
+          delta,
+          optionalReason(body.reason)
+        )
+      });
+    }
+    if (action === "entitlements") {
+      if (
+        body.removeAds !== undefined &&
+        typeof body.removeAds !== "boolean"
+      ) {
+        return json({ error: "Invalid entitlement request." }, 400);
+      }
+      if (
+        body.vaultPassExpiresAt !== undefined &&
+        body.vaultPassExpiresAt !== null &&
+        !isIsoDate(body.vaultPassExpiresAt)
+      ) {
+        return json({ error: "Invalid VaultPass expiration." }, 400);
+      }
+      return json({
+        state: accounts.setEntitlements(actor, accountId, {
+          removeAds: body.removeAds,
+          vaultPassExpiresAt: body.vaultPassExpiresAt,
+          reason: optionalReason(body.reason)
+        })
+      });
+    }
+    if (action === "disable") {
+      return json({
+        state: accounts.disableAccount(actor, accountId, optionalReason(body.reason))
+      });
+    }
+    if (action === "password") {
+      if (!isShortString(body.password, 200)) {
+        return json({ error: "Invalid password request." }, 400);
+      }
+      return json({
+        state: accounts.resetPassword(
+          actor,
+          accountId,
+          body.password,
+          optionalReason(body.reason)
+        )
+      });
+    }
+    if (action === "role") {
+      if (!isAccountRole(body.role)) {
+        return json({ error: "Invalid role request." }, 400);
+      }
+      return json({
+        state: accounts.changeRole(
+          actor,
+          accountId,
+          body.role,
+          optionalReason(body.reason)
+        )
+      });
+    }
+  } catch (error) {
+    return json(
+      { error: error instanceof Error ? error.message : "Admin operation failed." },
+      422
+    );
+  }
+  return json({ error: "Not found." }, 404);
+}
+
 async function readJson(request: Request): Promise<Record<string, any>> {
   try {
     return (await request.json()) as Record<string, any>;
@@ -132,6 +337,91 @@ async function readJson(request: Request): Promise<Record<string, any>> {
 
 function isShortString(value: unknown, maxLength: number): value is string {
   return typeof value === "string" && value.length > 0 && value.length <= maxLength;
+}
+
+function isEmail(value: unknown): value is string {
+  return (
+    isShortString(value, 320) &&
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+  );
+}
+
+function bearerToken(request: Request): string | null {
+  const authorization = request.headers.get("authorization");
+  return authorization?.startsWith("Bearer ")
+    ? authorization.slice("Bearer ".length).trim()
+    : null;
+}
+
+function authenticatedAccount(
+  request: Request,
+  accounts: AccountStore
+): PublicAccount | null {
+  const token = bearerToken(request);
+  return token ? accounts.authenticate(token) : null;
+}
+
+function isAccountRole(value: unknown): value is AccountRole {
+  return value === "player" || value === "reviewer" || value === "admin";
+}
+
+function optionalReason(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim().length > 0
+    ? value.trim().slice(0, 500)
+    : undefined;
+}
+
+function parseInventoryDelta(
+  value: unknown
+): Partial<
+  Pick<LedgerBalance, "vaultCoins" | "bonusLives" | "chainBoosts" | "vaultBursts">
+> | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  const record = value as Record<string, unknown>;
+  const result: Record<string, number> = {};
+  for (const key of ["vaultCoins", "bonusLives", "chainBoosts", "vaultBursts"]) {
+    const amount = record[key] ?? 0;
+    if (
+      typeof amount !== "number" ||
+      !Number.isInteger(amount) ||
+      Math.abs(amount) > 1_000_000
+    ) {
+      return null;
+    }
+    result[key] = amount;
+  }
+  return result;
+}
+
+function isIsoDate(value: unknown): value is string {
+  return typeof value === "string" && Number.isFinite(new Date(value).getTime());
+}
+
+function loginAttemptKey(request: Request, email: string): string {
+  const forwardedFor = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  return `${forwardedFor ?? "unknown"}:${email.trim().toLowerCase()}`;
+}
+
+function loginBlocked(key: string, now = Date.now()): boolean {
+  const attempt = loginAttempts.get(key);
+  if (!attempt) {
+    return false;
+  }
+  if (attempt.resetAt <= now) {
+    loginAttempts.delete(key);
+    return false;
+  }
+  return attempt.count >= 5;
+}
+
+function recordLoginFailure(key: string, now = Date.now()): void {
+  const current = loginAttempts.get(key);
+  loginAttempts.set(key, {
+    count: current && current.resetAt > now ? current.count + 1 : 1,
+    resetAt: current && current.resetAt > now ? current.resetAt : now + 15 * 60 * 1_000
+  });
 }
 
 function json(body: object, status = 200): Response {

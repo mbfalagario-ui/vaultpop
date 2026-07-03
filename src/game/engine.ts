@@ -306,3 +306,49 @@ export function finishRound(round: RoundState, now = new Date()): RoundState {
   };
 }
 
+export function applyBonusLife(round: RoundState): RoundState {
+  if (round.phase !== "playing") {
+    return round;
+  }
+  return {
+    ...round,
+    secondsRemaining: Math.min(99, round.secondsRemaining + 15),
+    lastEvent: "Bonus Life added 15 seconds"
+  };
+}
+
+export function applyChainBoost(round: RoundState): RoundState {
+  if (round.phase !== "playing") {
+    return round;
+  }
+  return {
+    ...round,
+    score: {
+      ...round.score,
+      comboMultiplier: Math.min(12, round.score.comboMultiplier + 2)
+    },
+    lastEvent: "Chain Boost raised the combo"
+  };
+}
+
+export function applyVaultBurst(round: RoundState): RoundState {
+  if (round.phase !== "playing") {
+    return round;
+  }
+  const scoreDelta = 750 * round.score.comboMultiplier;
+  return {
+    ...round,
+    board: refillWholeBoard(round.board),
+    score: {
+      ...round.score,
+      current: round.score.current + scoreDelta,
+      vaultBonuses: round.score.vaultBonuses + 1
+    },
+    vaultMeter: {
+      ...round.vaultMeter,
+      current: 0,
+      opening: true
+    },
+    lastEvent: `Vault Burst +${scoreDelta}`
+  };
+}

@@ -7,7 +7,10 @@ import { Linking, Text, View } from "react-native";
 
 export function PrivacySupportLegalScreen() {
   return (
-    <ScreenShell title="Privacy, Support, and Legal" lead="Review-facing policy notes for iOS v1.">
+    <ScreenShell
+      title="Privacy, Support, and Legal"
+      lead="How VaultPop handles gameplay data, purchases, advertising, and support."
+    >
       <View style={{ gap: spacing.md }}>
         {Object.entries(legalOutline).map(([section, items]) => (
           <View key={section} style={{ gap: spacing.xs }}>

@@ -156,3 +156,25 @@ export function getRewardedCount(profile: SaveProfile, dateKey: string): number 
     ? profile.economy.rewardedAds.count
     : 0;
 }
+
+export function consumeBooster(
+  profile: SaveProfile,
+  booster: BoosterKind,
+  now = new Date()
+): SaveProfile {
+  const available = profile.economy.boosters[booster];
+  if (available <= 0) {
+    return profile;
+  }
+  return {
+    ...profile,
+    updatedAt: now.toISOString(),
+    economy: {
+      ...profile.economy,
+      boosters: {
+        ...profile.economy.boosters,
+        [booster]: available - 1
+      }
+    }
+  };
+}

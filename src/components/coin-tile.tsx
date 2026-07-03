@@ -30,6 +30,8 @@ export function CoinTile({ tile, onPress }: CoinTileProps) {
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`${tile.type} coin tile row ${tile.row + 1} column ${tile.column + 1}`}
+      accessibilityHint="Clears its connected matching group when at least two tiles match."
+      hitSlop={4}
       onPress={onPress}
       style={({ pressed }) => ({
         alignItems: "center",
@@ -60,4 +62,3 @@ export function CoinTile({ tile, onPress }: CoinTileProps) {
     </Pressable>
   );
 }
-

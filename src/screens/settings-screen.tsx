@@ -1,4 +1,5 @@
 import { ActionButton } from "@/components/action-button";
+import { ActionLink } from "@/components/action-link";
 import { ScreenShell } from "@/components/screen-shell";
 import { applyVerifiedPurchase } from "@/monetization/economy";
 import {
@@ -117,6 +118,11 @@ export function SettingsScreen() {
         />
       </View>
       <View style={{ gap: spacing.sm }}>
+        <ActionLink
+          href="/account"
+          label="Account"
+          detail="Optional sign in for account-linked support and test inventory."
+        />
         <ActionButton
           label="Restore Purchases"
           detail="Restores Ad-Free Upgrade and active VaultPass access."

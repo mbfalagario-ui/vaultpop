@@ -2,7 +2,6 @@ import { existsSync, readFileSync } from "node:fs";
 
 const requiredRoutes = [
   "app/index.tsx",
-  "app/splash.tsx",
   "app/modes.tsx",
   "app/gameplay.tsx",
   "app/pause.tsx",
@@ -11,6 +10,7 @@ const requiredRoutes = [
   "app/settings.tsx",
   "app/shop.tsx",
   "app/support.tsx",
+  "app/account.tsx",
   "app/legal.tsx"
 ];
 
@@ -24,6 +24,7 @@ const requiredScreenCopy = [
   ["src/screens/cosmetics-screen.tsx", ["Use Theme", "Unlock for"]],
   ["src/screens/shop-screen.tsx", ["Restore Purchases", "Watch Ad for 1 Bonus Life.", "IAP_PRODUCTS"]],
   ["src/screens/support-screen.tsx", ["SUPPORT_CATEGORIES", "Submit Support Request", "Email (Optional)"]],
+  ["src/screens/account-screen.tsx", ["Sign In", "Sign Out", "playable offline without an account"]],
   ["src/screens/privacy-support-legal-screen.tsx", ["In-App Support", "Email Support", "Privacy Policy"]]
 ];
 

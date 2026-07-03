@@ -11,6 +11,8 @@ export {
   updateSettings
 } from "@/storage/save-model";
 export type {
+  AccountBalanceSnapshot,
+  AccountSave,
   CosmeticProgression,
   AdProgressSave,
   BoosterInventory,

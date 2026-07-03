@@ -1,12 +1,16 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
+import { applyAccountLogin } from "../src/account/account-service";
 import { canShowAppOpen, canShowBanner, canShowInterstitial, canShowRewarded } from "../src/ads/ad-policy";
 import { IAP_PRODUCTS } from "../src/monetization/catalog";
 import {
   applyVerifiedPurchase,
+  consumeBooster,
   getRewardedCount,
-  grantRewardedBonusLife
+  grantRewardedBonusLife,
+  purchaseBoosterWithCoins
 } from "../src/monetization/economy";
 import { hasActiveVaultPass, isAdFree } from "../src/monetization/entitlements";
 import { createDefaultSaveProfile, normalizeSaveProfile } from "../src/storage/save-model";
@@ -70,6 +74,82 @@ test("starter and monthly products apply fixed booster grants once per transacti
     chainBoosts: 15,
     vaultBursts: 8
   });
+  const used = consumeBooster(
+    consumeBooster(
+      consumeBooster(duplicate, "bonusLives"),
+      "chainBoosts"
+    ),
+    "vaultBursts"
+  );
+  assert.deepEqual(used.economy.boosters, {
+    bonusLives: 14,
+    chainBoosts: 14,
+    vaultBursts: 7
+  });
+});
+
+test("Vault Coins buy usable fixed boosters and never create negative balances", () => {
+  const profile = {
+    ...createDefaultSaveProfile(),
+    economy: {
+      ...createDefaultSaveProfile().economy,
+      vaultCoins: 500
+    }
+  };
+  const purchased = purchaseBoosterWithCoins(profile, "chainBoosts");
+  assert.equal(purchased.economy.vaultCoins, 320);
+  assert.equal(purchased.economy.boosters.chainBoosts, 1);
+  const consumed = consumeBooster(purchased, "chainBoosts");
+  assert.equal(consumed.economy.boosters.chainBoosts, 0);
+  assert.strictEqual(consumeBooster(consumed, "chainBoosts"), consumed);
+});
+
+test("account inventory reconciliation is idempotent across repeated sign in", () => {
+  const profile = createDefaultSaveProfile();
+  const login = {
+    token: "opaque-session-token",
+    expiresAt: "2099-01-01T00:00:00.000Z",
+    state: {
+      account: {
+        id: "reviewer-account",
+        email: "reviewer@example.com",
+        role: "reviewer" as const,
+        active: true,
+        createdAt: "2026-01-01T00:00:00.000Z"
+      },
+      linkedInstallId: profile.support.installId,
+      balance: {
+        vaultCoins: 1_000,
+        bonusLives: 5,
+        chainBoosts: 5,
+        vaultBursts: 3,
+        removeAds: false,
+        vaultPassExpiresAt: null
+      }
+    }
+  };
+  const first = applyAccountLogin(profile, login);
+  const second = applyAccountLogin(first, login);
+  assert.equal(first.economy.vaultCoins, 1_000);
+  assert.equal(second.economy.vaultCoins, 1_000);
+  assert.equal(second.economy.boosters.bonusLives, 5);
+});
+
+test("production screens contain no known development-facing release copy", () => {
+  const visibleScreens = [
+    "src/screens/home-screen.tsx",
+    "src/screens/mode-select-screen.tsx",
+    "src/screens/privacy-support-legal-screen.tsx"
+  ];
+  const source = visibleScreens.map((path) => readFileSync(path, "utf8")).join("\n");
+  for (const phrase of [
+    "Offline iOS v1",
+    "ready for iOS v1",
+    "Review-facing policy notes",
+    "Portrait iPhone shell"
+  ]) {
+    assert.equal(source.includes(phrase), false);
+  }
 });
 
 test("remove ads restores permanently and VaultPass lapses without deleting inventory", () => {

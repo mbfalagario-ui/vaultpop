@@ -16,7 +16,7 @@ Public positioning:
 - EAS production build and submit configuration for iOS only.
 - No Android scope.
 - Base gameplay works offline.
-- No account or public social system.
+- Core gameplay requires no account. Optional account sign-in supports account-linked testing, inventory, and private support; no public social system is included.
 
 ## Gameplay
 
@@ -43,7 +43,7 @@ Public positioning:
 
 - Google AdMob iOS only.
 - Contextual/non-personalized requests by default.
-- No ATT request or IDFA access.
+- Advertising initializes after first paint and uses consent plus App Tracking Transparency permission when required.
 - No ad before first paint or on first cold launch.
 - No ad during active gameplay.
 - Ad-Free Upgrade and active VaultPass suppress all placements and prompts.
