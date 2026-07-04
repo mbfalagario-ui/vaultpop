@@ -8,7 +8,8 @@ import {
 } from "@/ads/ad-service";
 import { AdBanner } from "@/components/ad-banner";
 import { ActionButton } from "@/components/action-button";
-import { MetricCard } from "@/components/metric-card";
+import { ArcadeGlyph } from "@/components/arcade-glyph";
+import { HudStat } from "@/components/hud-stat";
 import { ScreenShell } from "@/components/screen-shell";
 import { StatusPill } from "@/components/status-pill";
 import { getLocalDateKey } from "@/game/daily-seed";
@@ -23,6 +24,7 @@ import {
   grantRewardedBonusLife,
   purchaseBoosterWithCoins
 } from "@/monetization/economy";
+import { BOOSTER_GUIDE } from "@/monetization/booster-guide";
 import { isAdFree } from "@/monetization/entitlements";
 import {
   createStoreSession,
@@ -188,64 +190,129 @@ export function ShopScreen() {
 
   return (
     <ScreenShell
-      title="Shop"
-      lead="Optional purchases. No purchase is required to play."
+      eyebrow="VAULT SUPPLY"
+      title="Power Up"
+      lead="Boost a run or unlock your preferred arcade setup."
+      accent={colors.ruby}
     >
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.sm }}>
-        <MetricCard label="Vault Coins" value={profile.economy.vaultCoins} accent={colors.gold} />
-        <MetricCard
-          label="Bonus Lives"
+      <View
+        style={{
+          backgroundColor: colors.surfaceGlass,
+          borderColor: colors.border,
+          borderCurve: "continuous",
+          borderRadius: 12,
+          borderWidth: 1,
+          flexDirection: "row",
+          paddingVertical: spacing.md
+        }}
+      >
+        <HudStat label="VAULT COINS" value={profile.economy.vaultCoins} accent={colors.gold} />
+        <View style={{ backgroundColor: colors.border, width: 1 }} />
+        <HudStat
+          label="BONUS LIVES"
           value={profile.economy.boosters.bonusLives}
           accent={colors.emerald}
         />
+        <View style={{ backgroundColor: colors.border, width: 1 }} />
+        <HudStat
+          label="VAULT BURSTS"
+          value={profile.economy.boosters.vaultBursts}
+          accent={colors.ruby}
+        />
       </View>
-      <View style={{ gap: spacing.xs }}>
-        <Text selectable style={typography.body}>
-          Vault Coins are fictional in-game currency.
-        </Text>
-        <Text selectable style={typography.body}>
-          Use Vault Coins for fixed boosters that work during a round.
-        </Text>
-        <StatusPill label={status} tone="cyan" />
-      </View>
+      <StatusPill label={status} tone="cyan" />
+
       <View style={{ gap: spacing.sm }}>
-        {IAP_PRODUCTS.map((product) => {
+        <Text selectable style={[typography.eyebrow, { color: colors.gold }]}>
+          APP STORE
+        </Text>
+        {IAP_PRODUCTS.map((product, index) => {
           const storeProduct = storeProducts.find((item) => item.id === product.id);
           const available = Boolean(storeProduct);
+          const accents = [
+            colors.gold,
+            colors.cyan,
+            colors.ruby,
+            colors.emerald,
+            colors.violet,
+            colors.gold
+          ] as const;
+          const accent = accents[index % accents.length]!;
           return (
             <View
               key={product.id}
               style={{
-                backgroundColor: colors.surfaceRaised,
-                borderColor: colors.border,
-                borderRadius: 8,
+                backgroundColor: `${accent}0E`,
+                borderColor: `${accent}88`,
+                borderCurve: "continuous",
+                borderRadius: 12,
                 borderWidth: 1,
+                boxShadow: `0 8px 24px ${accent}12`,
                 gap: spacing.sm,
                 padding: spacing.md
               }}
             >
-              <View style={{ gap: spacing.xs }}>
-                <Text selectable style={typography.sectionTitle}>
-                  {product.displayName}
-                </Text>
-                {"badge" in product && product.badge ? (
-                  <StatusPill label={product.badge} tone="gold" />
-                ) : null}
-                <Text selectable style={typography.body}>
-                  {product.description}
-                </Text>
-                <Text selectable style={typography.button}>
+              <View style={{ alignItems: "center", flexDirection: "row", gap: spacing.md }}>
+                <View
+                  style={{
+                    alignItems: "center",
+                    backgroundColor: `${accent}18`,
+                    borderColor: accent,
+                    borderRadius: 999,
+                    borderWidth: 1,
+                    height: 56,
+                    justifyContent: "center",
+                    width: 56
+                  }}
+                >
+                  <ArcadeGlyph
+                    color={accent}
+                    modeId={index % 3 === 0 ? "classic" : index % 3 === 1 ? "dailyVault" : "streak"}
+                    size={27}
+                    type={index % 2 === 0 ? "gold" : "cyan"}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text selectable style={[typography.sectionTitle, { fontSize: 18 }]}>
+                    {product.displayName}
+                  </Text>
+                </View>
+                <Text
+                  numberOfLines={1}
+                  selectable
+                  style={[typography.button, { color: accent, flexShrink: 0 }]}
+                >
                   {storeProduct?.displayPrice ?? product.basePriceUsd}
                 </Text>
               </View>
+              <Text selectable style={[typography.caption, { color: colors.textSecondary }]}>
+                {product.description}
+              </Text>
+              <View
+                style={{
+                  backgroundColor: `${accent}0D`,
+                  borderLeftColor: accent,
+                  borderLeftWidth: 3,
+                  paddingHorizontal: spacing.sm,
+                  paddingVertical: spacing.xs
+                }}
+              >
+                <Text
+                  selectable
+                  style={[typography.caption, { color: accent, fontWeight: "800" }]}
+                >
+                  INCLUDED: {product.detail}
+                </Text>
+              </View>
               <ActionButton
-                label={available ? `Buy ${product.displayName}` : "Unavailable"}
+                label={available ? "Get" : "Unavailable"}
                 detail={
                   available
-                    ? product.detail
+                    ? `Purchase ${product.displayName}.`
                     : "This product cannot be purchased until the App Store returns it."
                 }
                 disabled={!available || busyProductId !== null}
+                accent={accent}
                 onPress={() => void buy(product.id)}
               />
               {product.kind === "subscription" ? (
@@ -259,43 +326,98 @@ export function ShopScreen() {
         })}
       </View>
       <View style={{ gap: spacing.sm }}>
-        <Text selectable style={typography.sectionTitle}>
-          Booster Counter
+        <Text selectable style={[typography.eyebrow, { color: colors.emerald }]}>
+          BOOSTER FORGE
         </Text>
-        {(Object.keys(BOOSTER_COSTS) as (keyof typeof BOOSTER_COSTS)[]).map((booster) => (
-          <ActionButton
-            key={booster}
-            label={`Add 1 ${formatBooster(booster)}`}
-            detail={`${BOOSTER_COSTS[booster]} Vault Coins`}
-            disabled={profile.economy.vaultCoins < BOOSTER_COSTS[booster]}
-            onPress={() =>
-              setProfile((current) => purchaseBoosterWithCoins(current, booster))
-            }
-          />
-        ))}
+        <View style={{ gap: spacing.sm }}>
+          {BOOSTER_GUIDE.map((booster, index) => {
+            const accent = [colors.cyan, colors.violet, colors.gold][index]!;
+            const glyph = index === 0 ? "cyan" : index === 1 ? "violet" : "gold";
+            return (
+              <View
+                key={booster.id}
+                style={{
+                  backgroundColor: `${accent}0D`,
+                  borderColor: `${accent}66`,
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  gap: spacing.sm,
+                  padding: spacing.md
+                }}
+              >
+                <View style={{ alignItems: "center", flexDirection: "row", gap: spacing.md }}>
+                  <View
+                    style={{
+                      alignItems: "center",
+                      backgroundColor: `${accent}18`,
+                      borderColor: accent,
+                      borderRadius: 999,
+                      borderWidth: 1,
+                      height: 48,
+                      justifyContent: "center",
+                      width: 48
+                    }}
+                  >
+                    <ArcadeGlyph
+                      color={accent}
+                      modeId="classic"
+                      size={24}
+                      type={glyph}
+                    />
+                  </View>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text selectable style={[typography.sectionTitle, { fontSize: 17 }]}>
+                      {booster.label}
+                    </Text>
+                    <Text
+                      selectable
+                      style={[typography.caption, { color: accent, fontWeight: "800" }]}
+                    >
+                      {booster.shortEffect}
+                    </Text>
+                    <Text
+                      selectable
+                      style={[typography.caption, { color: colors.textSecondary }]}
+                    >
+                      {booster.description}
+                    </Text>
+                  </View>
+                </View>
+                <ActionButton
+                  label={`${BOOSTER_COSTS[booster.id]} Vault Coins`}
+                  detail={`Add 1 ${booster.label} to your inventory.`}
+                  disabled={profile.economy.vaultCoins < BOOSTER_COSTS[booster.id]}
+                  accent={accent}
+                  onPress={() =>
+                    setProfile((current) =>
+                      purchaseBoosterWithCoins(current, booster.id)
+                    )
+                  }
+                />
+              </View>
+            );
+          })}
+        </View>
       </View>
       {!adFree ? (
         <ActionButton
-          label="Watch Ad for 1 Bonus Life."
-          detail={`${rewardedCount} of 30 rewarded grants used today.`}
+          label="Watch for 1 Bonus Life"
+          detail={`${rewardedCount} of 30 used today.`}
           disabled={rewardedCount >= 30}
+          accent={colors.emerald}
           onPress={() => void watchRewarded()}
         />
       ) : null}
       <ActionButton
         label="Restore Purchases"
         detail="Restores Ad-Free Upgrade and active VaultPass access."
+        tone="quiet"
         onPress={() => void restore()}
       />
+      <Text selectable style={[typography.caption, { color: colors.textMuted }]}>
+        Vault Coins are fictional game currency used only for fixed in-game boosters.
+      </Text>
       <AdBanner placement="shop" />
     </ScreenShell>
   );
-}
-
-function formatBooster(booster: keyof typeof BOOSTER_COSTS): string {
-  return booster === "bonusLives"
-    ? "Bonus Life"
-    : booster === "chainBoosts"
-      ? "Chain Boost"
-      : "Vault Burst";
 }

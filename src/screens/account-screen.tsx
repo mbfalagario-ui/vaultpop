@@ -1,11 +1,14 @@
 import {
   applyAccountLogin,
+  applyAccountRefresh,
   clearAccountSession,
   isAccountSignedIn,
+  refreshAccountState,
   signInAccount,
   signOutAccount
 } from "@/account/account-service";
 import { ActionButton } from "@/components/action-button";
+import { ArcadeGlyph } from "@/components/arcade-glyph";
 import { MetricCard } from "@/components/metric-card";
 import { ScreenShell } from "@/components/screen-shell";
 import { StatusPill } from "@/components/status-pill";
@@ -56,24 +59,67 @@ export function AccountScreen() {
     setStatus("Signed out. Local gameplay and progress remain available.");
   };
 
+  const refresh = async () => {
+    const token = profile.account.sessionToken;
+    if (!token) {
+      setStatus("Sign in again to refresh your account.");
+      return;
+    }
+    setBusy(true);
+    setStatus("Refreshing account...");
+    try {
+      const state = await refreshAccountState(token);
+      setProfile((current) => applyAccountRefresh(current, state));
+      setStatus("Account inventory and access are up to date.");
+    } catch {
+      setStatus("Account refresh is unavailable. You can continue playing offline.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <ScreenShell
+      eyebrow="OPTIONAL SYNC"
       title="Account"
-      lead="Sign in is optional. VaultPop remains playable offline without an account."
+      lead="Play offline anytime. Sign in only when you want linked inventory and support."
+      accent={colors.cyan}
     >
       {signedIn ? (
         <>
-          <StatusPill label="Signed In" tone="emerald" />
-          <View style={{ gap: spacing.xs }}>
-            <Text selectable style={typography.sectionTitle}>
-              {profile.account.email}
-            </Text>
-            <Text selectable style={typography.body}>
-              Account type: {formatRole(profile.account.role)}
-            </Text>
-            <Text selectable style={typography.caption}>
-              Installation link: {profile.account.linkedInstallId ?? "Pending"}
-            </Text>
+          <View
+            style={{
+              alignItems: "center",
+              backgroundColor: `${colors.cyan}0E`,
+              borderColor: `${colors.cyan}66`,
+              borderRadius: 12,
+              borderWidth: 1,
+              flexDirection: "row",
+              gap: spacing.md,
+              padding: spacing.md
+            }}
+          >
+            <View
+              style={{
+                alignItems: "center",
+                backgroundColor: `${colors.cyan}18`,
+                borderRadius: 999,
+                height: 56,
+                justifyContent: "center",
+                width: 56
+              }}
+            >
+              <ArcadeGlyph color={colors.cyan} modeId="dailyVault" size={28} type="cyan" />
+            </View>
+            <View style={{ flex: 1, gap: spacing.xs }}>
+              <StatusPill label="SYNCED" tone="emerald" />
+              <Text selectable style={[typography.sectionTitle, { fontSize: 18 }]}>
+                {profile.account.email}
+              </Text>
+              <Text selectable style={typography.caption}>
+                {formatRole(profile.account.role)}
+              </Text>
+            </View>
           </View>
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.sm }}>
             <MetricCard
@@ -82,11 +128,21 @@ export function AccountScreen() {
               accent={colors.gold}
             />
             <MetricCard
-              label="Bonus Lives"
-              value={profile.economy.boosters.bonusLives}
+              label="Boosters"
+              value={
+                profile.economy.boosters.bonusLives +
+                profile.economy.boosters.chainBoosts +
+                profile.economy.boosters.vaultBursts
+              }
               accent={colors.emerald}
             />
           </View>
+          <ActionButton
+            label="Refresh Account"
+            detail="Updates account inventory and access from VaultPop."
+            disabled={busy}
+            onPress={() => void refresh()}
+          />
           <ActionButton
             label="Sign Out"
             detail="Keeps local scores and offline gameplay on this device."
@@ -95,7 +151,16 @@ export function AccountScreen() {
           />
         </>
       ) : (
-        <View style={{ gap: spacing.md }}>
+        <View
+          style={{
+            backgroundColor: colors.surfaceGlass,
+            borderColor: colors.border,
+            borderRadius: 12,
+            borderWidth: 1,
+            gap: spacing.md,
+            padding: spacing.md
+          }}
+        >
           <View style={{ gap: spacing.xs }}>
             <Text selectable style={typography.sectionTitle}>
               Email
@@ -111,8 +176,8 @@ export function AccountScreen() {
               placeholderTextColor={colors.textSecondary}
               style={{
                 backgroundColor: colors.surfaceRaised,
-                borderColor: colors.border,
-                borderRadius: 8,
+                borderColor: `${colors.cyan}66`,
+                borderRadius: 10,
                 borderWidth: 1,
                 color: colors.textPrimary,
                 minHeight: 48,
@@ -135,8 +200,8 @@ export function AccountScreen() {
               secureTextEntry
               style={{
                 backgroundColor: colors.surfaceRaised,
-                borderColor: colors.border,
-                borderRadius: 8,
+                borderColor: `${colors.violet}66`,
+                borderRadius: 10,
                 borderWidth: 1,
                 color: colors.textPrimary,
                 minHeight: 48,
@@ -149,19 +214,19 @@ export function AccountScreen() {
             label="Sign In"
             detail="Links support and account inventory when the service is available."
             disabled={busy}
+            accent={colors.cyan}
             onPress={() => void signIn()}
           />
         </View>
       )}
       {status ? <StatusPill label={status} tone="cyan" /> : null}
-      <Text selectable style={typography.caption}>
-        Passwords are sent only to the VaultPop service for verification and are never saved
-        in the app.
+      <Text selectable style={[typography.caption, { color: colors.textMuted }]}>
+        Credentials are verified securely and are not stored in the app.
       </Text>
     </ScreenShell>
   );
 }
 
 function formatRole(role: "player" | "reviewer" | "admin" | null): string {
-  return role === "admin" ? "Owner" : role === "reviewer" ? "Test Player" : "Player";
+  return role === "admin" ? "Owner account" : "Player account";
 }

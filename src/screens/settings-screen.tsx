@@ -23,13 +23,12 @@ function SettingRow({ label, value, onValueChange }: SettingRowProps) {
     <View
       style={{
         alignItems: "center",
-        backgroundColor: colors.surfaceRaised,
-        borderColor: colors.border,
-        borderRadius: 8,
-        borderWidth: 1,
+        borderBottomColor: colors.border,
+        borderBottomWidth: 1,
         flexDirection: "row",
         justifyContent: "space-between",
-        padding: spacing.md
+        minHeight: 58,
+        paddingHorizontal: spacing.md
       }}
     >
       <Text selectable style={typography.button}>
@@ -93,8 +92,21 @@ export function SettingsScreen() {
   };
 
   return (
-    <ScreenShell title="Settings" lead="All preferences use local save only.">
-      <View style={{ gap: spacing.sm }}>
+    <ScreenShell
+      eyebrow="TUNE THE ARCADE"
+      title="Settings"
+      lead="Sound, feel, and account access."
+      accent={colors.violet}
+    >
+      <View
+        style={{
+          backgroundColor: colors.surfaceGlass,
+          borderColor: colors.border,
+          borderRadius: 12,
+          borderWidth: 1,
+          overflow: "hidden"
+        }}
+      >
         <SettingRow
           label="Sound"
           value={profile.settings.soundEnabled}
@@ -121,12 +133,14 @@ export function SettingsScreen() {
         <ActionLink
           href="/account"
           label="Account"
-          detail="Optional sign in for account-linked support and test inventory."
+          detail="Optional inventory and support sync."
+          accent={colors.cyan}
         />
         <ActionButton
           label="Restore Purchases"
           detail="Restores Ad-Free Upgrade and active VaultPass access."
           disabled={restoring}
+          accent={colors.emerald}
           onPress={() => void restorePurchases()}
         />
         {restoreStatus ? (

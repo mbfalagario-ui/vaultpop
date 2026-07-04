@@ -6,6 +6,7 @@ const requiredRoutes = [
   "app/gameplay.tsx",
   "app/pause.tsx",
   "app/results.tsx",
+  "app/how-to-play.tsx",
   "app/cosmetics.tsx",
   "app/settings.tsx",
   "app/shop.tsx",
@@ -15,16 +16,17 @@ const requiredRoutes = [
 ];
 
 const requiredScreenCopy = [
-  ["src/screens/home-screen.tsx", ["Start", "Settings", "Shop", "Cosmetics", "Support", "Privacy, Support, and Legal"]],
+  ["src/screens/home-screen.tsx", ["PLAY", "How to Play", "Settings", "Shop", "Styles", "Support", "Privacy & Legal"]],
+  ["src/screens/how-to-play-screen.tsx", ["THE CORE LOOP", "COMBO AND VAULT", "CHOOSE YOUR VAULT", "BOOSTERS"]],
   ["src/screens/mode-select-screen.tsx", ["GAME_MODES", "ModeCard"]],
   ["src/game/constants.ts", ["Classic Mode", "Daily Vault", "Streak Mode"]],
-  ["src/screens/gameplay-screen.tsx", ["Restart", "End Round", "Pause"]],
-  ["src/screens/round-result-screen.tsx", ["Replay", "Mode Select"]],
+  ["src/screens/gameplay-screen.tsx", ["Restart", "Finish", "Pause", "BoosterControl"]],
+  ["src/screens/round-result-screen.tsx", ["PLAY AGAIN", "Choose Another Mode"]],
   ["src/screens/settings-screen.tsx", ["Sound", "Haptics", "Reduced Motion", "Restore Purchases", "Reset Local Progress"]],
-  ["src/screens/cosmetics-screen.tsx", ["Use Theme", "Unlock for"]],
-  ["src/screens/shop-screen.tsx", ["Restore Purchases", "Watch Ad for 1 Bonus Life.", "IAP_PRODUCTS"]],
+  ["src/screens/cosmetics-screen.tsx", ["Arcade Styles", "Use", "STYLE POINTS"]],
+  ["src/screens/shop-screen.tsx", ["Restore Purchases", "Watch for 1 Bonus Life", "IAP_PRODUCTS"]],
   ["src/screens/support-screen.tsx", ["SUPPORT_CATEGORIES", "Submit Support Request", "Email (Optional)"]],
-  ["src/screens/account-screen.tsx", ["Sign In", "Sign Out", "playable offline without an account"]],
+  ["src/screens/account-screen.tsx", ["Sign In", "Sign Out", "Play offline anytime"]],
   ["src/screens/privacy-support-legal-screen.tsx", ["In-App Support", "Email Support", "Privacy Policy"]]
 ];
 

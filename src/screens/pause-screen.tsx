@@ -1,12 +1,18 @@
 import { ActionLink } from "@/components/action-link";
 import { ScreenShell } from "@/components/screen-shell";
+import { colors } from "@/theme";
 
 export function PauseScreen() {
   return (
-    <ScreenShell title="Paused" lead="Return to the round or choose another screen.">
-      <ActionLink href="/gameplay" label="Resume" />
-      <ActionLink href="/settings" label="Settings" />
-      <ActionLink href="/modes" label="Mode Select" />
+    <ScreenShell
+      eyebrow="TIME FROZEN"
+      title="Paused"
+      lead="Your chain is waiting."
+      accent={colors.violet}
+    >
+      <ActionLink href="/gameplay" label="RESUME" accent={colors.violet} prominent />
+      <ActionLink href="/settings" label="Settings" accent={colors.cyan} />
+      <ActionLink href="/modes" label="Mode Select" accent={colors.gold} />
     </ScreenShell>
   );
 }

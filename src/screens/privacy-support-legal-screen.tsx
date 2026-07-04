@@ -3,18 +3,29 @@ import { ActionLink } from "@/components/action-link";
 import { ScreenShell } from "@/components/screen-shell";
 import { legalOutline } from "@/legal/policy-outline";
 import { spacing, typography } from "@/theme";
+import { colors } from "@/theme";
 import { Linking, Text, View } from "react-native";
 
 export function PrivacySupportLegalScreen() {
   return (
     <ScreenShell
-      title="Privacy, Support, and Legal"
-      lead="How VaultPop handles gameplay data, purchases, advertising, and support."
+      eyebrow="TRUST & SAFETY"
+      title="Privacy & Legal"
+      lead="Plain-language details about data, purchases, advertising, and support."
+      accent={colors.cyan}
     >
       <View style={{ gap: spacing.md }}>
         {Object.entries(legalOutline).map(([section, items]) => (
-          <View key={section} style={{ gap: spacing.xs }}>
-            <Text selectable style={typography.sectionTitle}>
+          <View
+            key={section}
+            style={{
+              borderBottomColor: colors.border,
+              borderBottomWidth: 1,
+              gap: spacing.xs,
+              paddingBottom: spacing.md
+            }}
+          >
+            <Text selectable style={[typography.sectionTitle, { fontSize: 18 }]}>
               {section}
             </Text>
             {items.map((item) => (

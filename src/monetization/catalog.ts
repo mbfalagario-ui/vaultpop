@@ -26,7 +26,8 @@ export const IAP_PRODUCTS = [
     id: "app.vaultpop.boosters.starter",
     displayName: "Starter Booster Pack",
     detail: "5 Bonus Lives, 5 Chain Boosts, and 3 Vault Bursts",
-    description: "Adds a fixed starter set of boosters for extra arcade puzzle help.",
+    description:
+      "A ready-to-use set for longer rounds and stronger score runs. Bonus Lives add 15 seconds, Chain Boosts add 2x to your active combo, and Vault Bursts score 750 x your combo before refreshing the board.",
     kind: "consumable",
     basePriceUsd: "US$2.99",
     grant: { bonusLives: 5, chainBoosts: 5, vaultBursts: 3 }
@@ -35,7 +36,8 @@ export const IAP_PRODUCTS = [
     id: "app.vaultpop.coins.small",
     displayName: "Small Coin Pack",
     detail: "1,000 Vault Coins",
-    description: "Adds 1,000 Vault Coins to use on fixed in-game boosters.",
+    description:
+      "Enough for several Booster Forge purchases. Choose Bonus Lives, Chain Boosts, or Vault Bursts whenever you need them.",
     kind: "consumable",
     basePriceUsd: "US$0.99",
     grant: { vaultCoins: 1_000 }
@@ -44,7 +46,8 @@ export const IAP_PRODUCTS = [
     id: "app.vaultpop.coins.medium",
     displayName: "Medium Coin Pack",
     detail: "5,500 Vault Coins",
-    description: "Adds 5,500 Vault Coins to use on fixed in-game boosters.",
+    description:
+      "A larger reserve for repeated runs. Spend only on the three fixed boosters in the Booster Forge.",
     kind: "consumable",
     basePriceUsd: "US$3.99",
     badge: "Popular",
@@ -54,7 +57,8 @@ export const IAP_PRODUCTS = [
     id: "app.vaultpop.coins.large",
     displayName: "Large Coin Pack",
     detail: "12,000 Vault Coins",
-    description: "Adds 12,000 Vault Coins to use on fixed in-game boosters.",
+    description:
+      "The largest Vault Coin reserve for frequent play across every mode and all three Booster Forge items.",
     kind: "consumable",
     basePriceUsd: "US$8.99",
     badge: "Best Value",
@@ -73,9 +77,9 @@ export const IAP_PRODUCTS = [
   {
     id: "app.vaultpop.vaultpass.monthly",
     displayName: "VaultPass Plus Monthly",
-    detail: "Ad-free play, fixed monthly boosters, premium theme, and priority support routing",
+    detail: "Each month: 10 Bonus Lives, 10 Chain Boosts, and 5 Vault Bursts",
     description:
-      "Monthly VaultPass Plus membership with ad-free play, premium themes, priority support routing, and a fixed monthly booster grant.",
+      "Includes ad-free play, premium themes, priority support routing, and a monthly booster refill for extra time, stronger combos, and instant vault openings.",
     kind: "subscription",
     basePriceUsd: "US$2.99/month",
     grant: {

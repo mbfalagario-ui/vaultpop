@@ -18,6 +18,7 @@ export function StatusPill({ label, tone = "gold" }: StatusPillProps) {
     <View
       style={{
         alignSelf: "flex-start",
+        backgroundColor: `${toneColor[tone]}14`,
         borderColor: toneColor[tone],
         borderRadius: 999,
         borderWidth: 1,
@@ -25,7 +26,7 @@ export function StatusPill({ label, tone = "gold" }: StatusPillProps) {
         paddingVertical: spacing.xs
       }}
     >
-      <Text selectable style={typography.caption}>
+      <Text selectable style={[typography.caption, { color: toneColor[tone], fontWeight: "700" }]}>
         {label}
       </Text>
     </View>

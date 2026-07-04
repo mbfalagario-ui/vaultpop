@@ -11,24 +11,26 @@ export function MetricCard({ label, value, accent = colors.cyan }: MetricCardPro
   return (
     <View
       style={{
-        backgroundColor: colors.surfaceRaised,
-        borderColor: colors.border,
+        backgroundColor: `${accent}0C`,
+        borderBottomColor: accent,
+        borderBottomWidth: 2,
+        borderCurve: "continuous",
         borderRadius: 8,
-        borderWidth: 1,
         flex: 1,
         gap: spacing.xs,
         minWidth: 96,
-        padding: spacing.sm
+        paddingHorizontal: spacing.sm,
+        paddingVertical: spacing.md
       }}
     >
-      <Text selectable style={typography.caption}>
+      <Text selectable style={[typography.caption, { color: colors.textMuted }]}>
         {label}
       </Text>
       <Text
         selectable
         style={[
           typography.sectionTitle,
-          { color: accent, fontVariant: ["tabular-nums"] }
+          { color: accent, fontVariant: ["tabular-nums"], fontWeight: "900" }
         ]}
       >
         {value}
@@ -36,4 +38,3 @@ export function MetricCard({ label, value, accent = colors.cyan }: MetricCardPro
     </View>
   );
 }
-

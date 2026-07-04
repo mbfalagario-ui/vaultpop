@@ -17,19 +17,19 @@ export const GAME_MODES: GameModeDefinition[] = [
   {
     id: "classic",
     title: "Classic Mode",
-    summary: "60-second arcade score attack with fast restarts.",
+    summary: "Race the clock and stack explosive combos.",
     roundSeconds: CLASSIC_ROUND_SECONDS
   },
   {
     id: "dailyVault",
     title: "Daily Vault",
-    summary: "A deterministic daily board seed saved locally.",
+    summary: "One board per day. Make every chain count.",
     roundSeconds: CLASSIC_ROUND_SECONDS
   },
   {
     id: "streak",
     title: "Streak Mode",
-    summary: "Combo-focused mode with three misses before the run ends.",
+    summary: "Three misses. Protect the chain.",
     roundSeconds: CLASSIC_ROUND_SECONDS
   }
 ];

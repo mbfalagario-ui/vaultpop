@@ -1,4 +1,5 @@
 import { ActionButton } from "@/components/action-button";
+import { ArcadeGlyph } from "@/components/arcade-glyph";
 import { ScreenShell } from "@/components/screen-shell";
 import { unlockTheme } from "@/storage";
 import { useSaveProfile } from "@/storage/use-save-profile";
@@ -12,8 +13,10 @@ export function CosmeticsScreen() {
 
   return (
     <ScreenShell
-      title="Cosmetics"
-      lead={`Theme progression remains local. Fictional points: ${profile.cosmetics.fictionalPoints}.`}
+      eyebrow={`${profile.cosmetics.fictionalPoints} STYLE POINTS`}
+      title="Arcade Styles"
+      lead="Tune the glow without changing the game."
+      accent={colors.violet}
     >
       <View style={{ gap: spacing.sm }}>
         {visualThemes.map((theme) => {
@@ -30,36 +33,50 @@ export function CosmeticsScreen() {
             <View
               key={theme.id}
               style={{
-                backgroundColor: theme.glow,
+                alignItems: "center",
+                backgroundColor: `${theme.accent}0E`,
                 borderColor: active ? theme.accent : colors.border,
-                borderRadius: 8,
+                borderRadius: 12,
                 borderWidth: 1,
+                flexDirection: "row",
                 gap: spacing.sm,
                 padding: spacing.md
               }}
             >
-              <Text selectable style={typography.button}>
-                {theme.title}
-              </Text>
-              <Text selectable style={typography.body}>
-                {theme.description}
-              </Text>
-              <ActionButton
-                label={active ? "Active" : unlocked ? "Use Theme" : `Unlock for ${theme.cost}`}
-                detail={
-                  subscriptionTheme
-                    ? premiumAccess
-                      ? "Available while VaultPass is active."
-                      : "Included with active VaultPass."
-                    : unlocked
-                      ? "Available on this device."
-                      : "Uses fictional points only."
-                }
-                disabled={active || (!unlocked && !canUnlock)}
-                onPress={() =>
-                  setProfile((currentProfile) => unlockTheme(currentProfile, theme.id, theme.cost))
-                }
-              />
+              <View
+                style={{
+                  alignItems: "center",
+                  backgroundColor: theme.glow,
+                  borderColor: theme.accent,
+                  borderRadius: 999,
+                  borderWidth: 2,
+                  height: 58,
+                  justifyContent: "center",
+                  width: 58
+                }}
+              >
+                <ArcadeGlyph color={theme.accent} modeId="classic" size={28} type="violet" />
+              </View>
+              <View style={{ flex: 1, gap: spacing.xs }}>
+                <Text selectable style={typography.button}>
+                  {theme.title}
+                </Text>
+                <Text selectable style={typography.caption}>
+                  {theme.description}
+                </Text>
+              </View>
+              <View style={{ minWidth: 92 }}>
+                <ActionButton
+                  label={active ? "Active" : unlocked ? "Use" : `${theme.cost} pts`}
+                  disabled={active || (!unlocked && !canUnlock)}
+                  accent={theme.accent}
+                  onPress={() =>
+                    setProfile((currentProfile) =>
+                      unlockTheme(currentProfile, theme.id, theme.cost)
+                    )
+                  }
+                />
+              </View>
             </View>
           );
         })}

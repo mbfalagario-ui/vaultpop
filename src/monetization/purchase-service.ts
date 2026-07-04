@@ -6,6 +6,7 @@ import {
   type IapProductId
 } from "@/monetization/catalog";
 import type { VerifiedPurchaseGrant } from "@/monetization/economy";
+import Constants, { ExecutionEnvironment } from "expo-constants";
 import type { Product, ProductSubscription, Purchase, PurchaseError } from "react-native-iap";
 
 export type StoreProduct = Product | ProductSubscription;
@@ -26,6 +27,13 @@ type StoreSessionHandlers = {
 export async function createStoreSession(
   handlers: StoreSessionHandlers
 ): Promise<StoreSession> {
+  if (
+    Constants.appOwnership === "expo" ||
+    Constants.executionEnvironment === ExecutionEnvironment.StoreClient
+  ) {
+    throw new Error("The App Store is unavailable in Expo Go.");
+  }
+
   const iap = await import("react-native-iap");
   await iap.initConnection();
   const purchaseSubscription = iap.purchaseUpdatedListener((purchase) => {

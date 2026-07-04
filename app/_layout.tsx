@@ -14,9 +14,7 @@ export default function RootLayout() {
       <DeferredLaunchServices />
       <Stack
         screenOptions={{
-          headerStyle: { backgroundColor: colors.surface },
-          headerTintColor: colors.textPrimary,
-          headerTitleStyle: { fontWeight: "700" },
+          headerShown: false,
           contentStyle: { backgroundColor: colors.background }
         }}
       >
@@ -25,6 +23,7 @@ export default function RootLayout() {
         <Stack.Screen name="gameplay" options={{ title: "Gameplay" }} />
         <Stack.Screen name="pause" options={{ title: "Pause", presentation: "modal" }} />
         <Stack.Screen name="results" options={{ title: "Round Result" }} />
+        <Stack.Screen name="how-to-play" options={{ title: "How to Play" }} />
         <Stack.Screen name="cosmetics" options={{ title: "Cosmetics" }} />
         <Stack.Screen name="shop" options={{ title: "Shop" }} />
         <Stack.Screen name="support" options={{ title: "Support" }} />

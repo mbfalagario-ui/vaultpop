@@ -7,6 +7,7 @@ type ActionButtonProps = {
   accessibilityHint?: string;
   tone?: "primary" | "danger" | "quiet";
   disabled?: boolean;
+  accent?: string;
   onPress: () => void;
 };
 
@@ -16,10 +17,11 @@ export function ActionButton({
   accessibilityHint,
   tone = "primary",
   disabled = false,
+  accent = colors.gold,
   onPress
 }: ActionButtonProps) {
   const borderColor =
-    tone === "danger" ? colors.ruby : tone === "quiet" ? colors.border : colors.gold;
+    tone === "danger" ? colors.ruby : tone === "quiet" ? colors.border : accent;
 
   return (
     <Pressable
@@ -33,18 +35,23 @@ export function ActionButton({
         backgroundColor: disabled
           ? colors.surface
           : pressed
-            ? colors.goldMuted
-            : colors.surfaceRaised,
+            ? `${borderColor}24`
+            : tone === "primary"
+              ? `${borderColor}18`
+              : colors.surfaceRaised,
         borderColor,
-        borderRadius: 8,
+        borderCurve: "continuous",
+        borderRadius: 10,
         borderWidth: 1,
-        minHeight: 48,
+        boxShadow: disabled ? undefined : `0 8px 22px ${borderColor}18`,
+        minHeight: 52,
         opacity: disabled ? 0.55 : 1,
-        padding: spacing.md
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm
       })}
     >
       <View style={{ gap: spacing.xs }}>
-        <Text selectable style={typography.button}>
+        <Text selectable style={[typography.button, tone === "primary" ? { color: borderColor } : null]}>
           {label}
         </Text>
         {detail ? (

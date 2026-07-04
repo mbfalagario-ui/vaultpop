@@ -56,6 +56,22 @@ export async function signOutAccount(token: string | null): Promise<void> {
   }).catch(() => undefined);
 }
 
+export async function refreshAccountState(
+  token: string
+): Promise<AccountStateResponse> {
+  const response = await fetch(`${API_BASE_URL}/v1/account`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  const body = (await response.json()) as {
+    state?: AccountStateResponse;
+    error?: string;
+  };
+  if (!response.ok || !body.state) {
+    throw new Error(body.error ?? "Account refresh failed.");
+  }
+  return body.state;
+}
+
 export function applyAccountLogin(
   profile: SaveProfile,
   login: AccountLoginResponse,
@@ -115,6 +131,25 @@ export function applyAccountLogin(
       balanceSnapshot: { ...balance }
     }
   };
+}
+
+export function applyAccountRefresh(
+  profile: SaveProfile,
+  state: AccountStateResponse,
+  now = new Date()
+): SaveProfile {
+  if (!profile.account.sessionToken || !profile.account.sessionExpiresAt) {
+    return profile;
+  }
+  return applyAccountLogin(
+    profile,
+    {
+      token: profile.account.sessionToken,
+      expiresAt: profile.account.sessionExpiresAt,
+      state
+    },
+    now
+  );
 }
 
 export function clearAccountSession(

@@ -4,7 +4,7 @@ VaultPop is a local-first, offline-capable arcade puzzle game. Core gameplay doe
 
 Optional reviewer account for account-linked inventory and support testing:
 
-Reviewer test account:
+Reviewer account:
 Email: reviewer@vaultpop.app
 Password: VaultPopReviewer1
 

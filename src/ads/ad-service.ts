@@ -6,6 +6,7 @@ let fullScreenAdShowing = false;
 let rewardedJustShown = false;
 let lastAppOpenAt = 0;
 let requestNonPersonalizedAdsOnly = true;
+const initializationListeners = new Set<() => void>();
 
 export async function initializeAdsAfterHome(): Promise<boolean> {
   if (__DEV__ || process.env.EXPO_OS !== "ios") {
@@ -33,6 +34,7 @@ export async function initializeAdsAfterHome(): Promise<boolean> {
     await ads.default().setRequestConfiguration({});
     await ads.default().initialize();
     initialized = true;
+    initializationListeners.forEach((listener) => listener());
     return true;
   })().catch((error: unknown) => {
     initializing = null;
@@ -45,6 +47,11 @@ export async function initializeAdsAfterHome(): Promise<boolean> {
 
 export function isAdsInitialized(): boolean {
   return initialized;
+}
+
+export function subscribeToAdsInitialization(listener: () => void): () => void {
+  initializationListeners.add(listener);
+  return () => initializationListeners.delete(listener);
 }
 
 export function isFullScreenAdShowing(): boolean {

@@ -67,9 +67,14 @@ export function SupportScreen() {
   };
 
   return (
-    <ScreenShell title="Support" lead="Send a private support request from the app.">
-      <Text selectable style={typography.body}>
-        Support email: support@vaultpop.app
+    <ScreenShell
+      eyebrow="WE'RE HERE"
+      title="Support"
+      lead="Tell us what happened and we’ll help."
+      accent={colors.emerald}
+    >
+      <Text selectable style={[typography.button, { color: colors.emerald }]}>
+        support@vaultpop.app
       </Text>
       {priority ? <StatusPill label="VaultPass priority routing" tone="gold" /> : null}
       <View style={{ gap: spacing.sm }}>
@@ -157,15 +162,12 @@ export function SupportScreen() {
           </Text>
         ) : null}
       </View>
-      <Text selectable style={typography.caption}>
-        The request includes an anonymous install ID, app version, build number, device model,
-        and VaultPass priority flag. Email is optional.
-      </Text>
       {status ? <StatusPill label={status} tone="cyan" /> : null}
       <ActionButton
         label="Submit Support Request"
         detail="Uses secure ticket delivery when available, otherwise opens email."
         disabled={submitting}
+        accent={colors.emerald}
         onPress={() => void submit()}
       />
       <AdBanner placement="support" />
