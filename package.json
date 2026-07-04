@@ -17,7 +17,9 @@
     "audit:navigation": "node scripts/audit-navigation.mjs",
     "audit:monetization": "node scripts/audit-monetization-metadata.mjs",
     "screenshots:refs": "node scripts/generate-screenshot-references.mjs",
-    "verify": "pnpm run typecheck && pnpm run typecheck:backend && pnpm run test && pnpm run audit:banned-language && pnpm run audit:sample-ads && pnpm run audit:secrets && pnpm run audit:navigation && pnpm run audit:monetization"
+    "verify": "pnpm run typecheck && pnpm run typecheck:backend && pnpm run test && pnpm run audit:banned-language && pnpm run audit:sample-ads && pnpm run audit:secrets && pnpm run audit:navigation && pnpm run audit:monetization",
+    "backend:build": "tsc --project backend/tsconfig.build.json",
+    "backend:start:prod": "node dist/backend/server.js"
   },
   "dependencies": {
     "@apple/app-store-server-library": "3.1.0",

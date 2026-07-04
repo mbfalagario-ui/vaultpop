@@ -1,8 +1,6 @@
 {
-  "extends": "../tsconfig.json",
+  "extends": "./tsconfig.build.json",
   "compilerOptions": {
-    "noEmit": true,
-    "types": ["node"]
-  },
-  "include": ["./**/*.ts", "../src/monetization/catalog.ts"]
+    "noEmit": true
+  }
 }

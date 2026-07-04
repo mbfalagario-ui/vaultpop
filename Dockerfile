@@ -11,6 +11,7 @@ RUN pnpm install --frozen-lockfile
 COPY backend ./backend
 COPY src/monetization ./src/monetization
 COPY tsconfig.json ./
+RUN pnpm run backend:build
 
 EXPOSE 8080
-CMD ["pnpm", "backend:start"]
+CMD ["pnpm", "backend:start:prod"]
