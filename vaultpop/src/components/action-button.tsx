@@ -72,21 +72,42 @@ export function ActionButton({
           ) : null}
         </LinearGradient>
       ) : (
-        <View
+        <LinearGradient
+          colors={tone === "danger" ? ["#2E0F1F", "#190811"] : ["#232048", "#141126"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
           style={{
             alignItems: "center",
-            backgroundColor:
-              tone === "danger" ? `${colors.ruby}14` : colors.surfaceGlass,
-            borderColor: tone === "quiet" ? colors.border : `${color}66`,
+            borderColor:
+              tone === "danger"
+                ? `${colors.ruby}5C`
+                : tone === "quiet"
+                  ? colors.borderBright
+                  : `${color}66`,
             borderCurve: "continuous",
             borderRadius: radius.md,
             borderWidth: 1,
+            boxShadow: `0 10px 22px #00000059, 0 0 14px ${
+              tone === "danger" ? colors.ruby : color
+            }14`,
             justifyContent: "center",
             minHeight: 54,
+            overflow: "hidden",
             paddingHorizontal: spacing.md,
             paddingVertical: spacing.sm
           }}
         >
+          <View
+            pointerEvents="none"
+            style={{
+              backgroundColor: "#FFFFFF16",
+              height: 1.5,
+              left: radius.md,
+              position: "absolute",
+              right: radius.md,
+              top: 0
+            }}
+          />
           <Text
             selectable={false}
             style={[
@@ -101,7 +122,7 @@ export function ActionButton({
               {detail}
             </Text>
           ) : null}
-        </View>
+        </LinearGradient>
       )}
     </Pressable>
   );

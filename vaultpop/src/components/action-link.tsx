@@ -90,21 +90,36 @@ export function ActionLink({
             <Chevron color="#140F02" size={13} />
           </LinearGradient>
         ) : (
-          <View
+          <LinearGradient
+            colors={["#232048", "#141126"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
             style={{
               alignItems: "center",
-              backgroundColor: colors.surfaceGlass,
-              borderColor: colors.border,
+              borderColor: colors.borderBright,
               borderCurve: "continuous",
               borderRadius: radius.md,
               borderWidth: 1,
+              boxShadow: `0 10px 22px #00000059, 0 0 14px ${accent}12`,
               flexDirection: "row",
               gap: spacing.sm,
               minHeight: 54,
+              overflow: "hidden",
               paddingHorizontal: spacing.md,
               paddingVertical: spacing.sm
             }}
           >
+            <View
+              pointerEvents="none"
+              style={{
+                backgroundColor: "#FFFFFF16",
+                height: 1.5,
+                left: radius.md,
+                position: "absolute",
+                right: radius.md,
+                top: 0
+              }}
+            />
             <View
               style={{
                 backgroundColor: accent,
@@ -126,7 +141,7 @@ export function ActionLink({
               ) : null}
             </View>
             <Chevron color={colors.textMuted} />
-          </View>
+          </LinearGradient>
         )}
       </Pressable>
     </Link>

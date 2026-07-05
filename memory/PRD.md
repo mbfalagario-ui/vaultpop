@@ -1,5 +1,14 @@
 # VaultPop — Premium UI Rescue (PRD / Memory)
 
+## Iteration 3 Polish Patch (2026-07-05, latest)
+- Brand fix: "Coin Forge" removed everywhere → streak mode renamed "VaultPop Run", meter label "Chain Core"; blitz eyebrow "VaultPop Blitz". Zero occurrences in src/app/proof assets.
+- New 4th mode **Blitz** (`blitz`): 30s speed run, magenta/cyan identity. Touched: models.ts (GameModeId), constants.ts (GAME_MODES, roundSeconds 30), engine.ts (createInitialRound uses getModeDefinition roundSeconds), mode-visuals.ts, save-model.ts (highScores.blitz in defaults + fallback), normalizeMode in gameplay+results, MODE_GLYPHS maps (mode-card/results/share-card/leaderboard/home), leaderboard MODES chips, backend VALID_MODES (FastAPI) + LEADERBOARD_MODES (TS backend), how-to-play copy.
+- Home Pick Your Vault → deterministic 2×2 grid (explicit row pairs, each tile wrapped in flex:1 View — Link asChild alone did NOT stretch equally on web).
+- Gameplay formatting: score uses adjustsFontSizeToFit/minimumFontScale 0.55 (no combo/timer collision), board height-capped via useWindowDimensions (min(width-2md, height-460), floor 260) so gameplay fits without scrolling on small iPhones, shell top padding insets.top+md.
+- Button depth pass (all screens via shared components): ActionButton quiet/danger + ActionLink non-prominent now use vertical gradient (#232048→#141126 / ruby-tinted), borderBright, drop shadow + accent glow, top hairline sheen.
+- Proof: /app/vaultpop/outputs/iteration3-proof (12 screens + contact sheet), zip /app/vaultpop-iteration3-polish-proof.zip. Verify PASS; testing agent iteration_3 PASS (backend 12/12 incl blitz).
+- NOTE: /opt/node22 gets wiped between sessions — reinstall Node 22 (nodejs.org arm64) + `npm i -g pnpm@10` before running `pnpm run verify` in /app/vaultpop.
+
 ## Original Problem Statement
 User attached the VaultPop source ZIP (Expo/React Native coin puzzle arcade game, iOS-first, local-first, fictional in-game currency). Previous UI was rejected as childish/amateur/dashboard-like. Task: senior mobile-game UI rescue implemented in the actual app, screenshots-first, NO build, NO App Store upload, NO changes to bundle ID / signing / IAP product IDs / AdMob IDs, all functionality preserved (gameplay, modes, boosters, shop/IAP, ads deferral, account refresh, admin/reviewer login, support/legal).
 

@@ -157,24 +157,24 @@ export function HomeScreen() {
             </Pressable>
           </Link>
         </View>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.sm }}>
-          {modeTiles.map((mode) => {
-            const visual = getModeVisual(mode.id);
-            return (
-              <Link
-                key={mode.id}
-                href={{ pathname: "/gameplay", params: { mode: mode.id } }}
-                asChild
-              >
-                <Pressable
-                  accessibilityLabel={`Play ${mode.label}`}
-                  testID={`home-mode-${mode.id}`}
-                  style={({ pressed }) => ({
-                    flexBasis: "48%",
-                    flexGrow: 1,
-                    transform: [{ scale: pressed ? 0.96 : 1 }]
-                  })}
-                >
+        {[modeTiles.slice(0, 2), modeTiles.slice(2, 4)].map((row, rowIndex) => (
+          <View key={rowIndex} style={{ flexDirection: "row", gap: spacing.sm }}>
+            {row.map((mode) => {
+              const visual = getModeVisual(mode.id);
+              return (
+                <View key={mode.id} style={{ flex: 1 }}>
+                  <Link
+                    href={{ pathname: "/gameplay", params: { mode: mode.id } }}
+                    asChild
+                  >
+                  <Pressable
+                    accessibilityLabel={`Play ${mode.label}`}
+                    testID={`home-mode-${mode.id}`}
+                    style={({ pressed }) => ({
+                      transform: [{ scale: pressed ? 0.96 : 1 }],
+                      width: "100%"
+                    })}
+                  >
                   <LinearGradient
                     colors={[visual.surfaceRaised, visual.board]}
                     start={{ x: 0, y: 0 }}
@@ -205,9 +205,11 @@ export function HomeScreen() {
                   </LinearGradient>
                 </Pressable>
               </Link>
+                </View>
             );
-          })}
-        </View>
+            })}
+          </View>
+        ))}
       </View>
 
       {/* Global ranks + daily streak */}
