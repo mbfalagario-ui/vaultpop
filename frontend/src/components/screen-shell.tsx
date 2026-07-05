@@ -12,6 +12,7 @@ type ScreenShellProps = PropsWithChildren<{
   accent?: string;
   compact?: boolean;
   showBack?: boolean;
+  inlineHeader?: boolean;
 }>;
 
 /**
@@ -26,12 +27,13 @@ export function ScreenShell({
   accent = colors.cyan,
   compact = false,
   showBack = true,
+  inlineHeader = false,
   children
 }: ScreenShellProps) {
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={{ backgroundColor: colors.backgroundDeep, flex: 1 }}>
+    <View style={{ backgroundColor: colors.backgroundDeep, flex: 1, overflow: "hidden" }}>
       <LinearGradient
         colors={["#100C26", colors.background, colors.backgroundDeep]}
         locations={[0, 0.45, 1]}
@@ -53,7 +55,7 @@ export function ScreenShell({
         }}
       />
       <LinearGradient
-        colors={[`${colors.violetDeep}30`, `${colors.violetDeep}00`]}
+        colors={["rgba(94,43,212,0.13)", "rgba(94,43,212,0)"]}
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 1 }}
         style={{
@@ -80,45 +82,9 @@ export function ScreenShell({
         }}
       >
         {showBack ? (
-          <Pressable
-            accessibilityLabel="Back"
-            accessibilityRole="button"
-            testID="screen-back-button"
-            hitSlop={8}
-            onPress={() => {
-              if (router.canGoBack()) {
-                router.back();
-              } else {
-                router.replace("/");
-              }
-            }}
-            style={({ pressed }) => ({
-              alignItems: "center",
-              backgroundColor: pressed ? `${accent}26` : colors.surfaceGlass,
-              borderColor: colors.border,
-              borderRadius: radius.pill,
-              borderWidth: 1,
-              height: 44,
-              justifyContent: "center",
-              transform: [{ scale: pressed ? 0.94 : 1 }],
-              width: 44
-            })}
-          >
-            <View
-              style={{
-                borderBottomColor: colors.textPrimary,
-                borderBottomWidth: 2.5,
-                borderLeftColor: colors.textPrimary,
-                borderLeftWidth: 2.5,
-                height: 11,
-                marginLeft: 4,
-                transform: [{ rotate: "45deg" }],
-                width: 11
-              }}
-            />
-          </Pressable>
+          <BackChip accent={accent} inline={inlineHeader} eyebrow={eyebrow} title={title} />
         ) : null}
-        {eyebrow || title || lead ? (
+        {!inlineHeader && (eyebrow || title || lead) ? (
           <View style={{ gap: spacing.xs }}>
             {eyebrow ? (
               <View style={{ alignItems: "center", flexDirection: "row", gap: spacing.sm }}>
@@ -154,6 +120,80 @@ export function ScreenShell({
         ) : null}
         {children}
       </ScrollView>
+    </View>
+  );
+}
+
+function BackChip({
+  accent,
+  inline,
+  eyebrow,
+  title
+}: {
+  accent: string;
+  inline: boolean;
+  eyebrow?: string;
+  title?: string;
+}) {
+  const button = (
+    <Pressable
+      accessibilityLabel="Back"
+      accessibilityRole="button"
+      testID="screen-back-button"
+      hitSlop={8}
+      onPress={() => {
+        if (router.canGoBack()) {
+          router.back();
+        } else {
+          router.replace("/");
+        }
+      }}
+      style={({ pressed }) => ({
+        alignItems: "center",
+        backgroundColor: pressed ? `${accent}26` : colors.surfaceGlass,
+        borderColor: colors.border,
+        borderRadius: radius.pill,
+        borderWidth: 1,
+        height: 44,
+        justifyContent: "center",
+        transform: [{ scale: pressed ? 0.94 : 1 }],
+        width: 44
+      })}
+    >
+      <View
+        style={{
+          borderBottomColor: colors.textPrimary,
+          borderBottomWidth: 2.5,
+          borderLeftColor: colors.textPrimary,
+          borderLeftWidth: 2.5,
+          height: 11,
+          marginLeft: 4,
+          transform: [{ rotate: "45deg" }],
+          width: 11
+        }}
+      />
+    </Pressable>
+  );
+
+  if (!inline) {
+    return button;
+  }
+
+  return (
+    <View style={{ alignItems: "center", flexDirection: "row", gap: spacing.md }}>
+      {button}
+      <View style={{ flex: 1, gap: 1 }}>
+        {eyebrow ? (
+          <Text selectable={false} style={[typography.eyebrow, { color: accent, fontSize: 9.5 }]}>
+            {eyebrow}
+          </Text>
+        ) : null}
+        {title ? (
+          <Text selectable={false} style={[typography.sectionTitle, { fontSize: 19 }]}>
+            {title}
+          </Text>
+        ) : null}
+      </View>
     </View>
   );
 }

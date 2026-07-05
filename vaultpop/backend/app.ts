@@ -20,6 +20,36 @@ const SUPPORT_CATEGORIES = new Set([
 ]);
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();
 
+type LeaderboardRow = {
+  installId: string;
+  handle: string;
+  score: number;
+  updatedAt: string;
+};
+const LEADERBOARD_MODES = new Set(["classic", "dailyVault", "streak"]);
+const leaderboardRows = new Map<string, LeaderboardRow>();
+
+function leaderboardTop(mode: string, limit: number, installId: string) {
+  const rows = [...leaderboardRows.entries()]
+    .filter(([key]) => key.startsWith(`${mode}:`))
+    .map(([, row]) => row)
+    .sort((a, b) => b.score - a.score);
+  const own = installId
+    ? rows.findIndex((row) => row.installId === installId)
+    : -1;
+  return {
+    entries: rows.slice(0, limit).map((row) => ({
+      handle: row.handle,
+      score: row.score,
+      mode,
+      updatedAt: row.updatedAt,
+      you: Boolean(installId) && row.installId === installId
+    })),
+    players: rows.length,
+    yourRank: own >= 0 ? own + 1 : null
+  };
+}
+
 export function createApiHandler(dependencies: {
   verifier: PurchaseVerifier;
   ledger: LedgerStore;
@@ -29,6 +59,44 @@ export function createApiHandler(dependencies: {
     const url = new URL(request.url);
     if (request.method === "GET" && url.pathname === "/health") {
       return json({ status: "ok" });
+    }
+    if (request.method === "POST" && url.pathname === "/v1/leaderboard/submit") {
+      const body = (await request.json().catch(() => null)) as {
+        installId?: string;
+        handle?: string;
+        mode?: string;
+        score?: number;
+      } | null;
+      const mode = body?.mode ?? "";
+      const installId = (body?.installId ?? "").slice(0, 80);
+      const handle = (body?.handle ?? "").slice(0, 24);
+      const score = Math.max(0, Math.min(10_000_000, Math.floor(body?.score ?? -1)));
+      if (!LEADERBOARD_MODES.has(mode) || installId.length < 4 || handle.length < 2 || (body?.score ?? -1) < 0) {
+        return json({ accepted: false, error: "Invalid leaderboard submission." }, 400);
+      }
+      const key = `${mode}:${installId}`;
+      const existing = leaderboardRows.get(key);
+      const best = Math.max(existing?.score ?? 0, score);
+      leaderboardRows.set(key, {
+        installId,
+        handle,
+        score: best,
+        updatedAt: new Date().toISOString()
+      });
+      const rank =
+        [...leaderboardRows.entries()].filter(
+          ([rowKey, row]) => rowKey.startsWith(`${mode}:`) && row.score > best
+        ).length + 1;
+      return json({ accepted: true, bestScore: best, rank });
+    }
+    if (request.method === "GET" && url.pathname === "/v1/leaderboard") {
+      const mode = url.searchParams.get("mode") ?? "classic";
+      if (!LEADERBOARD_MODES.has(mode)) {
+        return json({ entries: [], players: 0, yourRank: null });
+      }
+      const limit = Math.max(1, Math.min(100, Number(url.searchParams.get("limit") ?? 50) || 50));
+      const installId = url.searchParams.get("installId") ?? "";
+      return json(leaderboardTop(mode, limit, installId));
     }
     if (request.method === "GET" && url.pathname === "/privacy") {
       return html(

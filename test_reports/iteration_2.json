@@ -1,0 +1,43 @@
+{
+  "summary": "VaultPop iteration 2 (leaderboard + streak calendar + gameplay polish + share export) — Backend: 10/10 pytest cases PASS on /api/v1/leaderboard (submit valid → returns rank; unknown mode rejected with accepted=false; max-score dedup per installId+mode; pydantic 422 for negative score / short handle; GET returns entries sorted desc, players count, yourRank via installId; unknown mode returns empty; no _id leaks). Frontend: All 7 requested flows PASS on mobile viewport 390x844 — Home renders GLOBAL VAULT RANKS card (home-leaderboard-card) with live top 3 from backend (Vault-TEST 4200, Vault-DWGF 2800, TEST_Bot 900), home-streak-chip navigates to /streaks, leaderboard card navigates to /leaderboard. Leaderboard screen shows all 3 mode chips (classic/dailyVault/streak), switching to streak shows 'No scores yet' empty state, back button works, podium + rank list render. Streak Calendar renders JULY 2026 grid, today circled, day/best/played counters visible. Gameplay fits 390x844 with compact header (back chip + 'Classic' + timer + score + combo pill), 8x8 tile board (64 coin-tile-r-c testIDs), Pause/Restart/Finish visible, no sound-effect crash on web. Finish → Results shows FINAL SCORE 3,310, GLOBAL #2 chip (result-global-rank), 1 DAY STREAK chip (result-streak-chip), Share Score Card button (result-share-button) does not crash on web tap, PLAY AGAIN starts new round. Score submitted persists in backend (GET returns Vault-UK68 3310 at rank 2). Regression: /shop, /account, /settings, /modes, /how-to-play, /support, /legal all render without crash. Non-blocking RN web warnings persist from iteration_1 (textShadow*, useNativeDriver on web) — see react_native_issues.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "textShadow* style props", "issue": "Console warning at runtime: '\"textShadow*\" style props are deprecated. Use \"textShadow\".' Still present after iteration 1 report. Reference: /app/frontend/src/screens/gameplay-screen.tsx (score text ~lines 363-366) and /app/frontend/src/screens/round-result-screen.tsx (final score ~lines 178-180)."},
+      {"component": "Animated useNativeDriver on web", "issue": "Console warning: 'useNativeDriver is not supported because the native animated module is missing. Falling back to JS-based animation.' Emitted from home float/pulse animations and results screen medalScale. Reference: /app/frontend/src/screens/home-screen.tsx (lines 66-75) and /app/frontend/src/screens/round-result-screen.tsx. Optional: gate with Platform.OS !== 'web'."}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_leaderboard.py",
+    "/app/test_reports/pytest/leaderboard_results.xml"
+  ],
+  "action_items": [
+    "(carried from iter 1, still unfixed) Consolidate textShadowColor/textShadowOffset/textShadowRadius into new `textShadow` shorthand in gameplay-screen.tsx and round-result-screen.tsx.",
+    "(carried from iter 1, optional) Gate useNativeDriver with Platform.OS !== 'web' in home-screen.tsx and round-result-screen.tsx to silence web console noise.",
+    "Consider clarifying: streak calendar on fresh device shows '0' with today circled — design intent (per task) is 'today shows as played (gold coin)' AFTER finishing a round. Verified working: after Finish, result-streak-chip renders '1 DAY STREAK' immediately; the calendar should reflect the same on next visit. Playing again does update the streak store — confirmed via Results screen chip."
+  ],
+  "critical_code_review_comments": [
+    "Backend /api/v1/leaderboard/submit returns HTTP 200 with {accepted:false} for unknown mode instead of 400 — matches product decision but consider returning 400 for stricter API contract.",
+    "Backend does not enforce rate limiting on /submit — potential abuse vector once app is public; not urgent for MVP.",
+    "leaderboard-service on frontend fetches every 15s from Home and every 10s from Leaderboard — fine at scale but consider debouncing / pausing when app backgrounded.",
+    "All new interactive elements have proper testID coverage: home-leaderboard-card, home-streak-chip, leaderboard-mode-{classic|dailyVault|streak}, result-global-rank, result-streak-chip, result-share-button — excellent for testing."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_leaderboard.py (new)"
+  ],
+  "success_rate": {
+    "backend": "100% (10/10)",
+    "frontend": "100% (all 7 new-feature flows + 7 regression routes)"
+  },
+  "seed_data_creation": "Backend test created transient TEST_Bot entry with best score 900 in classic mode via /api/v1/leaderboard/submit. Playthrough added Vault-UK68 with 3310. Vault-TEST/4200/classic seed pre-existed as per task note. No cleanup performed — leaderboard is append-most-wins so entries persist as regression data.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Preview URL: https://vaultpop-premium.preview.emergentagent.com. Use mobile viewport 390x844. Backend leaderboard endpoints: POST /api/v1/leaderboard/submit and GET /api/v1/leaderboard?mode={classic|dailyVault|streak}&installId=...&limit=... — reuse /app/backend/tests/test_leaderboard.py for regression (pytest, 10 tests, ~1.5s). Leaderboard currently has 4 classic entries (Vault-TEST 4200, Vault-UK68 3310, Vault-DWGF 2800, TEST_Bot 900). Streak state is per-device (localStorage) so it resets between browser_automation sessions — validate streak update in a SINGLE-SESSION playthrough (Home → PLAY → tap tiles → Finish → verify result-streak-chip shows '1 DAY STREAK'). Gameplay board is stochastic; tapping every tile in a for-loop reliably triggers 5–10 groups and yields ~3000 score in ~60s. Share Score Card on web only prints a friendly note (no download) — expected iOS-only behavior. All 7 non-primary routes (/shop /account /settings /modes /how-to-play /support /legal) render fine.",
+  "rca_of_issue": "N/A — no blocking issues found. All new features work as specified."
+}

@@ -5,11 +5,13 @@ import { GameLogo } from "@/components/game-logo";
 import { HudStat } from "@/components/hud-stat";
 import { ScreenShell } from "@/components/screen-shell";
 import type { GameModeId, TileType } from "@/game/models";
+import { fetchLeaderboard, type LeaderboardEntry } from "@/social/leaderboard-service";
+import { getStreakInfo } from "@/social/streak-tracker";
 import { useSaveProfile } from "@/storage/use-save-profile";
 import { colors, getModeVisual, radius, spacing, typography } from "@/theme";
 import { LinearGradient } from "expo-linear-gradient";
 import { Link } from "expo-router";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Animated, Pressable, Text, View } from "react-native";
 
 const modeTiles: { id: GameModeId; glyph: TileType; label: string }[] = [
@@ -29,11 +31,31 @@ const heroCoins: { type: TileType; size: number; lift: number }[] = [
 export function HomeScreen() {
   const [profile] = useSaveProfile();
   const float = useRef(new Animated.Value(0)).current;
+  const playPulse = useRef(new Animated.Value(1)).current;
+  const [topEntries, setTopEntries] = useState<LeaderboardEntry[]>([]);
+  const [streakDays, setStreakDays] = useState(0);
   const bestScore = Math.max(
     profile.highScores.classic,
     profile.highScores.dailyVault,
     profile.highScores.streak
   );
+
+  useEffect(() => {
+    setStreakDays(getStreakInfo().current);
+    let active = true;
+    const load = async () => {
+      const snapshot = await fetchLeaderboard("classic", 3, profile.support.installId);
+      if (active && snapshot) {
+        setTopEntries(snapshot.entries);
+      }
+    };
+    void load();
+    const intervalId = setInterval(load, 15_000);
+    return () => {
+      active = false;
+      clearInterval(intervalId);
+    };
+  }, [profile.support.installId]);
 
   useEffect(() => {
     if (profile.settings.reducedMotion) {
@@ -45,7 +67,13 @@ export function HomeScreen() {
         Animated.timing(float, { duration: 2200, toValue: 0, useNativeDriver: true })
       ])
     ).start();
-  }, [float, profile.settings.reducedMotion]);
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(playPulse, { duration: 900, toValue: 1.02, useNativeDriver: true }),
+        Animated.timing(playPulse, { duration: 900, toValue: 1, useNativeDriver: true })
+      ])
+    ).start();
+  }, [float, playPulse, profile.settings.reducedMotion]);
 
   const floatShift = float.interpolate({ inputRange: [0, 1], outputRange: [0, -7] });
 
@@ -71,14 +99,16 @@ export function HomeScreen() {
         </Animated.View>
       </View>
 
-      <ActionLink
-        href={{ pathname: "/gameplay", params: { mode: "classic" } }}
-        label="PLAY"
-        detail="Classic · 60 second score attack"
-        accent={colors.gold}
-        prominent
-        testID="home-play-button"
-      />
+      <Animated.View style={{ transform: [{ scale: playPulse }] }}>
+        <ActionLink
+          href={{ pathname: "/gameplay", params: { mode: "classic" } }}
+          label="PLAY"
+          detail="Classic · 60 second score attack"
+          accent={colors.gold}
+          prominent
+          testID="home-play-button"
+        />
+      </Animated.View>
 
       {/* Player status band */}
       <View
@@ -174,6 +204,123 @@ export function HomeScreen() {
             );
           })}
         </View>
+      </View>
+
+      {/* Global ranks + daily streak */}
+      <View
+        style={{
+          backgroundColor: colors.surfaceGlass,
+          borderColor: colors.border,
+          borderCurve: "continuous",
+          borderRadius: radius.lg,
+          borderWidth: 1,
+          overflow: "hidden"
+        }}
+      >
+        <View
+          style={{
+            alignItems: "center",
+            borderBottomColor: colors.border,
+            borderBottomWidth: 1,
+            flexDirection: "row",
+            justifyContent: "space-between",
+            paddingHorizontal: spacing.md,
+            paddingVertical: spacing.sm + 2
+          }}
+        >
+          <Text selectable style={[typography.eyebrow, { color: colors.cyan }]}>
+            GLOBAL VAULT RANKS
+          </Text>
+          <Link href="/streaks" asChild>
+            <Pressable
+              accessibilityLabel={`${streakDays} day streak`}
+              testID="home-streak-chip"
+              hitSlop={6}
+              style={({ pressed }) => ({
+                alignItems: "center",
+                backgroundColor: streakDays > 0 ? `${colors.gold}18` : colors.surfaceRaised,
+                borderColor: streakDays > 0 ? `${colors.gold}66` : colors.border,
+                borderRadius: radius.pill,
+                borderWidth: 1,
+                flexDirection: "row",
+                gap: 6,
+                paddingHorizontal: spacing.sm + 2,
+                paddingVertical: 4,
+                transform: [{ scale: pressed ? 0.95 : 1 }]
+              })}
+            >
+              <CoinFace type="gold" size={14} />
+              <Text
+                selectable={false}
+                style={[typography.eyebrow, { color: streakDays > 0 ? colors.gold : colors.textMuted, fontSize: 9.5 }]}
+              >
+                {streakDays} DAY STREAK
+              </Text>
+            </Pressable>
+          </Link>
+        </View>
+        <Link href="/leaderboard" asChild>
+          <Pressable
+            accessibilityLabel="Open global leaderboard"
+            testID="home-leaderboard-card"
+            style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
+          >
+            {topEntries.length === 0 ? (
+              <View style={{ alignItems: "center", gap: 4, paddingVertical: spacing.md }}>
+                <Text selectable style={[typography.button, { fontSize: 14 }]}>
+                  Claim the first vault
+                </Text>
+                <Text selectable style={[typography.caption, { color: colors.textMuted, fontSize: 11.5 }]}>
+                  Finish a round to enter the global leaderboard.
+                </Text>
+              </View>
+            ) : (
+              <View>
+                {topEntries.map((entry, index) => (
+                  <View
+                    key={`${entry.handle}-${index}`}
+                    style={{
+                      alignItems: "center",
+                      backgroundColor: entry.you ? `${colors.cyan}12` : "transparent",
+                      borderBottomColor: index === topEntries.length - 1 ? "transparent" : colors.border,
+                      borderBottomWidth: 1,
+                      flexDirection: "row",
+                      gap: spacing.sm,
+                      minHeight: 42,
+                      paddingHorizontal: spacing.md
+                    }}
+                  >
+                    <Text
+                      selectable={false}
+                      style={[
+                        typography.numeral,
+                        { color: index === 0 ? colors.gold : colors.textMuted, fontSize: 13, width: 26 }
+                      ]}
+                    >
+                      #{index + 1}
+                    </Text>
+                    <Text selectable={false} numberOfLines={1} style={[typography.button, { flex: 1, fontSize: 13.5 }]}>
+                      {entry.handle}
+                    </Text>
+                    {entry.you ? (
+                      <Text selectable={false} style={[typography.eyebrow, { color: colors.cyan, fontSize: 9 }]}>
+                        YOU
+                      </Text>
+                    ) : null}
+                    <Text selectable={false} style={[typography.numeral, { color: colors.cyan, fontSize: 14 }]}>
+                      {entry.score.toLocaleString()}
+                    </Text>
+                  </View>
+                ))}
+                <View style={{ alignItems: "center", paddingVertical: spacing.sm }}>
+                  <Text selectable={false} style={[typography.eyebrow, { color: colors.textMuted, fontSize: 9 }]}>
+                    SEE FULL LEADERBOARD
+                  </Text>
+                </View>
+              </View>
+            )}
+          </Pressable>
+        </Link>
       </View>
 
       {/* Quiet footer */}

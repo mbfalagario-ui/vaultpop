@@ -34,15 +34,19 @@ export function CoinTile({
       entrance.setValue(1);
       return;
     }
-    entrance.setValue(0.35);
-    Animated.spring(entrance, {
-      damping: 13,
-      mass: 0.6,
-      stiffness: 260,
-      toValue: 1,
-      useNativeDriver: true
-    }).start();
-  }, [entrance, reducedMotion, tile.id]);
+    // Cascade: refilled coins drop in from above, bottom rows landing first.
+    entrance.setValue(0);
+    Animated.sequence([
+      Animated.delay((7 - tile.row) * 24),
+      Animated.spring(entrance, {
+        damping: 14,
+        mass: 0.7,
+        stiffness: 240,
+        toValue: 1,
+        useNativeDriver: true
+      })
+    ]).start();
+  }, [entrance, reducedMotion, tile.id, tile.row]);
 
   useEffect(() => {
     if (reducedMotion) {
@@ -78,6 +82,18 @@ export function CoinTile({
     inputRange: [0, 0.25, 1],
     outputRange: [0, 0.9, 0]
   });
+  const fallShift = entrance.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-coinSize * 1.4, 0]
+  });
+  const entranceScale = entrance.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.55, 1]
+  });
+  const entranceOpacity = entrance.interpolate({
+    inputRange: [0, 0.35, 1],
+    outputRange: [0, 1, 1]
+  });
 
   return (
     <Pressable
@@ -100,8 +116,10 @@ export function CoinTile({
             alignItems: "center",
             height: coinSize,
             justifyContent: "center",
+            opacity: entranceOpacity,
             transform: [
-              { scale: Animated.multiply(entrance, scale) },
+              { translateY: fallShift },
+              { scale: Animated.multiply(entranceScale, scale) },
               { scale: pressed && !reducedMotion ? 0.9 : 1 }
             ],
             width: coinSize

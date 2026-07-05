@@ -25,7 +25,9 @@
           "iosAppId": "ca-app-pub-6035003811280283~7349136854",
           "delayAppMeasurementInit": true
         }
-      ]
+      ],
+      "expo-audio",
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": true

@@ -6,12 +6,19 @@ import {
   wasRewardedJustShown
 } from "@/ads/ad-service";
 import { AdBanner } from "@/components/ad-banner";
+import { ActionButton } from "@/components/action-button";
 import { ActionLink } from "@/components/action-link";
+import { CoinConfetti } from "@/components/coin-confetti";
 import { CoinFace } from "@/components/coin-face";
 import { HudStat } from "@/components/hud-stat";
 import { ScreenShell } from "@/components/screen-shell";
+import { ShareScoreCard, type ScoreCardHandle } from "@/components/share-score-card";
+import { playSfx } from "@/audio/sfx";
 import type { GameModeId, TileType } from "@/game/models";
 import { isAdFree } from "@/monetization/entitlements";
+import { submitLeaderboardScore } from "@/social/leaderboard-service";
+import { getPlayerHandle } from "@/social/player-identity";
+import { recordPlayToday } from "@/social/streak-tracker";
 import { recordInterstitialShown } from "@/storage";
 import { useSaveProfile } from "@/storage/use-save-profile";
 import { colors, getModeVisual, radius, spacing, typography } from "@/theme";
@@ -49,7 +56,52 @@ export function RoundResultScreen() {
   const newBest = score >= bestScore && score > 0;
   const glyph = MODE_GLYPHS[mode];
   const [displayScore, setDisplayScore] = useState(0);
+  const [globalRank, setGlobalRank] = useState<number | null>(null);
+  const [streakDays, setStreakDays] = useState(0);
+  const [shareNote, setShareNote] = useState("");
+  const shotRef = useRef<ScoreCardHandle>(null);
+  const handle = getPlayerHandle();
   const medalScale = useRef(new Animated.Value(0.6)).current;
+
+  useEffect(() => {
+    playSfx("win", profile.settings.soundEnabled);
+    const streak = recordPlayToday();
+    setStreakDays(streak.current);
+    void submitLeaderboardScore({
+      installId: profile.support.installId,
+      handle,
+      mode,
+      score
+    }).then((result) => {
+      if (result?.accepted && result.rank) {
+        setGlobalRank(result.rank);
+      }
+    });
+    // Run once per results view.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const shareCard = async () => {
+    try {
+      const uri = await shotRef.current?.capture();
+      if (!uri) {
+        throw new Error("capture failed");
+      }
+      const Sharing = await import("expo-sharing");
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, {
+          dialogTitle: "Share your VaultPop score",
+          mimeType: "image/png"
+        });
+        setShareNote("");
+      } else {
+        setShareNote("Image sharing opens the share sheet on iPhone.");
+      }
+    } catch {
+      setShareNote("Could not export the score card on this device.");
+    }
+  };
+
 
   useEffect(() => {
     Animated.spring(medalScale, {
@@ -102,6 +154,7 @@ export function RoundResultScreen() {
 
   return (
     <ScreenShell eyebrow={visual.name} title="" accent={visual.accent} compact showBack={false}>
+      {!profile.settings.reducedMotion ? <CoinConfetti /> : null}
       {/* Celebration medal */}
       <View style={{ alignItems: "center", gap: spacing.md, paddingTop: spacing.lg }}>
         <Animated.View
@@ -188,6 +241,42 @@ export function RoundResultScreen() {
           >
             FINAL SCORE
           </Text>
+          <View style={{ alignItems: "center", flexDirection: "row", gap: spacing.sm, paddingTop: spacing.xs }}>
+            {globalRank ? (
+              <View
+                testID="result-global-rank"
+                style={{
+                  backgroundColor: `${colors.cyan}18`,
+                  borderColor: `${colors.cyan}66`,
+                  borderRadius: radius.pill,
+                  borderWidth: 1,
+                  paddingHorizontal: spacing.sm + 2,
+                  paddingVertical: 4
+                }}
+              >
+                <Text selectable style={[typography.eyebrow, { color: colors.cyan, fontSize: 10 }]}>
+                  GLOBAL #{globalRank}
+                </Text>
+              </View>
+            ) : null}
+            {streakDays > 0 ? (
+              <View
+                testID="result-streak-chip"
+                style={{
+                  backgroundColor: `${colors.gold}14`,
+                  borderColor: `${colors.gold}55`,
+                  borderRadius: radius.pill,
+                  borderWidth: 1,
+                  paddingHorizontal: spacing.sm + 2,
+                  paddingVertical: 4
+                }}
+              >
+                <Text selectable style={[typography.eyebrow, { color: colors.gold, fontSize: 10 }]}>
+                  {streakDays} DAY STREAK
+                </Text>
+              </View>
+            ) : null}
+          </View>
         </View>
       </View>
 
@@ -255,6 +344,30 @@ export function RoundResultScreen() {
         accent={visual.secondary}
         testID="result-mode-select"
       />
+
+      {/* Shareable score card */}
+      <View style={{ gap: spacing.sm, paddingTop: spacing.sm }}>
+        <ShareScoreCard
+          ref={shotRef}
+          mode={mode}
+          score={score}
+          best={bestScore}
+          combo={`${params.combo ?? "1"}x`}
+          handle={handle}
+        />
+        <ActionButton
+          label="Share Score Card"
+          detail="Exports this card as an image."
+          tone="quiet"
+          testID="result-share-button"
+          onPress={() => void shareCard()}
+        />
+        {shareNote ? (
+          <Text selectable style={[typography.caption, { color: colors.textMuted, fontSize: 11.5, textAlign: "center" }]}>
+            {shareNote}
+          </Text>
+        ) : null}
+      </View>
       <AdBanner placement="results" />
     </ScreenShell>
   );

@@ -37,7 +37,8 @@
         }
       ],
       "expo-sqlite",
-      "expo-tracking-transparency"
+      "expo-tracking-transparency",
+      "expo-audio"
     ],
     "experiments": {
       "typedRoutes": true

@@ -25,12 +25,14 @@
     "@apple/app-store-server-library": "3.1.0",
     "expo": "~56.0.14",
     "expo-application": "^56.0.3",
+    "expo-audio": "~56.0.12",
     "expo-constants": "~56.0.20",
     "expo-device": "^56.0.4",
     "expo-haptics": "56.0.3",
     "expo-linear-gradient": "~56.0.4",
     "expo-linking": "~56.0.15",
     "expo-router": "56.2.13",
+    "expo-sharing": "~56.0.20",
     "expo-sqlite": "56.0.5",
     "expo-status-bar": "56.0.4",
     "expo-system-ui": "56.0.5",
@@ -41,7 +43,8 @@
     "react-native-iap": "15.3.4",
     "react-native-nitro-modules": "^0.35.10",
     "react-native-safe-area-context": "~5.7.0",
-    "react-native-screens": "latest"
+    "react-native-screens": "latest",
+    "react-native-view-shot": "5.1.0"
   },
   "devDependencies": {
     "@types/node": "^26.0.1",

@@ -35,6 +35,78 @@ class StatusCheck(BaseModel):
 class StatusCheckCreate(BaseModel):
     client_name: str
 
+# ---- VaultPop Global Leaderboard ----
+VALID_MODES = {"classic", "dailyVault", "streak"}
+
+class LeaderboardSubmit(BaseModel):
+    installId: str = Field(min_length=4, max_length=80)
+    handle: str = Field(min_length=2, max_length=24)
+    mode: str
+    score: int = Field(ge=0, le=10_000_000)
+
+class LeaderboardEntry(BaseModel):
+    handle: str
+    score: int
+    mode: str
+    updatedAt: str
+
+@api_router.post("/v1/leaderboard/submit")
+async def submit_leaderboard_score(payload: LeaderboardSubmit):
+    if payload.mode not in VALID_MODES:
+        return {"accepted": False, "error": "Unknown mode."}
+    key = {"installId": payload.installId, "mode": payload.mode}
+    existing = await db.leaderboard_scores.find_one(key)
+    best = payload.score
+    if existing and existing.get("score", 0) > best:
+        best = existing["score"]
+    await db.leaderboard_scores.update_one(
+        key,
+        {
+            "$set": {
+                "handle": payload.handle[:24],
+                "score": best,
+                "updatedAt": datetime.utcnow().isoformat(),
+            },
+            "$setOnInsert": {"id": str(uuid.uuid4())},
+        },
+        upsert=True,
+    )
+    rank = await db.leaderboard_scores.count_documents(
+        {"mode": payload.mode, "score": {"$gt": best}}
+    ) + 1
+    return {"accepted": True, "bestScore": best, "rank": rank}
+
+@api_router.get("/v1/leaderboard")
+async def get_leaderboard(mode: str = "classic", limit: int = 50, installId: str = ""):
+    if mode not in VALID_MODES:
+        return {"entries": [], "players": 0, "yourRank": None}
+    limit = max(1, min(100, limit))
+    cursor = (
+        db.leaderboard_scores.find({"mode": mode}, {"_id": 0})
+        .sort("score", -1)
+        .limit(limit)
+    )
+    docs = await cursor.to_list(limit)
+    entries = [
+        {
+            "handle": d.get("handle", "Player"),
+            "score": int(d.get("score", 0)),
+            "mode": mode,
+            "updatedAt": d.get("updatedAt", ""),
+            "you": bool(installId) and d.get("installId") == installId,
+        }
+        for d in docs
+    ]
+    players = await db.leaderboard_scores.count_documents({"mode": mode})
+    your_rank = None
+    if installId:
+        own = await db.leaderboard_scores.find_one({"mode": mode, "installId": installId})
+        if own:
+            your_rank = await db.leaderboard_scores.count_documents(
+                {"mode": mode, "score": {"$gt": own.get("score", 0)}}
+            ) + 1
+    return {"entries": entries, "players": players, "yourRank": your_rank}
+
 # Add your routes to the router instead of directly to app
 @api_router.get("/")
 async def root():

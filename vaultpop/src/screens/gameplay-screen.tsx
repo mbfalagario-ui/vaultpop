@@ -1,5 +1,6 @@
 import { ActionButton } from "@/components/action-button";
 import { ActionLink } from "@/components/action-link";
+import { playSfx } from "@/audio/sfx";
 import { BoosterControl } from "@/components/booster-control";
 import { CoinTile } from "@/components/coin-tile";
 import { ScreenShell } from "@/components/screen-shell";
@@ -80,6 +81,8 @@ export function GameplayScreen() {
   const [feedback, setFeedback] = useState("");
   const [boardWidth, setBoardWidth] = useState(0);
   const feedbackMotion = useRef(new Animated.Value(0)).current;
+  const scorePulse = useRef(new Animated.Value(1)).current;
+  const vaultFlash = useRef(new Animated.Value(0)).current;
   const clearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputLockedRef = useRef(false);
   const completedRoundRef = useRef<string | null>(null);
@@ -114,6 +117,41 @@ export function GameplayScreen() {
 
     return () => clearInterval(intervalId);
   }, [round.phase]);
+
+  // Dopamine hooks: score pulse + vault-open gold flash.
+  useEffect(() => {
+    if (round.score.current <= 0 || profile.settings.reducedMotion) {
+      return;
+    }
+    scorePulse.setValue(1.24);
+    Animated.spring(scorePulse, {
+      damping: 9,
+      stiffness: 280,
+      toValue: 1,
+      useNativeDriver: true
+    }).start();
+  }, [profile.settings.reducedMotion, round.score.current, scorePulse]);
+
+  useEffect(() => {
+    if (!round.vaultMeter.opening) {
+      return;
+    }
+    playSfx("chime", profile.settings.soundEnabled);
+    if (profile.settings.reducedMotion) {
+      return;
+    }
+    vaultFlash.setValue(0.5);
+    Animated.timing(vaultFlash, {
+      duration: 750,
+      toValue: 0,
+      useNativeDriver: true
+    }).start();
+  }, [
+    profile.settings.reducedMotion,
+    profile.settings.soundEnabled,
+    round.vaultMeter.opening,
+    vaultFlash
+  ]);
 
   useEffect(() => {
     if (
@@ -191,6 +229,7 @@ export function GameplayScreen() {
       if (group.length < 2) {
         setRound((current) => resolveTap(current, { row, column }));
         animateFeedback(modeId === "streak" ? "CHAIN LOST" : "FIND A GROUP");
+        playSfx("thud", profile.settings.soundEnabled);
         void playHaptic(profile.settings.hapticsEnabled);
         return;
       }
@@ -208,6 +247,7 @@ export function GameplayScreen() {
           ? `VAULT OPEN +${scoreDelta}`
           : `+${scoreDelta}  ·  ${projected.score.comboMultiplier}x`
       );
+      playSfx("pop", profile.settings.soundEnabled);
       void playHaptic(profile.settings.hapticsEnabled);
 
       const delay = profile.settings.reducedMotion ? 0 : 230;
@@ -275,12 +315,14 @@ export function GameplayScreen() {
             ? "CHAIN +2"
             : "VAULT BURST"
       );
+      playSfx("zap", profile.settings.soundEnabled);
       void playHaptic(profile.settings.hapticsEnabled);
     },
     [
       animateFeedback,
       profile.economy.boosters,
       profile.settings.hapticsEnabled,
+      profile.settings.soundEnabled,
       round.phase,
       setProfile
     ]
@@ -299,6 +341,8 @@ export function GameplayScreen() {
   });
   const tileSize = boardWidth > 0 ? boardWidth / 8 : 0;
   const lowTime = round.secondsRemaining <= 10;
+  const combo = round.score.comboMultiplier;
+  const comboColor = combo >= 8 ? colors.ruby : combo >= 4 ? colors.gold : visual.accent;
 
   return (
     <ScreenShell
@@ -306,6 +350,7 @@ export function GameplayScreen() {
       title={round.phase === "paused" ? "Paused" : modeLabel}
       accent={visual.accent}
       compact
+      inlineHeader
     >
       {/* Cinematic HUD */}
       <View
@@ -353,7 +398,7 @@ export function GameplayScreen() {
         </View>
 
         <View style={{ alignItems: "center", flex: 1 }} testID="hud-score">
-          <Text
+          <Animated.Text
             selectable={false}
             style={[
               typography.numeral,
@@ -362,12 +407,13 @@ export function GameplayScreen() {
                 fontSize: 38,
                 textShadowColor: `${visual.energy}55`,
                 textShadowOffset: { height: 0, width: 0 },
-                textShadowRadius: 16
+                textShadowRadius: 16,
+                transform: [{ scale: scorePulse }]
               }
             ]}
           >
             {round.score.current.toLocaleString()}
-          </Text>
+          </Animated.Text>
           <Text
             selectable={false}
             style={[typography.eyebrow, { color: colors.textMuted, fontSize: 9, letterSpacing: 2.4 }]}
@@ -381,11 +427,11 @@ export function GameplayScreen() {
           style={{
             alignItems: "center",
             backgroundColor: colors.surfaceGlass,
-            borderColor: round.score.comboMultiplier > 1 ? visual.accent : colors.border,
+            borderColor: combo > 1 ? comboColor : colors.border,
             borderRadius: radius.pill,
             borderWidth: 1,
             boxShadow:
-              round.score.comboMultiplier > 1 ? `0 0 14px ${visual.accent}66` : undefined,
+              combo > 1 ? `0 0 ${combo >= 4 ? 22 : 14}px ${comboColor}77` : undefined,
             flexDirection: "row",
             gap: 6,
             minWidth: 86,
@@ -399,19 +445,18 @@ export function GameplayScreen() {
             style={[
               typography.numeral,
               {
-                color:
-                  round.score.comboMultiplier > 1 ? visual.accent : colors.textSecondary,
+                color: combo > 1 ? comboColor : colors.textSecondary,
                 fontSize: 18
               }
             ]}
           >
-            {round.score.comboMultiplier}x
+            {combo}x
           </Text>
           <Text
             selectable={false}
-            style={[typography.eyebrow, { color: colors.textMuted, fontSize: 8.5 }]}
+            style={[typography.eyebrow, { color: combo >= 4 ? comboColor : colors.textMuted, fontSize: 8.5 }]}
           >
-            {modeId === "streak" ? "CHAIN" : "COMBO"}
+            {combo >= 8 ? "ON FIRE" : modeId === "streak" ? "CHAIN" : "COMBO"}
           </Text>
         </View>
       </View>
@@ -471,6 +516,20 @@ export function GameplayScreen() {
               ))}
             </View>
           </View>
+          {/* Vault-open gold flash */}
+          <Animated.View
+            pointerEvents="none"
+            style={{
+              backgroundColor: colors.gold,
+              borderRadius: radius.lg,
+              bottom: 0,
+              left: 0,
+              opacity: vaultFlash,
+              position: "absolute",
+              right: 0,
+              top: 0
+            }}
+          />
         </LinearGradient>
 
         {feedback ? (

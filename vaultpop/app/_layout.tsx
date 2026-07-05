@@ -23,6 +23,8 @@ export default function RootLayout() {
         <Stack.Screen name="gameplay" options={{ title: "Gameplay" }} />
         <Stack.Screen name="pause" options={{ title: "Pause", presentation: "modal" }} />
         <Stack.Screen name="results" options={{ title: "Round Result" }} />
+        <Stack.Screen name="leaderboard" options={{ title: "Leaderboard" }} />
+        <Stack.Screen name="streaks" options={{ title: "Streak Calendar" }} />
         <Stack.Screen name="how-to-play" options={{ title: "How to Play" }} />
         <Stack.Screen name="cosmetics" options={{ title: "Cosmetics" }} />
         <Stack.Screen name="shop" options={{ title: "Shop" }} />
