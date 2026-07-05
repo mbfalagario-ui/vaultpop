@@ -10,7 +10,8 @@ import ViewShot from "react-native-view-shot";
 const MODE_GLYPHS: Record<GameModeId, TileType> = {
   classic: "violet",
   dailyVault: "cyan",
-  streak: "gold"
+  streak: "gold",
+  blitz: "ruby"
 };
 
 type ViewShotInstance = { capture?: () => Promise<string> };

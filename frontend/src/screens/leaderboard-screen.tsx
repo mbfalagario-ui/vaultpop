@@ -14,7 +14,8 @@ import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-nati
 const MODES: { id: GameModeId; label: string; glyph: TileType }[] = [
   { id: "classic", label: "Classic", glyph: "violet" },
   { id: "dailyVault", label: "Daily", glyph: "cyan" },
-  { id: "streak", label: "Streak", glyph: "gold" }
+  { id: "streak", label: "Streak", glyph: "gold" },
+  { id: "blitz", label: "Blitz", glyph: "ruby" }
 ];
 
 const MEDALS = [colors.gold, "#C7CBE0", "#D98A5B"];

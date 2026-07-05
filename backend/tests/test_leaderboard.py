@@ -148,6 +148,38 @@ class TestLeaderboardGet:
             assert isinstance(data.get("players"), int)
 
 
+class TestLeaderboardBlitz:
+    """Iteration 3: blitz mode support."""
+
+    def test_submit_and_get_blitz(self):
+        install = f"TEST-BLITZ-{uuid.uuid4().hex[:8]}"
+        r = requests.post(f"{API}/submit", json={
+            "installId": install,
+            "handle": "TEST_Blitz",
+            "mode": "blitz",
+            "score": 1234,
+        })
+        assert r.status_code == 200, r.text
+        data = r.json()
+        assert data.get("accepted") is True
+        assert data.get("bestScore") == 1234
+        assert isinstance(data.get("rank"), int) and data["rank"] >= 1
+
+        # GET blitz leaderboard, expect our entry present
+        g = requests.get(f"{API}", params={"mode": "blitz", "installId": install, "limit": 100})
+        assert g.status_code == 200
+        gd = g.json()
+        assert gd["players"] >= 1
+        handles = [e.get("handle") for e in gd["entries"]]
+        assert "TEST_Blitz" in handles
+
+    def test_classic_unaffected_by_blitz(self):
+        # sanity: classic still returns valid list
+        r = requests.get(f"{API}", params={"mode": "classic"})
+        assert r.status_code == 200
+        assert isinstance(r.json().get("entries"), list)
+
+
 class TestLeaderboardHealth:
     def test_api_root(self):
         r = requests.get(f"{BASE_URL}/api/")

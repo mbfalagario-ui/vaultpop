@@ -14,7 +14,8 @@ type ModeCardProps = {
 const MODE_GLYPHS: Record<string, TileType> = {
   classic: "violet",
   dailyVault: "cyan",
-  streak: "gold"
+  streak: "gold",
+  blitz: "ruby"
 };
 
 export function ModeCard({ mode, bestScore, detail }: ModeCardProps) {

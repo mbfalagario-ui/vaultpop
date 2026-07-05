@@ -71,7 +71,7 @@ export const MODE_VISUALS: Record<GameModeId, ModeVisual> = {
   },
   streak: {
     id: "streak",
-    name: "Coin Forge",
+    name: "VaultPop Run",
     kicker: "THREE MISSES END THE RUN",
     tagline: "Protect the chain. Every tap counts.",
     accent: "#FFB53D",
@@ -87,6 +87,27 @@ export const MODE_VISUALS: Record<GameModeId, ModeVisual> = {
       emerald: "#66D85C",
       violet: "#AF76D8",
       ruby: "#F05B48"
+    },
+    tileGradients: TILE_GRADIENTS
+  },
+  blitz: {
+    id: "blitz",
+    name: "VaultPop Blitz",
+    kicker: "30 SECOND SPEED RUN",
+    tagline: "Half the clock. Twice the rush.",
+    accent: "#FF3D8F",
+    secondary: "#35DBFF",
+    energy: "#5CE9FF",
+    surface: "#220818",
+    surfaceRaised: "#321026",
+    board: "#14040E",
+    aurora: ["#C4136B", "#0E86D4"],
+    tileColors: {
+      gold: "#FFC84A",
+      cyan: "#35DBFF",
+      emerald: "#3EE69A",
+      violet: "#9B6CFF",
+      ruby: "#FF3D8F"
     },
     tileGradients: TILE_GRADIENTS
   }

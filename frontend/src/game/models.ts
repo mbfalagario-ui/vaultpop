@@ -1,6 +1,6 @@
 export type TileType = "gold" | "cyan" | "emerald" | "violet" | "ruby";
 
-export type GameModeId = "classic" | "dailyVault" | "streak";
+export type GameModeId = "classic" | "dailyVault" | "streak" | "blitz";
 
 export type GameModeDefinition = {
   id: GameModeId;

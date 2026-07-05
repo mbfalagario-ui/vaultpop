@@ -38,10 +38,10 @@ import {
   useRef,
   useState
 } from "react";
-import { Animated, Text, View } from "react-native";
+import { Animated, Text, useWindowDimensions, View } from "react-native";
 
 function normalizeMode(value: unknown): GameModeId {
-  return value === "dailyVault" || value === "streak" || value === "classic"
+  return value === "dailyVault" || value === "streak" || value === "blitz" || value === "classic"
     ? value
     : "classic";
 }
@@ -333,7 +333,9 @@ export function GameplayScreen() {
       ? "Daily Vault"
       : modeId === "streak"
         ? "Streak"
-        : "Classic";
+        : modeId === "blitz"
+          ? "Blitz"
+          : "Classic";
 
   const feedbackScale = feedbackMotion.interpolate({
     inputRange: [0, 1],
@@ -343,6 +345,13 @@ export function GameplayScreen() {
   const lowTime = round.secondsRemaining <= 10;
   const combo = round.score.comboMultiplier;
   const comboColor = combo >= 8 ? colors.ruby : combo >= 4 ? colors.gold : visual.accent;
+  const window = useWindowDimensions();
+  // Keep the whole gameplay column on one screen: cap the board by the
+  // height left after header, HUD, meter, boosters, status, and buttons.
+  const boardSide = Math.max(
+    260,
+    Math.min(window.width - spacing.md * 2, window.height - 460)
+  );
 
   return (
     <ScreenShell
@@ -397,18 +406,31 @@ export function GameplayScreen() {
           </Text>
         </View>
 
-        <View style={{ alignItems: "center", flex: 1 }} testID="hud-score">
+        <View
+          style={{
+            alignItems: "center",
+            flex: 1,
+            minWidth: 0,
+            paddingHorizontal: spacing.sm
+          }}
+          testID="hud-score"
+        >
           <Animated.Text
             selectable={false}
+            adjustsFontSizeToFit
+            numberOfLines={1}
+            minimumFontScale={0.55}
             style={[
               typography.numeral,
               {
                 color: visual.energy,
-                fontSize: 38,
+                fontSize: 34,
+                textAlign: "center",
                 textShadowColor: `${visual.energy}55`,
                 textShadowOffset: { height: 0, width: 0 },
                 textShadowRadius: 16,
-                transform: [{ scale: scorePulse }]
+                transform: [{ scale: scorePulse }],
+                width: "100%"
               }
             ]}
           >
@@ -466,11 +488,19 @@ export function GameplayScreen() {
         max={round.vaultMeter.max}
         opening={round.vaultMeter.opening}
         accent={modeId === "classic" ? visual.accent : visual.secondary}
-        label={modeId === "streak" ? "Forge Core" : modeId === "classic" ? "Reactor Core" : "Prism Core"}
+        label={
+          modeId === "streak"
+            ? "Chain Core"
+            : modeId === "classic"
+              ? "Reactor Core"
+              : modeId === "blitz"
+                ? "Blitz Core"
+                : "Prism Core"
+        }
       />
 
       {/* Board */}
-      <View style={{ position: "relative" }}>
+      <View style={{ alignSelf: "center", maxWidth: boardSide, position: "relative", width: "100%" }}>
         <LinearGradient
           colors={[visual.surfaceRaised, visual.board]}
           start={{ x: 0.5, y: 0 }}

@@ -17,7 +17,8 @@ import { Animated, Pressable, Text, View } from "react-native";
 const modeTiles: { id: GameModeId; glyph: TileType; label: string }[] = [
   { id: "classic", glyph: "violet", label: "Classic" },
   { id: "dailyVault", glyph: "cyan", label: "Daily" },
-  { id: "streak", glyph: "gold", label: "Streak" }
+  { id: "streak", glyph: "gold", label: "Streak" },
+  { id: "blitz", glyph: "ruby", label: "Blitz" }
 ];
 
 const heroCoins: { type: TileType; size: number; lift: number }[] = [
@@ -37,7 +38,8 @@ export function HomeScreen() {
   const bestScore = Math.max(
     profile.highScores.classic,
     profile.highScores.dailyVault,
-    profile.highScores.streak
+    profile.highScores.streak,
+    profile.highScores.blitz
   );
 
   useEffect(() => {
@@ -155,7 +157,7 @@ export function HomeScreen() {
             </Pressable>
           </Link>
         </View>
-        <View style={{ flexDirection: "row", gap: spacing.sm }}>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.sm }}>
           {modeTiles.map((mode) => {
             const visual = getModeVisual(mode.id);
             return (
@@ -168,7 +170,8 @@ export function HomeScreen() {
                   accessibilityLabel={`Play ${mode.label}`}
                   testID={`home-mode-${mode.id}`}
                   style={({ pressed }) => ({
-                    flex: 1,
+                    flexBasis: "48%",
+                    flexGrow: 1,
                     transform: [{ scale: pressed ? 0.96 : 1 }]
                   })}
                 >
@@ -182,18 +185,19 @@ export function HomeScreen() {
                       borderCurve: "continuous",
                       borderRadius: radius.md,
                       borderWidth: 1,
+                      flexDirection: "row",
                       gap: spacing.sm,
-                      minHeight: 108,
                       justifyContent: "center",
+                      minHeight: 74,
                       padding: spacing.sm
                     }}
                   >
-                    <CoinFace type={mode.glyph} size={44} glow />
+                    <CoinFace type={mode.glyph} size={40} glow />
                     <Text
                       selectable={false}
                       style={[
                         typography.eyebrow,
-                        { color: visual.accent, fontSize: 10, letterSpacing: 1.6 }
+                        { color: visual.accent, fontSize: 11, letterSpacing: 1.6 }
                       ]}
                     >
                       {mode.label}

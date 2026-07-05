@@ -97,7 +97,8 @@ export function createDefaultSaveProfile(now = new Date()): SaveProfile {
     highScores: {
       classic: 0,
       dailyVault: 0,
-      streak: 0
+      streak: 0,
+      blitz: 0
     },
     dailyVault: null,
     cosmetics: {
@@ -318,7 +319,8 @@ export const defaultSaveProfileSnapshot: SaveProfile = {
   highScores: {
     classic: 0,
     dailyVault: 0,
-    streak: 0
+    streak: 0,
+    blitz: 0
   },
   dailyVault: null,
   cosmetics: {

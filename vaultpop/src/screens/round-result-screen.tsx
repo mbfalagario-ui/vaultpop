@@ -28,13 +28,16 @@ import { useEffect, useRef, useState } from "react";
 import { Animated, Text, View } from "react-native";
 
 function normalizeMode(value: string | undefined): GameModeId {
-  return value === "dailyVault" || value === "streak" ? value : "classic";
+  return value === "dailyVault" || value === "streak" || value === "blitz"
+    ? value
+    : "classic";
 }
 
 const MODE_GLYPHS: Record<GameModeId, TileType> = {
   classic: "violet",
   dailyVault: "cyan",
-  streak: "gold"
+  streak: "gold",
+  blitz: "ruby"
 };
 
 export function RoundResultScreen() {

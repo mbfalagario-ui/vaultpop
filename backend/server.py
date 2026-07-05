@@ -36,7 +36,7 @@ class StatusCheckCreate(BaseModel):
     client_name: str
 
 # ---- VaultPop Global Leaderboard ----
-VALID_MODES = {"classic", "dailyVault", "streak"}
+VALID_MODES = {"classic", "dailyVault", "streak", "blitz"}
 
 class LeaderboardSubmit(BaseModel):
     installId: str = Field(min_length=4, max_length=80)

@@ -26,7 +26,7 @@ type LeaderboardRow = {
   score: number;
   updatedAt: string;
 };
-const LEADERBOARD_MODES = new Set(["classic", "dailyVault", "streak"]);
+const LEADERBOARD_MODES = new Set(["classic", "dailyVault", "streak", "blitz"]);
 const leaderboardRows = new Map<string, LeaderboardRow>();
 
 function leaderboardTop(mode: string, limit: number, installId: string) {

@@ -78,7 +78,7 @@ export function ScreenShell({
           minHeight: "100%",
           padding: compact ? spacing.md : spacing.lg,
           paddingBottom: insets.bottom + spacing.lg,
-          paddingTop: insets.top + spacing.sm
+          paddingTop: insets.top + spacing.md
         }}
       >
         {showBack ? (

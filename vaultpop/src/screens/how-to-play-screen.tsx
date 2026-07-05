@@ -33,7 +33,9 @@ const modeDetails: Record<GameModeId, string> = {
   dailyVault:
     "Play the same deterministic daily vault for everyone on this device and improve today's result.",
   streak:
-    "Protect the chain while the timer runs. Three taps that do not clear a group end the round."
+    "Protect the chain while the timer runs. Three taps that do not clear a group end the round.",
+  blitz:
+    "A 30 second speed run. Pop connected groups as fast as you can before the clock hits zero."
 };
 
 export function HowToPlayScreen() {
@@ -232,7 +234,7 @@ export function HowToPlayScreen() {
       <ActionLink
         href="/modes"
         label="Choose a Mode"
-        detail="Start with Classic, Daily Vault, or Streak."
+        detail="Start with Classic, Daily Vault, Streak, or Blitz."
         accent={colors.gold}
         prominent
       />

@@ -6,6 +6,7 @@ import {
   VAULT_METER_MAX
 } from "@/game/constants";
 import { getDailySeed } from "@/game/daily-seed";
+import { getModeDefinition } from "@/game/modes";
 import type {
   BoardPosition,
   BoardState,
@@ -91,7 +92,7 @@ export function createInitialRound(modeId: GameModeId, options: CreateRoundOptio
       max: VAULT_METER_MAX,
       opening: false
     },
-    secondsRemaining: CLASSIC_ROUND_SECONDS,
+    secondsRemaining: getModeDefinition(modeId)?.roundSeconds ?? CLASSIC_ROUND_SECONDS,
     startedAt: now.toISOString(),
     completedAt: null,
     lastEvent: "Ready"
