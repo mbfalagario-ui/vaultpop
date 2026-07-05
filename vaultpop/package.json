@@ -1,0 +1,55 @@
+{
+  "name": "vaultpop-ios",
+  "version": "0.1.0",
+  "private": true,
+  "description": "VaultPop iOS arcade puzzle game.",
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "expo start",
+    "ios": "expo start --ios",
+    "typecheck": "tsc --noEmit",
+    "typecheck:backend": "tsc --project backend/tsconfig.json",
+    "backend:start": "tsx backend/server.ts",
+    "test": "tsx --test tests/*.test.ts",
+    "audit:banned-language": "node scripts/audit-banned-language.mjs",
+    "audit:sample-ads": "node scripts/audit-sample-ad-ids.mjs",
+    "audit:secrets": "node scripts/audit-secrets.mjs",
+    "audit:navigation": "node scripts/audit-navigation.mjs",
+    "audit:monetization": "node scripts/audit-monetization-metadata.mjs",
+    "screenshots:refs": "node scripts/generate-screenshot-references.mjs",
+    "verify": "pnpm run typecheck && pnpm run typecheck:backend && pnpm run test && pnpm run audit:banned-language && pnpm run audit:sample-ads && pnpm run audit:secrets && pnpm run audit:navigation && pnpm run audit:monetization",
+    "backend:build": "tsc --project backend/tsconfig.build.json",
+    "backend:start:prod": "node dist/backend/server.js"
+  },
+  "dependencies": {
+    "@apple/app-store-server-library": "3.1.0",
+    "expo": "~56.0.14",
+    "expo-application": "^56.0.3",
+    "expo-constants": "~56.0.20",
+    "expo-device": "^56.0.4",
+    "expo-haptics": "56.0.3",
+    "expo-linking": "~56.0.15",
+    "expo-router": "56.2.13",
+    "expo-sqlite": "56.0.5",
+    "expo-status-bar": "56.0.4",
+    "expo-system-ui": "56.0.5",
+    "expo-tracking-transparency": "~56.0.5",
+    "react": "19.2.3",
+    "react-native": "0.85.3",
+    "react-native-google-mobile-ads": "16.4.0",
+    "react-native-iap": "15.3.4",
+    "react-native-nitro-modules": "^0.35.10",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-screens": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "^26.0.1",
+    "@types/react": "latest",
+    "babel-preset-expo": "56.0.15",
+    "tsx": "latest",
+    "typescript": "latest"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  }
+}

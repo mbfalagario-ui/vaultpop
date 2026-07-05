@@ -1,0 +1,29 @@
+app = "vaultpop-api"
+primary_region = "yyz"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  APPLE_ROOT_CA_PATHS = "/app/backend/certs/AppleIncRootCertificate.cer,/app/backend/certs/AppleRootCA-G2.cer,/app/backend/certs/AppleRootCA-G3.cer"
+  VAULTPOP_API_HOST = "0.0.0.0"
+  VAULTPOP_API_PORT = "8080"
+  VAULTPOP_DATABASE_PATH = "/data/vaultpop.sqlite"
+
+[[mounts]]
+  source = "vaultpop_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "15s"
+    method = "GET"
+    path = "/health"

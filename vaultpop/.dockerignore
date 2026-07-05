@@ -1,0 +1,16 @@
+.git
+.env
+.env.*
+!.env.example
+node_modules
+.expo
+outputs
+assets
+app
+docs
+tests
+scripts
+*.p8
+*.p12
+*.ipa
+backend-data

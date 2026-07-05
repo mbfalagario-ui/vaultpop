@@ -1,0 +1,55 @@
+{
+  "expo": {
+    "name": "VaultPop",
+    "slug": "vaultpop",
+    "scheme": "vaultpop",
+    "icon": "./assets/icon/icon.png",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "platforms": [
+      "ios"
+    ],
+    "userInterfaceStyle": "dark",
+    "plugins": [
+      "expo-router",
+      "react-native-iap",
+      [
+        "expo-tracking-transparency",
+        {
+          "userTrackingPermission": "VaultPop uses permission to measure and improve advertising. You can continue playing if you decline."
+        }
+      ],
+      [
+        "react-native-google-mobile-ads",
+        {
+          "iosAppId": "ca-app-pub-6035003811280283~7349136854",
+          "delayAppMeasurementInit": true
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "ios": {
+      "bundleIdentifier": "app.vaultpop",
+      "buildNumber": "1",
+      "icon": "./assets/icon/icon.png",
+      "supportsTablet": false,
+      "infoPlist": {
+        "CFBundleDisplayName": "VaultPop",
+        "UIRequiresFullScreen": true,
+        "UISupportedInterfaceOrientations": [
+          "UIInterfaceOrientationPortrait"
+        ],
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "d9c9d243-9f5d-4839-ab0c-61d905857554"
+      }
+    },
+    "owner": "pastrypuffz"
+  }
+}
