@@ -1,0 +1,32 @@
+{
+  "summary": "VaultPop premium redesign — full frontend test on mobile viewport 390x844. All 14 required flows pass: cold launch to Home, PLAY -> Classic gameplay 8x8 board, tile group scoring (score 0 -> 40 on first valid group), pause/resume/restart, Finish -> Results (score, PLAY AGAIN, Choose Another Mode), Mode Select shows all 3 mode cards, Streak mode ends on misses -> Results, Shop shows 6 IAP + 3 Booster Forge cards with all 6 buy buttons disabled/'Unavailable' (App Store unavailable on web) and Restore Purchases produces a friendly status without crash, Account sign-in with random creds fails gracefully with status message and no crash, Settings switches render and reset requires two taps (Confirm Reset), Settings persist across reload (no crash), Cosmetics shows 5 themes with Midnight Vault Active by default, Support/Legal/How-to-Play routes reachable from home footer and back button returns to previous screen. No red-screen errors. Non-blocking React Native deprecation console warnings detected (pointerEvents prop, textShadow* style props, useNativeDriver on web).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "LinearGradient pointerEvents prop", "issue": "Console warning: 'props.pointerEvents is deprecated. Use style.pointerEvents'. Multiple LinearGradient elements pass pointerEvents=\"none\" as a prop instead of via style. References: /app/frontend/src/screens/round-result-screen.tsx (rays View & LinearGradient), /app/frontend/src/screens/shop-screen.tsx (LinearGradient decoration ~line 281), /app/frontend/src/screens/cosmetics-screen.tsx (LinearGradient ~line 56). Move to style.pointerEvents: 'none'."},
+      {"component": "textShadow* style props", "issue": "Console warning: '\"textShadow*\" style props are deprecated. Use \"textShadow\"'. Found in /app/frontend/src/screens/gameplay-screen.tsx (score text ~lines 363-366) and /app/frontend/src/screens/round-result-screen.tsx (final score ~lines 178-180) using textShadowColor / textShadowOffset / textShadowRadius separately."},
+      {"component": "Animated useNativeDriver on web", "issue": "Console warning: 'useNativeDriver is not supported because the native animated module is missing' emitted on home + results screens. Expected on Expo Web preview (harmless on iOS build), but consider Platform.OS !== 'web' gate on useNativeDriver flag to silence the noise. References: /app/frontend/src/screens/home-screen.tsx (float animation lines 44-46), /app/frontend/src/screens/round-result-screen.tsx (medalScale lines 55-60, countup)."}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Fix deprecated `pointerEvents` prop on LinearGradient in round-result-screen.tsx, shop-screen.tsx, and cosmetics-screen.tsx by moving to style={{ pointerEvents: 'none' }}.",
+    "Consolidate textShadowColor/textShadowOffset/textShadowRadius into the new `textShadow` shorthand in gameplay-screen.tsx and round-result-screen.tsx (or keep and suppress).",
+    "Optional: gate `useNativeDriver` with Platform.OS !== 'web' in home-screen and round-result-screen Animated calls to silence the web console warning."
+  ],
+  "critical_code_review_comments": [
+    "gameplay-screen.tsx is 634 lines — approaching the 700 line threshold; consider splitting HUD, Board, Booster panel into subcomponents.",
+    "shop-screen.tsx is 466 lines and mixes product rendering, IAP flow, restore, and rewarded ads — would benefit from extracting SectionHeader and product/booster cards.",
+    "All key interactive elements have proper testID coverage (home-play-button, coin-tile-r-c, hud-*, gameplay-*, mode-card-*, shop-*, account-*, settings-*, cosmetic-theme-*, screen-back-button) — very good for testability."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (not tested per request)", "frontend": "100% (19/19 flows)"},
+  "seed_data_creation": "None — app is local-first, no seed required.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Preview URL: https://vaultpop-premium.preview.emergentagent.com. Use mobile viewport 390x844. Gameplay: tapping tile (0,0) on a fresh Classic seed produced score change immediately in this run — the seed may vary. To trigger a group clear, iterate tiles until score changes. Streak mode ends very fast (single miss ended it in this run — verify engine sensitivity matches product intent). Shop buy buttons all disabled with label 'Unavailable' as expected on web. Account sign-in fails gracefully (backend account service is external/unavailable). Settings Switch aria-checked attribute is not exposed by react-native-web Switch — do not use aria-checked to assert toggle state; instead check profile persistence indirectly or use component prop inspection.",
+  "rca_of_issue": "N/A — no blocking issues found."
+}
