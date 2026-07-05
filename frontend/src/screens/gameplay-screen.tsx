@@ -140,9 +140,9 @@ export function GameplayScreen() {
     if (profile.settings.reducedMotion) {
       return;
     }
-    vaultFlash.setValue(0.5);
+    vaultFlash.setValue(0.26);
     Animated.timing(vaultFlash, {
-      duration: 750,
+      duration: 550,
       toValue: 0,
       useNativeDriver: true
     }).start();

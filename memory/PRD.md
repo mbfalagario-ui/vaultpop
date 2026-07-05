@@ -10,6 +10,14 @@ User attached the VaultPop source ZIP (Expo/React Native coin puzzle arcade game
 - `/app/backend` (FastAPI template) is unused by this app.
 - Node 22 installed at `/opt/node22` (needed for `node:sqlite` in backend tests; run verify with `PATH=/opt/node22/bin:$PATH pnpm run verify` in `/app/vaultpop`).
 
+## What Was Implemented — Iteration 2 (2026-07-05)
+1. Gameplay formatting fixes: compact inline header (back chip + mode label in one row via ScreenShell `inlineHeader`), screen fits 844pt viewport without scroll; shell root `overflow: hidden` fixed the white page gap + pale aurora blob leaking below content on web; violet blob switched to rgba.
+2. Global leaderboard (fills home bottom gap): FastAPI endpoints in /app/backend/server.py (`POST /api/v1/leaderboard/submit`, `GET /api/v1/leaderboard`, Mongo `leaderboard_scores`, max-score-per-install upsert, rank calc); matching in-memory routes added to /app/vaultpop/backend/app.ts; `src/social/leaderboard-service.ts` (base URL: EXPO_PUBLIC_VAULTPOP_API_URL — added to frontend/.env pointing at preview /api), `player-identity.ts` (auto handle "Vault-XXXX"); home GLOBAL VAULT RANKS card (15s poll) + /leaderboard screen (mode chips, podium, 10s poll, YOU highlight); auto-submit on results.
+3. Dopamine pass: score pulse on change, combo tier colors (accent→gold@4x→ruby "ON FIRE"@8x), vault-open gold flash (0.26 peak) + chime, cascade tile drops (fall from above, bottom rows first, per-row stagger), coin confetti rain on results, PLAY button pulse loop, all gated by reducedMotion.
+4. New features: daily streak tracker (`src/social/streak-tracker.ts`, own storage key `vaultpop.streak.v1` — save-model untouched) + /streaks calendar screen + home/results streak chips; share-score-card image export (`share-score-card.tsx` ViewShot + expo-sharing, ScoreCardHandle imperative capture, graceful web fallback note); SFX engine (`src/audio/sfx.ts`, expo-audio, generated WAVs in assets/sfx: pop/thud/chime/zap/win, gated by soundEnabled); new app icon (assets/icon/icon.png, 1024 gold coin on dark radial) + splash mark (frontend/assets/images/splash-image.png).
+- Deps added (both projects): expo-audio, react-native-view-shot, expo-sharing, (iter1: expo-linear-gradient).
+- Validation: `pnpm run verify` PASS; testing agent iteration 2: backend 10/10 + all frontend flows PASS (test_reports/iteration_2.json); backend tests at /app/backend/tests/test_leaderboard.py.
+
 ## What Was Implemented (2026-07-05)
 Design system rewrite (identical source in both trees):
 - `src/theme/`: colors (deep navy-violet base + gold/cyan/emerald/violet/magenta accents), typography scale (900-weight display/numerals, spaced eyebrows), spacing + radius tokens, color-utils (lighten/darken), mode-visuals (per-mode auroras, tile gradient palettes).
@@ -27,8 +35,7 @@ Design system rewrite (identical source in both trees):
 No build/upload/submission; bundle ID, signing, IAP IDs, AdMob IDs unchanged; no crypto/earning language (audit-enforced); no secrets printed/committed.
 
 ## Backlog / Next
-- P1: Sound effects (settings toggle exists, no audio engine yet); haptics only on iOS.
-- P1: Board clear cascade animation (tiles above falling) — currently instant refill with entrance spring.
-- P2: Extract gameplay HUD/board/booster panel into components (file ~640 lines); shop card extraction.
+- P2: Their TS backend leaderboard store is in-memory (resets on deploy restart) — persist to sqlite if they want durable global ranks on fly.io.
+- P2: Editable player handle; leaderboard pagination.
 - P2: textShadow*/useNativeDriver web-only dev warnings (harmless; migrate when RN versions align).
-- P2: App icon / splash art pass to match new identity.
+- P2: Extract gameplay HUD/board/booster panel into components; shop card extraction.
