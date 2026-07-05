@@ -278,8 +278,8 @@ export function ShopScreen() {
                 colors={[`${accent}22`, `${accent}00`]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 0.9, y: 1 }}
-                pointerEvents="none"
                 style={{
+                  pointerEvents: "none",
                   borderRadius: 999,
                   height: 150,
                   left: -50,

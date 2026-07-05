@@ -45,8 +45,8 @@ export function CoinFace({ type, size, gradient, glow = false, dimmed = false }:
       >
         {/* Inner minting ring */}
         <View
-          pointerEvents="none"
           style={{
+            pointerEvents: "none",
             borderColor: "#00000030",
             borderRadius: 999,
             borderWidth: Math.max(1, size * 0.035),
@@ -57,8 +57,8 @@ export function CoinFace({ type, size, gradient, glow = false, dimmed = false }:
         />
         {/* Rim shading */}
         <View
-          pointerEvents="none"
           style={{
+            pointerEvents: "none",
             borderColor: "#00000042",
             borderRadius: 999,
             borderWidth: Math.max(1, size * 0.05),
@@ -75,8 +75,8 @@ export function CoinFace({ type, size, gradient, glow = false, dimmed = false }:
         />
         {/* Specular highlight */}
         <View
-          pointerEvents="none"
           style={{
+            pointerEvents: "none",
             backgroundColor: "#FFFFFF",
             borderRadius: 999,
             height: size * 0.14,

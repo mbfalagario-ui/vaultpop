@@ -53,8 +53,7 @@ export function CosmeticsScreen() {
                 colors={[theme.glow, "#00000000"]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
-                pointerEvents="none"
-                style={{ bottom: 0, left: 0, position: "absolute", top: 0, width: 120 }}
+                style={{ bottom: 0, left: 0, pointerEvents: "none", position: "absolute", top: 0, width: 120 }}
               />
               <View
                 style={{

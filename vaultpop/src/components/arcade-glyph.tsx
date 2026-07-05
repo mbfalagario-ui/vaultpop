@@ -27,8 +27,8 @@ export function ArcadeGlyph({ type, color, size }: ArcadeGlyphProps) {
           }}
         />
         <View
-          pointerEvents="none"
           style={{
+            pointerEvents: "none",
             backgroundColor: "#FFFFFF",
             borderRadius: 999,
             height: size * 0.1,

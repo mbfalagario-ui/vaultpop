@@ -115,8 +115,8 @@ export function RoundResultScreen() {
           {[0, 30, 60, 90, 120, 150].map((angle) => (
             <View
               key={angle}
-              pointerEvents="none"
               style={{
+                pointerEvents: "none",
                 backgroundColor: `${visual.accent}30`,
                 borderRadius: 999,
                 height: 168,

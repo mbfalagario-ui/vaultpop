@@ -108,8 +108,8 @@ export function CoinTile({
           }}
         >
           <Animated.View
-            pointerEvents="none"
             style={{
+              pointerEvents: "none",
               borderColor: "#FFFFFF",
               borderRadius: 999,
               borderWidth: 2,
@@ -123,8 +123,8 @@ export function CoinTile({
           />
           {selected ? (
             <View
-              pointerEvents="none"
               style={{
+                pointerEvents: "none",
                 borderColor: "#FFFFFF",
                 borderRadius: 999,
                 borderWidth: 2,

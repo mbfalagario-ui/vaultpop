@@ -136,8 +136,8 @@ export function VaultMeter({
           </Animated.View>
           {/* Segment ticks */}
           <View
-            pointerEvents="none"
             style={{
+              pointerEvents: "none",
               bottom: 0,
               flexDirection: "row",
               left: 0,
@@ -161,8 +161,8 @@ export function VaultMeter({
           </View>
           {opening ? (
             <Animated.View
-              pointerEvents="none"
               style={{
+                pointerEvents: "none",
                 backgroundColor: colors.gold,
                 bottom: 0,
                 left: 0,

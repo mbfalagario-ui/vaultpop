@@ -25,8 +25,8 @@ export function MetricCard({ label, value, accent = colors.cyan }: MetricCardPro
       }}
     >
       <View
-        pointerEvents="none"
         style={{
+          pointerEvents: "none",
           backgroundColor: accent,
           borderRadius: 999,
           boxShadow: `0 0 10px ${accent}`,

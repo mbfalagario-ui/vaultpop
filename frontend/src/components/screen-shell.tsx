@@ -35,15 +35,14 @@ export function ScreenShell({
       <LinearGradient
         colors={["#100C26", colors.background, colors.backgroundDeep]}
         locations={[0, 0.45, 1]}
-        pointerEvents="none"
-        style={{ bottom: 0, left: 0, position: "absolute", right: 0, top: 0 }}
+        style={{ bottom: 0, left: 0, pointerEvents: "none", position: "absolute", right: 0, top: 0 }}
       />
       <LinearGradient
         colors={[`${accent}38`, `${accent}00`]}
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 1 }}
-        pointerEvents="none"
         style={{
+          pointerEvents: "none",
           borderRadius: 999,
           height: 340,
           position: "absolute",
@@ -57,8 +56,8 @@ export function ScreenShell({
         colors={[`${colors.violetDeep}30`, `${colors.violetDeep}00`]}
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 1 }}
-        pointerEvents="none"
         style={{
+          pointerEvents: "none",
           borderRadius: 999,
           bottom: -160,
           height: 380,

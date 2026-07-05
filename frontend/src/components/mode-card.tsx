@@ -51,8 +51,8 @@ export function ModeCard({ mode, bestScore, detail }: ModeCardProps) {
             colors={[`${visual.accent}30`, `${visual.accent}00`]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0.9 }}
-            pointerEvents="none"
             style={{
+              pointerEvents: "none",
               borderRadius: 999,
               height: 190,
               position: "absolute",

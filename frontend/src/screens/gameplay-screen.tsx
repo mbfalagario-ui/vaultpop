@@ -475,8 +475,8 @@ export function GameplayScreen() {
 
         {feedback ? (
           <Animated.View
-            pointerEvents="none"
             style={{
+              pointerEvents: "none",
               alignItems: "center",
               left: 0,
               opacity: feedbackMotion,
