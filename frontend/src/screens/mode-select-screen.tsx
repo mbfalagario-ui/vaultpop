@@ -1,4 +1,5 @@
 import { clearRewardedCooldown } from "@/ads/ad-service";
+import { ActionLink } from "@/components/action-link";
 import { AdBanner } from "@/components/ad-banner";
 import { ModeCard } from "@/components/mode-card";
 import { ScreenShell } from "@/components/screen-shell";
@@ -41,6 +42,7 @@ export function ModeSelectScreen() {
       >
         Daily Vault refreshes once per local day.
       </Text>
+      <ActionLink href="/" label="Home" accent={colors.cyan} testID="modes-home" />
       <AdBanner placement="mode-select" />
     </ScreenShell>
   );

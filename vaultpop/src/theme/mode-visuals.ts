@@ -116,3 +116,22 @@ export const MODE_VISUALS: Record<GameModeId, ModeVisual> = {
 export function getModeVisual(modeId: GameModeId): ModeVisual {
   return MODE_VISUALS[modeId];
 }
+
+const MODE_LABELS: Record<GameModeId, string> = {
+  classic: "Classic",
+  dailyVault: "Daily Vault",
+  streak: "Streak",
+  blitz: "Blitz"
+};
+
+/**
+ * Single-line header, e.g. "Vault Reactor - Classic". Skips the mode label
+ * when the visual name already contains it (e.g. "VaultPop Blitz").
+ */
+export function getModeHeading(modeId: GameModeId): string {
+  const visual = MODE_VISUALS[modeId];
+  const label = MODE_LABELS[modeId];
+  return visual.name.toLowerCase().includes(label.toLowerCase())
+    ? visual.name
+    : `${visual.name} - ${label}`;
+}

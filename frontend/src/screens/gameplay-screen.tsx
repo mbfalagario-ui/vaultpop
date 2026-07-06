@@ -23,6 +23,7 @@ import { applyRoundResult, type DailyVaultSave } from "@/storage";
 import { useSaveProfile } from "@/storage/use-save-profile";
 import {
   colors,
+  getModeHeading,
   getModeVisual,
   getVisualTheme,
   radius,
@@ -266,6 +267,7 @@ export function GameplayScreen() {
       modeId,
       profile.settings.hapticsEnabled,
       profile.settings.reducedMotion,
+      profile.settings.soundEnabled,
       round
     ]
   );
@@ -328,15 +330,6 @@ export function GameplayScreen() {
     ]
   );
 
-  const modeLabel =
-    modeId === "dailyVault"
-      ? "Daily Vault"
-      : modeId === "streak"
-        ? "Streak"
-        : modeId === "blitz"
-          ? "Blitz"
-          : "Classic";
-
   const feedbackScale = feedbackMotion.interpolate({
     inputRange: [0, 1],
     outputRange: [0.7, 1]
@@ -350,13 +343,12 @@ export function GameplayScreen() {
   // height left after header, HUD, meter, boosters, status, and buttons.
   const boardSide = Math.max(
     260,
-    Math.min(window.width - spacing.md * 2, window.height - 460)
+    Math.min(window.width - spacing.md * 2, window.height - 500)
   );
 
   return (
     <ScreenShell
-      eyebrow={visual.name}
-      title={round.phase === "paused" ? "Paused" : modeLabel}
+      title={round.phase === "paused" ? "Paused" : getModeHeading(modeId)}
       accent={visual.accent}
       compact
       inlineHeader
@@ -499,6 +491,48 @@ export function GameplayScreen() {
         }
       />
 
+      {/* Feedback lane — reserved strip so score pop-ups never cover gameplay */}
+      <View
+        testID="gameplay-feedback-lane"
+        style={{ alignItems: "center", height: 36, justifyContent: "center", marginVertical: -4 }}
+      >
+        {feedback ? (
+          <Animated.View
+            style={{
+              opacity: feedbackMotion,
+              pointerEvents: "none",
+              transform: [{ scale: feedbackScale }]
+            }}
+          >
+            <View
+              style={{
+                backgroundColor: "#05040FF2",
+                borderColor: `${visual.accent}AA`,
+                borderRadius: radius.pill,
+                borderWidth: 1.5,
+                boxShadow: `0 0 20px ${visual.accent}55`,
+                paddingHorizontal: spacing.md,
+                paddingVertical: 5
+              }}
+            >
+              <Text
+                selectable={false}
+                style={{
+                  color: visual.energy,
+                  fontSize: 17,
+                  fontStyle: "italic",
+                  fontVariant: ["tabular-nums"],
+                  fontWeight: "900",
+                  letterSpacing: 0.5
+                }}
+              >
+                {feedback}
+              </Text>
+            </View>
+          </Animated.View>
+        ) : null}
+      </View>
+
       {/* Board */}
       <View style={{ alignSelf: "center", maxWidth: boardSide, position: "relative", width: "100%" }}>
         <LinearGradient
@@ -561,48 +595,6 @@ export function GameplayScreen() {
             }}
           />
         </LinearGradient>
-
-        {feedback ? (
-          <Animated.View
-            style={{
-              pointerEvents: "none",
-              alignItems: "center",
-              left: 0,
-              opacity: feedbackMotion,
-              position: "absolute",
-              right: 0,
-              top: "42%",
-              transform: [{ scale: feedbackScale }],
-              zIndex: 3
-            }}
-          >
-            <View
-              style={{
-                backgroundColor: "#05040FE8",
-                borderColor: `${visual.accent}AA`,
-                borderRadius: radius.pill,
-                borderWidth: 1.5,
-                boxShadow: `0 0 30px ${visual.accent}77`,
-                paddingHorizontal: spacing.lg,
-                paddingVertical: spacing.sm
-              }}
-            >
-              <Text
-                selectable={false}
-                style={{
-                  color: visual.energy,
-                  fontSize: 24,
-                  fontStyle: "italic",
-                  fontVariant: ["tabular-nums"],
-                  fontWeight: "900",
-                  letterSpacing: 0.5
-                }}
-              >
-                {feedback}
-              </Text>
-            </View>
-          </Animated.View>
-        ) : null}
       </View>
 
       {/* Booster arcade panel */}
@@ -686,6 +678,9 @@ export function GameplayScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <ActionLink href="/modes" label="Modes" accent={visual.secondary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <ActionLink href="/" label="Home" accent={visual.energy} testID="gameplay-home-link" />
             </View>
           </>
         ) : (

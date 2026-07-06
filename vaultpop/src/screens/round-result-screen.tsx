@@ -21,7 +21,7 @@ import { getPlayerHandle } from "@/social/player-identity";
 import { recordPlayToday } from "@/social/streak-tracker";
 import { recordInterstitialShown } from "@/storage";
 import { useSaveProfile } from "@/storage/use-save-profile";
-import { colors, getModeVisual, radius, spacing, typography } from "@/theme";
+import { colors, getModeHeading, getModeVisual, radius, spacing, typography } from "@/theme";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams } from "expo-router";
 import { useEffect, useRef, useState } from "react";
@@ -156,7 +156,7 @@ export function RoundResultScreen() {
   }, [profile, setProfile]);
 
   return (
-    <ScreenShell eyebrow={visual.name} title="" accent={visual.accent} compact showBack={false}>
+    <ScreenShell eyebrow={getModeHeading(mode)} title="" accent={visual.accent} compact showBack={false}>
       {!profile.settings.reducedMotion ? <CoinConfetti /> : null}
       {/* Celebration medal */}
       <View style={{ alignItems: "center", gap: spacing.md, paddingTop: spacing.lg }}>
@@ -346,6 +346,12 @@ export function RoundResultScreen() {
         label="Choose Another Mode"
         accent={visual.secondary}
         testID="result-mode-select"
+      />
+      <ActionLink
+        href="/"
+        label="Home"
+        accent={colors.cyan}
+        testID="result-home"
       />
 
       {/* Shareable score card */}

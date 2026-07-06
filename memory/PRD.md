@@ -1,6 +1,15 @@
 # VaultPop — Premium UI Rescue (PRD / Memory)
 
-## Iteration 3 Polish Patch (2026-07-05, latest)
+## Iteration 4 Polish Patch (2026-07-06, latest)
+- Merged gameplay header into ONE line per mode via `getModeHeading()` in theme/mode-visuals.ts (exported from @/theme): "Vault Reactor - Classic", "Prism Chain - Daily Vault", "VaultPop Run - Streak", "VaultPop Blitz" (label deduped when name already contains it). Gameplay ScreenShell no longer passes eyebrow; inline BackChip title got numberOfLines=1 + adjustsFontSizeToFit (minScale 0.6). Results eyebrow also uses getModeHeading.
+- Home navigation added: results screen "Home" ActionLink (testID result-home) under "Choose Another Mode"; mode-select "Home" link (modes-home) above ad banner; gameplay paused row now Resume/Modes/Home (gameplay-home-link). Click-through verified via Playwright.
+- Also from prior turn (user-approved, carried over): two-line centered tagline, cinematic backgrounds, feedback lane.
+- Files synced BOTH copies: /app/frontend/src/** (live preview) AND /app/vaultpop/src/** (canonical repo w/ verify). Keep them in sync!
+- Proof: /app/vaultpop/outputs/iteration4-proof (12 screens + contact sheet), zip /app/vaultpop-iteration4-polish-proof.zip, capture script /app/capture_iteration4_proof.py (python playwright, chrome at /usr/bin/google-chrome).
+- Verify PASS with Node 22: typechecks, 26/26 tests, all audits (banned-language = zero "Coin Forge").
+- Status: awaiting user visual review (FINAL VERDICT block delivered).
+
+## Iteration 3 Polish Patch (2026-07-05)
 - Brand fix: "Coin Forge" removed everywhere → streak mode renamed "VaultPop Run", meter label "Chain Core"; blitz eyebrow "VaultPop Blitz". Zero occurrences in src/app/proof assets.
 - New 4th mode **Blitz** (`blitz`): 30s speed run, magenta/cyan identity. Touched: models.ts (GameModeId), constants.ts (GAME_MODES, roundSeconds 30), engine.ts (createInitialRound uses getModeDefinition roundSeconds), mode-visuals.ts, save-model.ts (highScores.blitz in defaults + fallback), normalizeMode in gameplay+results, MODE_GLYPHS maps (mode-card/results/share-card/leaderboard/home), leaderboard MODES chips, backend VALID_MODES (FastAPI) + LEADERBOARD_MODES (TS backend), how-to-play copy.
 - Home Pick Your Vault → deterministic 2×2 grid (explicit row pairs, each tile wrapped in flex:1 View — Link asChild alone did NOT stretch equally on web).
