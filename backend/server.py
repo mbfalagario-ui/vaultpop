@@ -1,4 +1,5 @@
 from fastapi import FastAPI, APIRouter
+from fastapi.responses import FileResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -125,6 +126,19 @@ async def get_status_checks():
     return [StatusCheck(**status_check) for status_check in status_checks]
 
 # Include the router in the main app
+# Serve the latest visual-proof zip for download.
+PROOF_ZIP = Path("/app/vaultpop-iteration4-polish-proof.zip")
+
+
+@api_router.get("/proof/iteration4")
+async def download_iteration4_proof():
+    return FileResponse(
+        PROOF_ZIP,
+        media_type="application/zip",
+        filename="vaultpop-iteration4-polish-proof.zip",
+    )
+
+
 app.include_router(api_router)
 
 app.add_middleware(
