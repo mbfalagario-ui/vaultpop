@@ -128,6 +128,16 @@ async def get_status_checks():
 # Include the router in the main app
 # Serve the latest visual-proof zip for download.
 PROOF_ZIP = Path("/app/vaultpop-iteration4-polish-proof.zip")
+SOURCE_ZIP = Path("/app/vaultpop-iteration4-final-source-for-build6.zip")
+
+
+@api_router.get("/export/build6-source")
+async def download_build6_source():
+    return FileResponse(
+        SOURCE_ZIP,
+        media_type="application/zip",
+        filename="vaultpop-iteration4-final-source-for-build6.zip",
+    )
 
 
 @api_router.get("/proof/iteration4")
