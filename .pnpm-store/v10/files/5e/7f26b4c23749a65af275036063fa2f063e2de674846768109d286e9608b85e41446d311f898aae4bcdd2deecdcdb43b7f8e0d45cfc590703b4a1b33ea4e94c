@@ -1,0 +1,1 @@
+{"version":3,"file":"react-native.d.ts","sourceRoot":"","sources":["../../../src/__tests__/__mocks__/react-native.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,MAAM,OAAO,CAAC;AAG1B,eAAO,MAAM,IAAI,kFAIf,CAAC;AAGH,eAAO,MAAM,QAAQ;;CAAc,CAAC;AAEpC,eAAO,MAAM,cAAc,iCAGzB,CAAC;AAEH,eAAO,MAAM,aAAa;;;;;;CAMzB,CAAC;AAEF,eAAO,MAAM,UAAU;qBACJ,GAAG;CACrB,CAAC"}

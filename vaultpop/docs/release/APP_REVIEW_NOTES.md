@@ -1,6 +1,6 @@
 # App Review Notes Draft
 
-VaultPop is a local-first, offline-capable arcade puzzle game. Core gameplay does not require login. From Home, tap Start and choose Classic Mode, Daily Vault, or Streak Mode. Tap connected groups of two or more matching coin tiles to score, build a combo, and fill the Vault meter. The Shop is available from Home, Restore Purchases is available from Shop and Settings, and optional Account sign-in is available from Settings.
+VaultPop is a local-first, offline-capable arcade puzzle game. Core gameplay does not require login. From Home, tap Start and choose Classic Mode, Daily Vault, Streak Mode, or Blitz. Tap connected groups of two or more matching coin tiles to score, build a combo, and fill the Vault meter. The Shop is available from Home (including the merged Styles & Customization section), Restore Purchases is available from Shop and Settings, and optional Account creation and sign-in are available from Settings. Accounts are optional, free, and add only inventory sync and support history.
 
 Optional reviewer account for account-linked inventory and support testing:
 
@@ -24,5 +24,9 @@ Products:
 Purchases are verified against Apple-signed transaction data before delivery. Consumables use a unique transaction ledger and are not restored. Cancelled, failed, pending, unverified, or revoked transactions grant nothing.
 
 AdMob banners appear only on Home, Mode Select, Shop, Cosmetics, Support, and Results. Interstitials are limited to natural post-round breaks, rewarded ads are user-initiated, and app-open ads require a prior completed round plus a background return. No ad appears on first launch or during gameplay. Advertising initialization occurs after the first visible screen and handles consent and App Tracking Transparency permission before requesting ads. Denying permission does not restrict gameplay.
+
+Two optional rewarded placements exist in the Shop: "Watch for 1 Bonus Life" and "Watch for 10 Vault Coins". Both grant fictional in-game items only, share a combined limit of 30 rewarded ads per day, grant nothing when an ad fails or is closed early, and use AdMob server-side verification at `https://vaultpop-api.fly.dev/api/ads/ssv_callback` (with safe fallback handling on `/support`).
+
+The public support page at `https://vaultpop-api.fly.dev/support` is a branded FAQ and contact page. The in-app FAQ and Support Assistant are fully on-device (structured FAQ search only, no external AI service, no player text leaves the device).
 
 The private Support screen requires no login and accepts a category, message, and optional email. It includes the disclosed install ID, app/build version, device model, and priority-routing flag. If secure ticket delivery is unavailable, the app opens a prefilled email to support@vaultpop.app.

@@ -1,0 +1,54 @@
+{
+  "name": "expo-symbols",
+  "version": "56.0.6",
+  "description": "Provides access to the SF Symbols library on iOS, and Material Symbols on Android and web, for Expo and React Native apps.",
+  "main": "build/index.js",
+  "types": "build/index.d.ts",
+  "exports": {
+    ".": "./build/index.js",
+    "./androidWeights/*": "./build/android/weights/*/index.js"
+  },
+  "keywords": [
+    "react-native",
+    "expo",
+    "expo-symbols",
+    "symbols",
+    "sfsymbols",
+    "ios"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/expo/expo.git",
+    "directory": "packages/expo-symbols"
+  },
+  "bugs": {
+    "url": "https://github.com/expo/expo/issues"
+  },
+  "author": "650 Industries, Inc.",
+  "license": "MIT",
+  "homepage": "https://docs.expo.dev/versions/latest/sdk/symbols/",
+  "dependencies": {
+    "sf-symbols-typescript": "^2.0.0",
+    "@expo-google-fonts/material-symbols": "^0.4.1"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.0",
+    "expo-font": "56.0.5",
+    "expo-module-scripts": "56.0.3",
+    "expo": "56.0.9"
+  },
+  "peerDependencies": {
+    "expo": "*",
+    "react": "*",
+    "react-native": "*",
+    "expo-font": "*"
+  },
+  "gitHead": "175f1e78e3444ca99ddea473faea6777a0656668",
+  "scripts": {
+    "build": "expo-module build",
+    "clean": "expo-module clean",
+    "lint": "expo-module lint",
+    "test": "expo-module test",
+    "expo-module": "expo-module"
+  }
+}

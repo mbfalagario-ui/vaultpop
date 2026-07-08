@@ -1,0 +1,75 @@
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.GAMBannerAdSize = exports.BannerAdSize = void 0;
+/*
+ * Copyright (c) 2016-present Invertase Limited & Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this library except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ *
+ */
+let BannerAdSize = exports.BannerAdSize = /*#__PURE__*/function (BannerAdSize) {
+  /**
+   * Mobile Marketing Association (MMA) banner ad size (320x50 density-independent pixels).
+   */
+  BannerAdSize["BANNER"] = "BANNER";
+  /**
+   * Interactive Advertising Bureau (IAB) full banner ad size (468x60 density-independent pixels).
+   */
+  BannerAdSize["FULL_BANNER"] = "FULL_BANNER";
+  /**
+   * Large banner ad size (320x100 density-independent pixels).
+   */
+  BannerAdSize["LARGE_BANNER"] = "LARGE_BANNER";
+  /**
+   * Interactive Advertising Bureau (IAB) leaderboard ad size (728x90 density-independent pixels).
+   */
+  BannerAdSize["LEADERBOARD"] = "LEADERBOARD";
+  /**
+   * Interactive Advertising Bureau (IAB) medium rectangle ad size (300x250 density-independent pixels).
+   */
+  BannerAdSize["MEDIUM_RECTANGLE"] = "MEDIUM_RECTANGLE";
+  /**
+   * @deprecated Use `LARGE_ANCHORED_ADAPTIVE_BANNER` instead.
+   * See: https://ads-developers.googleblog.com/2026/02/announcing-android-google-mobile-ads.html
+   *
+   * Anchored to the top or bottom of the screen, anchored adaptive banners set an optimal ad slot size for any device.
+   */
+  BannerAdSize["ANCHORED_ADAPTIVE_BANNER"] = "ANCHORED_ADAPTIVE_BANNER";
+  /**
+   * Anchored to the top or bottom of the screen. Larger ads are designed to
+   * increase engagement and revenue potential for publishers.
+   */
+  BannerAdSize["LARGE_ANCHORED_ADAPTIVE_BANNER"] = "LARGE_ANCHORED_ADAPTIVE_BANNER";
+  /**
+   * Inline adaptive banners are larger, taller banners compared to anchored adaptive banners. They are of variable height, and can be as tall as the device screen.
+   * They are intended to be placed in scrolling content.
+   */
+  BannerAdSize["INLINE_ADAPTIVE_BANNER"] = "INLINE_ADAPTIVE_BANNER";
+  /**
+   * IAB wide skyscraper ad size (160x600 density-independent pixels). This size is currently not supported by the Google Mobile Ads network; this is intended for mediation ad networks only.
+   */
+  BannerAdSize["WIDE_SKYSCRAPER"] = "WIDE_SKYSCRAPER";
+  return BannerAdSize;
+}({});
+const GAMBannerAdSize = exports.GAMBannerAdSize = {
+  ...BannerAdSize,
+  /**
+   * A dynamically sized banner that matches its parent's width and expands/contracts its height to match the ad's content after loading completes.
+   */
+  FLUID: 'FLUID'
+};
+//# sourceMappingURL=BannerAdSize.js.map

@@ -10,7 +10,11 @@ const allowedLegalPaths = [
   "docs/release/PRODUCT_CONTRACT.md",
   "docs/release/APP_REVIEW_NOTES.md",
   "docs/release/APP_PRIVACY_ANSWERS.md",
-  "docs/release/ACCEPTANCE_CRITERIA.md"
+  "docs/release/ACCEPTANCE_CRITERIA.md",
+  "docs/release/diagnostic-report-build8.md",
+  "docs/release/apple-compliance-review-build8.md",
+  "docs/release/security-code-audit-build8.md",
+  "BUILD8_HANDOFF.md"
 ];
 const allowedTechnicalPaths = [
   "backend/sqlite-account-store.ts"

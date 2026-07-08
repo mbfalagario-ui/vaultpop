@@ -1,0 +1,43 @@
+{
+  "name": "expo-tracking-transparency",
+  "version": "56.0.5",
+  "description": "A library for tracking app users and managing tracking permissions",
+  "main": "build/TrackingTransparency.js",
+  "types": "build/TrackingTransparency.d.ts",
+  "keywords": [
+    "react-native",
+    "expo",
+    "expo-tracking-transparency"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/expo/expo.git",
+    "directory": "packages/expo-tracking-transparency"
+  },
+  "bugs": {
+    "url": "https://github.com/expo/expo/issues"
+  },
+  "author": "650 Industries, Inc.",
+  "license": "MIT",
+  "homepage": "https://docs.expo.dev/versions/latest/sdk/tracking-transparency",
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "expo": "56.0.3",
+    "expo-module-scripts": "56.0.2"
+  },
+  "peerDependencies": {
+    "expo": "*",
+    "react-native": "*"
+  },
+  "jest": {
+    "preset": "expo-module-scripts"
+  },
+  "gitHead": "125e8225bf36a4b9b2a159441d9ea724bcf1110f",
+  "scripts": {
+    "build": "expo-module build",
+    "clean": "expo-module clean",
+    "lint": "expo-module lint",
+    "test": "expo-module test",
+    "expo-module": "expo-module"
+  }
+}

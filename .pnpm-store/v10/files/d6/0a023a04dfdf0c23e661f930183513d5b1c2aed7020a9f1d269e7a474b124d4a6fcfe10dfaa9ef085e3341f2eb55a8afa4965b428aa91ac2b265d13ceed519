@@ -1,0 +1,52 @@
+{
+  "name": "expo-sharing",
+  "version": "56.0.20",
+  "description": "Provides a way to share files directly with other compatible applications.",
+  "main": "build/index.js",
+  "types": "build/index.d.ts",
+  "sideEffects": false,
+  "keywords": [
+    "react-native",
+    "expo",
+    "expo-sharing",
+    "android",
+    "ios",
+    "web"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/expo/expo.git",
+    "directory": "packages/expo-sharing"
+  },
+  "jest": {
+    "preset": "expo-module-scripts"
+  },
+  "author": "650 Industries, Inc.",
+  "license": "MIT",
+  "homepage": "https://docs.expo.dev/versions/latest/sdk/sharing/",
+  "dependencies": {
+    "@expo/plist": "^0.7.0",
+    "@expo/config-plugins": "^56.0.11",
+    "@expo/config-types": "^56.0.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "@types/react": "~19.2.0",
+    "expo": "56.0.14",
+    "expo-module-scripts": "56.0.3"
+  },
+  "peerDependencies": {
+    "expo": "*",
+    "react": "*",
+    "react-native": "*"
+  },
+  "gitHead": "b2e161a54f90a778ab7e5560c0c8f021bbfcaae2",
+  "scripts": {
+    "build": "expo-module build",
+    "build:plugin": "expo-module build plugin",
+    "clean": "expo-module clean",
+    "lint": "expo-module lint",
+    "test": "expo-module test",
+    "expo-module": "expo-module"
+  }
+}
