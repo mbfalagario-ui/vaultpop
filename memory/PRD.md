@@ -1,6 +1,20 @@
 # VaultPop — Premium UI Rescue (PRD / Memory)
 
-## Iteration 4 Polish Patch (2026-07-06, latest)
+## Build 8 Readiness Patch (2026-07-08, latest)
+User-approved full patch, all phases complete, verify PASS (34/34 tests + 5 audits), E2E 31/31 backend + 12/12 UI flows.
+- ROOT CAUSE leaderboards: live fly.dev backend is OLD (404 on /v1/leaderboard) — source now has SQLite persistence (backend/leaderboard-store.ts); FLY DEPLOY still required by user (no Fly token in env → deploy portion BLOCKED, documented in BUILD8_HANDOFF.md).
+- /support: polished branded page (backend/support-page.ts) + AdMob SSV dual behavior; preferred SSV endpoint /api/ads/ssv_callback (backend/ssv.ts — ECDSA fail-closed, idempotent, SQLite ledger).
+- Public registration: POST /v1/auth/register (player-only, scrypt, 5/hr/IP) in TS backend + FastAPI preview mirror (/api/v1/auth/*, /api/v1/support/tickets in server.py, Mongo).
+- Shop reworked: compact header, VaultPass hero w/ AD-FREE + PRIORITY SUPPORT chips, both rewarded CTAs top (new unit .../9333822278 = 10 Vault Coins; grantRewardedVaultCoins shares 30/day cap), Booster Forge confirmations, Styles & Customization merged in (cosmetics-screen.tsx = Redirect to /shop).
+- Settings hub: Gameplay Settings page (/gameplay-settings), Create Account/Sign In/Account Sync/Sign Out wording, FAQ (/faq), Support Assistant (/assistant, structured FAQ intents only — NO LLM), support links.
+- Motion rebalance: coin entrance 10px settle (was 1.4x drop), reduced-motion keeps fades/glow/score pulse/vault flash.
+- Audits expanded: banned-language now includes Coin Forge/hashrate/cryptocurrency/gambling; navigation + monetization updated; new tests tests/build8.test.ts.
+- Deliverables (also served): /api/proof/build8, /api/export/build8-final-source; BUILD8_HANDOFF.md + 3 reports in /app/vaultpop/docs/release/.
+- Env notes: Node22 + pnpm10 must be reinstalled after fork (npm i -g pnpm@10; node22 → /opt/node22). Python playwright must use /pw-browsers/chromium_headless_shell-1208/chrome-linux/headless_shell (system chrome crashes under playwright). Local TS backend test run: port 8787 w/ APPLE_ROOT_CA_PATHS=backend/certs/*.
+- Preview creds: qa.player@vaultpop.app / VaultPopQA2026!x (see /app/memory/test_credentials.md).
+- Status: awaiting USER VISUAL REVIEW before Build 8. Do not build/deploy/submit.
+
+## Iteration 4 Polish Patch (2026-07-06)
 - Merged gameplay header into ONE line per mode via `getModeHeading()` in theme/mode-visuals.ts (exported from @/theme): "Vault Reactor - Classic", "Prism Chain - Daily Vault", "VaultPop Run - Streak", "VaultPop Blitz" (label deduped when name already contains it). Gameplay ScreenShell no longer passes eyebrow; inline BackChip title got numberOfLines=1 + adjustsFontSizeToFit (minScale 0.6). Results eyebrow also uses getModeHeading.
 - Home navigation added: results screen "Home" ActionLink (testID result-home) under "Choose Another Mode"; mode-select "Home" link (modes-home) above ad banner; gameplay paused row now Resume/Modes/Home (gameplay-home-link). Click-through verified via Playwright.
 - Also from prior turn (user-approved, carried over): two-line centered tagline, cinematic backgrounds, feedback lane.
