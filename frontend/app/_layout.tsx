@@ -56,6 +56,9 @@ export default function RootLayout() {
         <Stack.Screen name="support" options={{ title: "Support" }} />
         <Stack.Screen name="account" options={{ title: "Account" }} />
         <Stack.Screen name="settings" options={{ title: "Settings" }} />
+        <Stack.Screen name="gameplay-settings" options={{ title: "Gameplay Settings" }} />
+        <Stack.Screen name="faq" options={{ title: "FAQ" }} />
+        <Stack.Screen name="assistant" options={{ title: "Support Assistant" }} />
         <Stack.Screen name="legal" options={{ title: "Privacy and Support" }} />
       </Stack>
     </RootErrorBoundary>

@@ -336,7 +336,7 @@ export function HomeScreen() {
             <ActionLink href="/shop" label="Shop" accent={colors.ruby} />
           </View>
           <View style={{ flex: 1 }}>
-            <ActionLink href="/cosmetics" label="Styles" accent={colors.violet} />
+            <ActionLink href="/faq" label="FAQ" accent={colors.violet} />
           </View>
         </View>
         <View style={{ flexDirection: "row", gap: spacing.sm }}>

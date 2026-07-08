@@ -238,6 +238,48 @@ export class SqliteAccountStore implements AccountStore {
     };
   }
 
+  registerPlayer(input: {
+    email: string;
+    password: string;
+    installId: string;
+    now?: Date;
+  }): AuthSession {
+    const email = normalizeEmail(input.email);
+    if (this.findAccountByEmail(email)) {
+      throw new Error("An account with this email already exists.");
+    }
+    const password = hashPassword(input.password);
+    const accountId = randomUUID();
+    const now = (input.now ?? new Date()).toISOString();
+    this.database.exec("BEGIN IMMEDIATE");
+    try {
+      this.database
+        .prepare(`
+          INSERT INTO accounts (
+            id, email, password_hash, password_salt, role, active, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, 'player', 1, ?, ?)
+        `)
+        .run(accountId, email, password.passwordHash, password.passwordSalt, now, now);
+      this.database
+        .prepare("INSERT INTO account_balances (account_id) VALUES (?)")
+        .run(accountId);
+      this.database.exec("COMMIT");
+    } catch (error) {
+      this.database.exec("ROLLBACK");
+      throw error;
+    }
+    const session = this.login({
+      email,
+      password: input.password,
+      installId: input.installId,
+      now: input.now
+    });
+    if (!session) {
+      throw new Error("Registration failed.");
+    }
+    return session;
+  }
+
   authenticate(token: string, now = new Date()): PublicAccount | null {
     const row = this.database
       .prepare(`

@@ -3,6 +3,7 @@ export const ADMOB_IOS = {
   banner: "ca-app-pub-6035003811280283/7582473518",
   interstitial: "ca-app-pub-6035003811280283/4722973514",
   rewarded: "ca-app-pub-6035003811280283/3409891849",
+  rewardedCoins: "ca-app-pub-6035003811280283/9333822278",
   appOpen: "ca-app-pub-6035003811280283/3675018099"
 } as const;
 

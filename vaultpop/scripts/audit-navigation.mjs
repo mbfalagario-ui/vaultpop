@@ -9,6 +9,9 @@ const requiredRoutes = [
   "app/how-to-play.tsx",
   "app/cosmetics.tsx",
   "app/settings.tsx",
+  "app/gameplay-settings.tsx",
+  "app/faq.tsx",
+  "app/assistant.tsx",
   "app/shop.tsx",
   "app/support.tsx",
   "app/account.tsx",
@@ -16,17 +19,20 @@ const requiredRoutes = [
 ];
 
 const requiredScreenCopy = [
-  ["src/screens/home-screen.tsx", ["PLAY", "How to Play", "Settings", "Shop", "Styles", "Support", "Privacy & Legal"]],
+  ["src/screens/home-screen.tsx", ["PLAY", "How to Play", "Settings", "Shop", "FAQ", "Support", "Privacy & Legal"]],
   ["src/screens/how-to-play-screen.tsx", ["THE CORE LOOP", "COMBO AND VAULT", "CHOOSE YOUR VAULT", "BOOSTERS"]],
   ["src/screens/mode-select-screen.tsx", ["GAME_MODES", "ModeCard"]],
   ["src/game/constants.ts", ["Classic Mode", "Daily Vault", "Streak Mode"]],
   ["src/screens/gameplay-screen.tsx", ["Restart", "Finish", "Pause", "BoosterControl"]],
-  ["src/screens/round-result-screen.tsx", ["PLAY AGAIN", "Choose Another Mode"]],
-  ["src/screens/settings-screen.tsx", ["Sound", "Haptics", "Reduced Motion", "Restore Purchases", "Reset Local Progress"]],
-  ["src/screens/cosmetics-screen.tsx", ["Arcade Styles", "Use", "STYLE POINTS"]],
-  ["src/screens/shop-screen.tsx", ["Restore Purchases", "Watch for 1 Bonus Life", "IAP_PRODUCTS"]],
+  ["src/screens/round-result-screen.tsx", ["PLAY AGAIN", "Choose Another Mode", "Home"]],
+  ["src/screens/settings-screen.tsx", ["Gameplay Settings", "Create Account", "Sign In", "Account Sync", "FAQ", "Support Assistant", "Restore Purchases", "Reset Local Progress"]],
+  ["src/screens/gameplay-settings-screen.tsx", ["Sound", "Haptics", "Reduced Motion"]],
+  ["src/screens/faq-screen.tsx", ["FAQ_ENTRIES", "Contact Support", "Support Assistant"]],
+  ["src/screens/assistant-screen.tsx", ["SUGGESTED ANSWERS", "Submit a Support Request", "support@vaultpop.app"]],
+  ["src/screens/cosmetics-screen.tsx", ["Redirect", "/shop"]],
+  ["src/screens/shop-screen.tsx", ["Restore Purchases", "Watch for 1 Bonus Life", "Watch for 10 Vault Coins", "IAP_PRODUCTS", "STYLES & CUSTOMIZATION", "BOOSTER FORGE", "AD-FREE", "PRIORITY SUPPORT"]],
   ["src/screens/support-screen.tsx", ["SUPPORT_CATEGORIES", "Submit Support Request", "Email (Optional)"]],
-  ["src/screens/account-screen.tsx", ["Sign In", "Sign Out", "Play offline anytime"]],
+  ["src/screens/account-screen.tsx", ["Sign In", "Create Account", "Sign Out", "Account Sync", "Signed in as", "Play offline anytime"]],
   ["src/screens/privacy-support-legal-screen.tsx", ["In-App Support", "Email Support", "Privacy Policy"]]
 ];
 

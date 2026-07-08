@@ -31,17 +31,24 @@ export function CoinTile({
 
   useEffect(() => {
     if (reducedMotion) {
-      entrance.setValue(1);
+      // Reduced Motion: fade the coin in place — no drop, no scale swing.
+      entrance.setValue(0);
+      Animated.timing(entrance, {
+        duration: 180,
+        toValue: 1,
+        useNativeDriver: true
+      }).start();
       return;
     }
-    // Cascade: refilled coins drop in from above, bottom rows landing first.
+    // Cascade: refilled coins settle in with a SHORT drop (kept small so the
+    // board never feels like it is shaking), bottom rows landing first.
     entrance.setValue(0);
     Animated.sequence([
-      Animated.delay((7 - tile.row) * 24),
+      Animated.delay((7 - tile.row) * 8),
       Animated.spring(entrance, {
-        damping: 14,
-        mass: 0.7,
-        stiffness: 240,
+        damping: 20,
+        mass: 0.6,
+        stiffness: 320,
         toValue: 1,
         useNativeDriver: true
       })
@@ -51,6 +58,15 @@ export function CoinTile({
   useEffect(() => {
     if (reducedMotion) {
       pulse.setValue(selected ? 1 : 0);
+      if (selected) {
+        // Opacity-only confirmation ring flash — satisfying without movement.
+        burst.setValue(0);
+        Animated.timing(burst, {
+          duration: 260,
+          toValue: 1,
+          useNativeDriver: true
+        }).start();
+      }
       return;
     }
     Animated.spring(pulse, {
@@ -72,11 +88,11 @@ export function CoinTile({
 
   const scale = pulse.interpolate({
     inputRange: [0, 1],
-    outputRange: [1, 1.18]
+    outputRange: [1, reducedMotion ? 1.1 : 1.18]
   });
   const burstScale = burst.interpolate({
     inputRange: [0, 1],
-    outputRange: [0.7, 1.7]
+    outputRange: reducedMotion ? [1.25, 1.25] : [0.7, 1.7]
   });
   const burstOpacity = burst.interpolate({
     inputRange: [0, 0.25, 1],
@@ -84,11 +100,11 @@ export function CoinTile({
   });
   const fallShift = entrance.interpolate({
     inputRange: [0, 1],
-    outputRange: [-coinSize * 1.4, 0]
+    outputRange: [reducedMotion ? 0 : -10, 0]
   });
   const entranceScale = entrance.interpolate({
     inputRange: [0, 1],
-    outputRange: [0.55, 1]
+    outputRange: [reducedMotion ? 1 : 0.82, 1]
   });
   const entranceOpacity = entrance.interpolate({
     inputRange: [0, 0.35, 1],

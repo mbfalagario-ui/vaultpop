@@ -1,13 +1,17 @@
-from fastapi import FastAPI, APIRouter
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, APIRouter, Header, HTTPException, Request
+from fastapi.responses import FileResponse, JSONResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
+import base64
+import hashlib
 import os
 import logging
+import secrets
+import time
 from pathlib import Path
 from pydantic import BaseModel, Field
-from typing import List
+from typing import List, Optional
 import uuid
 from datetime import datetime
 
@@ -107,6 +111,187 @@ async def get_leaderboard(mode: str = "classic", limit: int = 50, installId: str
                 {"mode": mode, "score": {"$gt": own.get("score", 0)}}
             ) + 1
     return {"entries": entries, "players": players, "yourRank": your_rank}
+
+# ---- VaultPop Preview Auth (mirrors the production TS backend shapes) ----
+# scrypt password hashing + opaque session tokens stored SHA-256 hashed.
+EMPTY_BALANCE = {
+    "vaultCoins": 0,
+    "bonusLives": 0,
+    "chainBoosts": 0,
+    "vaultBursts": 0,
+    "removeAds": False,
+    "vaultPassExpiresAt": None,
+}
+SUPPORT_CATEGORIES = {
+    "Purchase issue", "Ads issue", "Gameplay issue",
+    "Bug report", "Privacy request", "Other",
+}
+_registration_attempts: dict = {}
+
+
+def _hash_password(password: str, salt_hex: Optional[str] = None):
+    if len(password) < 12 or len(password) > 200:
+        raise ValueError("Password must be between 12 and 200 characters.")
+    salt = salt_hex or secrets.token_bytes(16).hex()
+    derived = hashlib.scrypt(
+        password.encode("utf-8"), salt=salt.encode("utf-8"),
+        n=16384, r=8, p=1, dklen=64,
+    )
+    return derived.hex(), salt
+
+
+def _verify_password(password: str, password_hash: str, salt: str) -> bool:
+    try:
+        derived = hashlib.scrypt(
+            password.encode("utf-8"), salt=salt.encode("utf-8"),
+            n=16384, r=8, p=1, dklen=64,
+        )
+        return secrets.compare_digest(derived.hex(), password_hash)
+    except Exception:
+        return False
+
+
+def _create_session_token():
+    token = base64.urlsafe_b64encode(secrets.token_bytes(32)).decode().rstrip("=")
+    return token, hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def _public_account(doc) -> dict:
+    return {
+        "id": doc["id"],
+        "email": doc["email"],
+        "role": doc.get("role", "player"),
+        "active": bool(doc.get("active", True)),
+        "createdAt": doc.get("createdAt", ""),
+    }
+
+
+async def _account_state(doc) -> dict:
+    return {
+        "account": _public_account(doc),
+        "linkedInstallId": doc.get("linkedInstallId"),
+        "balance": doc.get("balance", dict(EMPTY_BALANCE)),
+        "supportTickets": [],
+    }
+
+
+async def _create_session(doc, install_id: str) -> dict:
+    token, token_hash = _create_session_token()
+    now = datetime.utcnow()
+    expires_at = datetime.utcfromtimestamp(now.timestamp() + 24 * 3600).isoformat() + "Z"
+    await db.vaultpop_sessions.insert_one({
+        "tokenHash": token_hash,
+        "accountId": doc["id"],
+        "expiresAt": expires_at,
+        "createdAt": now.isoformat() + "Z",
+    })
+    await db.vaultpop_accounts.update_one(
+        {"id": doc["id"]}, {"$set": {"linkedInstallId": install_id}}
+    )
+    doc["linkedInstallId"] = install_id
+    return {"token": token, "expiresAt": expires_at, "state": await _account_state(doc)}
+
+
+async def _account_from_token(authorization: Optional[str]):
+    if not authorization or not authorization.startswith("Bearer "):
+        return None
+    token_hash = hashlib.sha256(authorization[7:].strip().encode("utf-8")).hexdigest()
+    session = await db.vaultpop_sessions.find_one({"tokenHash": token_hash})
+    if not session or session.get("expiresAt", "") <= datetime.utcnow().isoformat() + "Z":
+        return None
+    return await db.vaultpop_accounts.find_one({"id": session["accountId"], "active": True})
+
+
+class AuthPayload(BaseModel):
+    email: str = Field(min_length=5, max_length=200)
+    password: str = Field(min_length=1, max_length=200)
+    installId: str = Field(min_length=1, max_length=200)
+
+
+@api_router.post("/v1/auth/register", status_code=201)
+async def register_account(payload: AuthPayload, request: Request):
+    email = payload.email.strip().lower()
+    if "@" not in email or "." not in email.split("@")[-1]:
+        return JSONResponse(status_code=400, content={"error": "Enter a valid email and password."})
+    ip = request.headers.get("x-forwarded-for", "unknown").split(",")[0].strip()
+    window = _registration_attempts.get(ip)
+    now_ts = time.time()
+    if window and window["resetAt"] > now_ts and window["count"] >= 5:
+        return JSONResponse(status_code=429, content={"error": "Too many account creations. Please try again later."})
+    _registration_attempts[ip] = {
+        "count": (window["count"] + 1) if window and window["resetAt"] > now_ts else 1,
+        "resetAt": window["resetAt"] if window and window["resetAt"] > now_ts else now_ts + 3600,
+    }
+    if await db.vaultpop_accounts.find_one({"email": email}):
+        return JSONResponse(status_code=409, content={"error": "An account with this email already exists."})
+    try:
+        password_hash, salt = _hash_password(payload.password)
+    except ValueError as exc:
+        return JSONResponse(status_code=400, content={"error": str(exc)})
+    doc = {
+        "id": str(uuid.uuid4()),
+        "email": email,
+        "passwordHash": password_hash,
+        "passwordSalt": salt,
+        "role": "player",  # public sign-ups can never self-assign roles
+        "active": True,
+        "createdAt": datetime.utcnow().isoformat() + "Z",
+        "linkedInstallId": None,
+        "balance": dict(EMPTY_BALANCE),
+    }
+    await db.vaultpop_accounts.insert_one(doc)
+    return await _create_session(doc, payload.installId)
+
+
+@api_router.post("/v1/auth/login")
+async def login_account(payload: AuthPayload):
+    email = payload.email.strip().lower()
+    doc = await db.vaultpop_accounts.find_one({"email": email, "active": True})
+    if not doc or not _verify_password(payload.password, doc["passwordHash"], doc["passwordSalt"]):
+        return JSONResponse(status_code=401, content={"error": "Invalid email or password."})
+    return await _create_session(doc, payload.installId)
+
+
+@api_router.post("/v1/auth/logout")
+async def logout_account(authorization: Optional[str] = Header(default=None)):
+    if authorization and authorization.startswith("Bearer "):
+        token_hash = hashlib.sha256(authorization[7:].strip().encode("utf-8")).hexdigest()
+        await db.vaultpop_sessions.delete_many({"tokenHash": token_hash})
+    return {"signedOut": True}
+
+
+@api_router.get("/v1/account")
+async def get_account(authorization: Optional[str] = Header(default=None)):
+    doc = await _account_from_token(authorization)
+    if not doc:
+        return JSONResponse(status_code=401, content={"error": "Authentication required."})
+    return {"state": await _account_state(doc)}
+
+
+class SupportTicket(BaseModel):
+    installId: str = Field(min_length=1, max_length=200)
+    category: str
+    message: str = Field(min_length=10, max_length=2000)
+    email: Optional[str] = None
+    appVersion: str = Field(max_length=50)
+    buildNumber: str = Field(max_length=50)
+    deviceInfo: str = Field(max_length=200)
+    priority: bool = False
+
+
+@api_router.post("/v1/support/tickets")
+async def create_support_ticket(payload: SupportTicket):
+    if payload.category not in SUPPORT_CATEGORIES:
+        return JSONResponse(status_code=400, content={"error": "Invalid support request."})
+    count = await db.vaultpop_support_tickets.count_documents({})
+    ticket_id = f"VP-{count + 1:06d}"
+    await db.vaultpop_support_tickets.insert_one({
+        "ticketId": ticket_id,
+        **payload.dict(),
+        "createdAt": datetime.utcnow().isoformat() + "Z",
+    })
+    return {"ticketId": ticket_id}
+
 
 # Add your routes to the router instead of directly to app
 @api_router.get("/")

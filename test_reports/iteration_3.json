@@ -1,0 +1,47 @@
+{
+  "summary": "VaultPop Build 8 — auth + support + shop rework + settings hub + gameplay-settings + FAQ + Support Assistant + leaderboard modes tested. Backend: 31/31 pytest cases PASS on preview URL — /api/v1/auth/register (201 + token + role=player + state), duplicate email 409, weak password (<12) 400, /api/v1/auth/login (200 correct / 401 wrong), GET /api/v1/account with Bearer token 200, unauth 401, POST /api/v1/auth/logout invalidates session (subsequent /account returns 401), POST /api/v1/support/tickets for ALL 6 valid categories returns VP-XXXXXX ticketId, invalid category 400, short message 422, existing qa.player@vaultpop.app login 200; plus 12 existing leaderboard tests still green. Frontend on mobile 390x844: Home loads with home-play-button + footer links; Shop renders VaultPass Plus hero at top with AD-FREE + PRIORITY SUPPORT chips, two rewarded ad CTAs (shop-rewarded-button + shop-rewarded-coins-button) with 'X of 30 rewarded ads used today' counter visible, 6 IAP product cards, 3 Booster Forge cards with 'Forge for N Vault Coins' (disabled at 0 coins, no crash on click), 5 Styles & Customization theme cards. /cosmetics redirects to /shop correctly. Settings hub shows Gameplay Settings link, Create Account + Sign In (signed out), FAQ / Support Assistant / Support links, Restore Purchases, Reset Local Progress (two-tap confirm verified — label changes to 'Confirm Reset'). Gameplay Settings screen renders 3 switches (sound / haptics / reduced-motion). Account create flow: settings-create-account-link -> /account?mode=create -> filled fresh email build8.qa+<rand>@vaultpop.app + password 'VaultPopQA2026!x' + confirm -> submitted -> status 'Account created and signed in' -> Settings now shows 'Signed in as <email>' + Account Sync link (Create Account link gone). /account signed-in shows account-signout-button + account-refresh-button (Account Sync). Sign Out returns to sign-in tab; sign-in with same creds succeeds. FAQ shows 9 category chips + 16 items, filtering + expansion work, faq-assistant-link + faq-support-link navigate correctly. Assistant search 'cancel subscription' surfaces VaultPass answer (2 answers matched); gibberish 'zzzqqq' shows 'Still need a human?' escalation card + 'Submit a Support Request' link that navigates to /support. Support form: selected Bug report category (via role button), filled 60-char message, submitted -> 'Ticket VP-000008 submitted.' confirmation pill. Leaderboard screen: all 4 mode chips (classic/dailyVault/streak/blitz) switch cleanly; after Classic round submission, leaderboard shows own entry (Vault-CNSZ 40 at #2, 'Your global rank #2'). Gameplay reduced-motion flow: toggled Reduced Motion on, played Classic round (64 coin-tile-*), score 40, Finish -> Results shows FINAL SCORE 40 + GLOBAL #2 + 1 DAY STREAK chips, no crash. Non-blocking RN web console warnings persist (pointerEvents / textShadow* / useNativeDriver) — carried over from iterations 1 & 2.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "LinearGradient pointerEvents prop", "issue": "Console warning: 'props.pointerEvents is deprecated. Use style.pointerEvents' still emitted at runtime. References: /app/frontend/src/screens/round-result-screen.tsx, /app/frontend/src/screens/shop-screen.tsx, /app/frontend/src/screens/cosmetics-screen.tsx (from iter 1 report, unfixed)."},
+      {"component": "textShadow* style props", "issue": "Console warning: '\"textShadow*\" style props are deprecated. Use \"textShadow\".' Still present. References: /app/frontend/src/screens/gameplay-screen.tsx (score text) and /app/frontend/src/screens/round-result-screen.tsx (final score)."},
+      {"component": "Animated useNativeDriver on web", "issue": "Console warning: 'useNativeDriver is not supported because the native animated module is missing. Falling back to JS-based animation.' Optional: gate with Platform.OS !== 'web' in home-screen.tsx and round-result-screen.tsx."}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_auth_support.py",
+    "/app/backend/tests/test_leaderboard.py",
+    "/app/test_reports/pytest/build8_results.xml"
+  ],
+  "action_items": [
+    "(carried from iters 1 & 2) Consolidate textShadowColor/textShadowOffset/textShadowRadius into `textShadow` shorthand in gameplay-screen.tsx and round-result-screen.tsx to silence RN web deprecation warning.",
+    "(carried from iter 1) Move LinearGradient pointerEvents=\"none\" from prop to style.pointerEvents in round-result-screen.tsx, shop-screen.tsx, cosmetics-screen.tsx.",
+    "(carried, optional) Gate useNativeDriver with Platform.OS !== 'web' in home-screen.tsx and round-result-screen.tsx.",
+    "Consider adding testIDs to /support form: category chips (e.g. support-category-<name>), message TextInput (support-message-input), and submit button (support-submit-button). Currently tested via accessibility labels which works but testIDs would make regression more reliable."
+  ],
+  "critical_code_review_comments": [
+    "Backend register/login handle error paths correctly, use scrypt hashing and opaque session tokens hashed via SHA-256 before storage — solid security posture for a preview mirror.",
+    "Rate limit on /register (5/hr/IP via x-forwarded-for) is enforced in-memory; will reset on process restart — acceptable for preview, but note in production TS backend for parity.",
+    "SupportTicket count-based ID generation (`count + 1`) is not concurrency-safe (two concurrent inserts could produce the same VP-XXXXXX). Consider atomic $inc on a counter document or use UUID + display id. Not blocking for preview.",
+    "shop-screen.tsx grew to ~700+ lines with Styles & Customization merge — very close to the 700 line threshold flagged in iter 1; consider extracting BoosterForgeCard, StyleCard, RewardedCTAs into subcomponents.",
+    "All new interactive elements have proper testID coverage EXCEPT /support form (category chips + submit button). All FAQ, Assistant, Settings, Account, Shop, Leaderboard, Gameplay screens fully covered."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_auth_support.py (new — 25 auth + support test cases)"
+  ],
+  "success_rate": {
+    "backend": "100% (31/31 across auth/support/leaderboard/health)",
+    "frontend": "100% (all 12 requested flows including account create + signin, FAQ, assistant, support ticket, leaderboard mode switch, reduced-motion round-through)"
+  },
+  "seed_data_creation": "Backend tests created 2 fresh player accounts (build8.qa+<uuid>@vaultpop.app) via /api/v1/auth/register + 8 support tickets (VP-000001..VP-000008 range). Playthrough added Vault-CNSZ classic 40 to leaderboard. No cleanup; entries are harmless for regression. Existing qa.player@vaultpop.app confirmed present and logs in successfully.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Preview URL: https://vaultpop-premium.preview.emergentagent.com. Regression suites: `pytest /app/backend/tests/ -v` runs 31 tests in ~5s covering auth/support/leaderboard. Registration rate limit is 5/hr/IP — the test suite creates 1 account per full run (register_success), well within budget, but repeated re-runs from the same IP will hit 429 after ~5 iterations. `qa.player@vaultpop.app / VaultPopQA2026!x` remains valid. /cosmetics -> /shop redirect confirmed. Frontend uses AsyncStorage/localStorage for local state (0 coins fresh), so Booster Forge buttons stay disabled unless coins are seeded. Support ticket VP-<sequential 6-digit>. Sound/haptics/reduced-motion switches persist via localStorage; the aria-checked attribute is NOT exposed by react-native-web Switch, so persistence must be verified indirectly (e.g. reload + observe gameplay behavior) rather than by asserting aria-checked. /support form still lacks testIDs on category chips + submit button — tested successfully via role/accessibility labels but adding testIDs would firm up future regression scripts. Rewarded ad + IAP buttons remain 'Unavailable' by design on web preview.",
+  "rca_of_issue": "N/A — all Build 8 features verified end-to-end with real backend calls and real UI navigation. No blocking issues found."
+}

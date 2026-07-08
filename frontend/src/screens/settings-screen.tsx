@@ -1,64 +1,24 @@
 import { ActionButton } from "@/components/action-button";
 import { ActionLink } from "@/components/action-link";
 import { ScreenShell } from "@/components/screen-shell";
+import { isAccountSignedIn } from "@/account/account-service";
 import { applyVerifiedPurchase } from "@/monetization/economy";
 import {
   createStoreSession,
   verifyPurchaseWithServer
 } from "@/monetization/purchase-service";
-import { resetLocalProgress, updateSettings } from "@/storage";
+import { resetLocalProgress } from "@/storage";
 import { useSaveProfile } from "@/storage/use-save-profile";
 import { colors, radius, spacing, typography } from "@/theme";
 import { useState } from "react";
-import { Switch, Text, View } from "react-native";
-
-type SettingRowProps = {
-  label: string;
-  detail: string;
-  value: boolean;
-  last?: boolean;
-  onValueChange: (value: boolean) => void;
-};
-
-function SettingRow({ label, detail, value, last = false, onValueChange }: SettingRowProps) {
-  return (
-    <View
-      style={{
-        alignItems: "center",
-        borderBottomColor: last ? "transparent" : colors.border,
-        borderBottomWidth: 1,
-        flexDirection: "row",
-        gap: spacing.md,
-        justifyContent: "space-between",
-        minHeight: 62,
-        paddingHorizontal: spacing.md
-      }}
-    >
-      <View style={{ flex: 1, gap: 1 }}>
-        <Text selectable style={[typography.button, { fontSize: 15 }]}>
-          {label}
-        </Text>
-        <Text selectable style={[typography.caption, { color: colors.textMuted, fontSize: 11.5 }]}>
-          {detail}
-        </Text>
-      </View>
-      <Switch
-        testID={`settings-${label.toLowerCase().replace(/\s+/g, "-")}-switch`}
-        value={value}
-        onValueChange={onValueChange}
-        trackColor={{ false: colors.border, true: colors.emeraldDeep }}
-        thumbColor={colors.textPrimary}
-        ios_backgroundColor={colors.border}
-      />
-    </View>
-  );
-}
+import { Text, View } from "react-native";
 
 export function SettingsScreen() {
   const [profile, setProfile] = useSaveProfile();
   const [confirmReset, setConfirmReset] = useState(false);
   const [restoreStatus, setRestoreStatus] = useState("");
   const [restoring, setRestoring] = useState(false);
+  const signedIn = isAccountSignedIn(profile);
 
   const restorePurchases = async () => {
     setRestoring(true);
@@ -104,53 +64,98 @@ export function SettingsScreen() {
     <ScreenShell
       eyebrow="TUNE THE ARCADE"
       title="Settings"
-      lead="Sound, feel, and account access."
+      lead="Gameplay feel, account, and help."
       accent={colors.violet}
     >
-      <View
-        style={{
-          backgroundColor: colors.surfaceGlass,
-          borderColor: colors.border,
-          borderCurve: "continuous",
-          borderRadius: radius.lg,
-          borderWidth: 1,
-          overflow: "hidden"
-        }}
-      >
-        <SettingRow
-          label="Sound"
-          detail="Round and coin-pop audio."
-          value={profile.settings.soundEnabled}
-          onValueChange={(value) =>
-            setProfile((currentProfile) => updateSettings(currentProfile, { soundEnabled: value }))
-          }
+      <ActionLink
+        href="/gameplay-settings"
+        label="Gameplay Settings"
+        detail="Sound, haptics, and motion."
+        accent={colors.violet}
+        testID="settings-gameplay-link"
+      />
+
+      {/* Account */}
+      <View style={{ gap: spacing.sm }}>
+        <Text selectable style={[typography.eyebrow, { color: colors.textMuted }]}>
+          ACCOUNT
+        </Text>
+        {signedIn ? (
+          <>
+            <View
+              style={{
+                backgroundColor: `${colors.cyan}10`,
+                borderColor: `${colors.cyan}44`,
+                borderCurve: "continuous",
+                borderRadius: radius.md,
+                borderWidth: 1,
+                paddingHorizontal: spacing.md,
+                paddingVertical: spacing.sm + 2
+              }}
+            >
+              <Text selectable style={[typography.caption, { color: colors.cyan, fontSize: 12.5 }]}>
+                Signed in as {profile.account.email}
+              </Text>
+            </View>
+            <ActionLink
+              href="/account"
+              label="Account Sync"
+              detail="Refresh linked inventory, or sign out."
+              accent={colors.cyan}
+              testID="settings-account-link"
+            />
+          </>
+        ) : (
+          <View style={{ flexDirection: "row", gap: spacing.sm }}>
+            <View style={{ flex: 1 }}>
+              <ActionLink
+                href={{ pathname: "/account", params: { mode: "create" } }}
+                label="Create Account"
+                accent={colors.cyan}
+                testID="settings-create-account-link"
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <ActionLink
+                href={{ pathname: "/account", params: { mode: "signin" } }}
+                label="Sign In"
+                accent={colors.emerald}
+                testID="settings-account-link"
+              />
+            </View>
+          </View>
+        )}
+      </View>
+
+      {/* Help */}
+      <View style={{ gap: spacing.sm }}>
+        <Text selectable style={[typography.eyebrow, { color: colors.textMuted }]}>
+          HELP
+        </Text>
+        <ActionLink
+          href="/faq"
+          label="FAQ"
+          detail="Gameplay, store, accounts, leaderboards, and more."
+          accent={colors.violet}
+          testID="settings-faq-link"
         />
-        <SettingRow
-          label="Haptics"
-          detail="Tactile feedback on clears."
-          value={profile.settings.hapticsEnabled}
-          onValueChange={(value) =>
-            setProfile((currentProfile) => updateSettings(currentProfile, { hapticsEnabled: value }))
-          }
+        <ActionLink
+          href="/assistant"
+          label="Support Assistant"
+          detail="Search instant answers, escalate anytime."
+          accent={colors.cyan}
+          testID="settings-assistant-link"
         />
-        <SettingRow
-          label="Reduced Motion"
-          detail="Minimizes animation effects."
-          value={profile.settings.reducedMotion}
-          last
-          onValueChange={(value) =>
-            setProfile((currentProfile) => updateSettings(currentProfile, { reducedMotion: value }))
-          }
+        <ActionLink
+          href="/support"
+          label="Support"
+          detail="Send a request — support@vaultpop.app"
+          accent={colors.emerald}
+          testID="settings-support-link"
         />
       </View>
+
       <View style={{ gap: spacing.sm }}>
-        <ActionLink
-          href="/account"
-          label="Account"
-          detail="Optional inventory and support sync."
-          accent={colors.cyan}
-          testID="settings-account-link"
-        />
         <ActionButton
           label="Restore Purchases"
           detail="Restores Ad-Free Upgrade and active VaultPass access."

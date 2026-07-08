@@ -97,6 +97,41 @@ export class MemoryAccountStore implements AccountStore {
     };
   }
 
+  registerPlayer(input: {
+    email: string;
+    password: string;
+    installId: string;
+    now?: Date;
+  }): AuthSession {
+    const email = normalizeEmail(input.email);
+    if ([...this.accounts.values()].some((account) => account.email === email)) {
+      throw new Error("An account with this email already exists.");
+    }
+    const password = hashPassword(input.password);
+    const account: InternalAccount = {
+      id: randomUUID(),
+      email,
+      role: "player",
+      active: true,
+      createdAt: (input.now ?? new Date()).toISOString(),
+      linkedInstallId: null,
+      passwordHash: password.passwordHash,
+      passwordSalt: password.passwordSalt
+    };
+    this.accounts.set(account.id, account);
+    this.balances.set(account.id, { ...EMPTY_BALANCE });
+    const session = this.login({
+      email,
+      password: input.password,
+      installId: input.installId,
+      now: input.now
+    });
+    if (!session) {
+      throw new Error("Registration failed.");
+    }
+    return session;
+  }
+
   authenticate(token: string, now = new Date()): PublicAccount | null {
     const tokenHash = hashSessionToken(token);
     const session = this.sessions.get(tokenHash);

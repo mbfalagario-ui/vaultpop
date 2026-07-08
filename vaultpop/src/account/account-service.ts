@@ -43,6 +43,23 @@ export async function signInAccount(input: {
   return body;
 }
 
+export async function registerAccount(input: {
+  email: string;
+  password: string;
+  installId: string;
+}): Promise<AccountLoginResponse> {
+  const response = await fetch(`${API_BASE_URL}/v1/auth/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input)
+  });
+  const body = (await response.json()) as AccountLoginResponse & { error?: string };
+  if (!response.ok) {
+    throw new Error(body.error ?? "Account creation failed.");
+  }
+  return body;
+}
+
 export async function signOutAccount(token: string | null): Promise<void> {
   if (!token) {
     return;

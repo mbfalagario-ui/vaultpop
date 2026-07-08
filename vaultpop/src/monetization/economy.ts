@@ -124,11 +124,32 @@ export function grantRewardedBonusLife(
   rewardId: string,
   now = new Date()
 ): SaveProfile {
+  return grantRewarded(profile, dateKey, rewardId, { bonusLives: 1 }, now);
+}
+
+/** Rewarded "Watch for 10 Vault Coins" grant — shares the daily 30-ad cap. */
+export function grantRewardedVaultCoins(
+  profile: SaveProfile,
+  dateKey: string,
+  rewardId: string,
+  now = new Date()
+): SaveProfile {
+  return grantRewarded(profile, dateKey, rewardId, { vaultCoins: 10 }, now);
+}
+
+function grantRewarded(
+  profile: SaveProfile,
+  dateKey: string,
+  rewardId: string,
+  grant: { bonusLives?: number; vaultCoins?: number },
+  now: Date
+): SaveProfile {
   const rewardState =
     profile.economy.rewardedAds.dateKey === dateKey
       ? profile.economy.rewardedAds
       : { dateKey, count: 0, rewardIds: [] };
 
+  // Shared cap across ALL rewarded placements + per-reward idempotency.
   if (rewardState.count >= 30 || rewardState.rewardIds.includes(rewardId)) {
     return profile;
   }
@@ -138,9 +159,10 @@ export function grantRewardedBonusLife(
     updatedAt: now.toISOString(),
     economy: {
       ...profile.economy,
+      vaultCoins: profile.economy.vaultCoins + (grant.vaultCoins ?? 0),
       boosters: {
         ...profile.economy.boosters,
-        bonusLives: profile.economy.boosters.bonusLives + 1
+        bonusLives: profile.economy.boosters.bonusLives + (grant.bonusLives ?? 0)
       },
       rewardedAds: {
         dateKey,

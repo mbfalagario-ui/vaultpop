@@ -100,11 +100,25 @@ export async function showRewardedBonusLifeAd(): Promise<{
   rewarded: boolean;
   rewardId?: string;
 }> {
+  return showRewardedAdForUnit(ADMOB_IOS.rewarded);
+}
+
+export async function showRewardedCoinsAd(): Promise<{
+  rewarded: boolean;
+  rewardId?: string;
+}> {
+  return showRewardedAdForUnit(ADMOB_IOS.rewardedCoins);
+}
+
+async function showRewardedAdForUnit(unitId: string): Promise<{
+  rewarded: boolean;
+  rewardId?: string;
+}> {
   if (!(await initializeAdsAfterHome()) || fullScreenAdShowing) {
     return { rewarded: false };
   }
   const ads = await import("react-native-google-mobile-ads");
-  const ad = ads.RewardedAd.createForAdRequest(ADMOB_IOS.rewarded, {
+  const ad = ads.RewardedAd.createForAdRequest(unitId, {
     requestNonPersonalizedAdsOnly
   });
 

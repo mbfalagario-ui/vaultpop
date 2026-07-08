@@ -4,6 +4,7 @@ import {
   isAdsInitialized,
   isFullScreenAdShowing,
   showRewardedBonusLifeAd,
+  showRewardedCoinsAd,
   wasRewardedJustShown
 } from "@/ads/ad-service";
 import { AdBanner } from "@/components/ad-banner";
@@ -14,27 +15,27 @@ import { ScreenShell } from "@/components/screen-shell";
 import { StatusPill } from "@/components/status-pill";
 import { getLocalDateKey } from "@/game/daily-seed";
 import type { TileType } from "@/game/models";
-import {
-  IAP_PRODUCTS,
-  type IapProductId
-} from "@/monetization/catalog";
+import { IAP_PRODUCTS, type IapProductId } from "@/monetization/catalog";
 import {
   applyVerifiedPurchase,
   BOOSTER_COSTS,
   getRewardedCount,
   grantRewardedBonusLife,
-  purchaseBoosterWithCoins
+  grantRewardedVaultCoins,
+  purchaseBoosterWithCoins,
+  type BoosterKind
 } from "@/monetization/economy";
 import { BOOSTER_GUIDE } from "@/monetization/booster-guide";
-import { isAdFree } from "@/monetization/entitlements";
+import { hasPremiumThemeAccess, isAdFree } from "@/monetization/entitlements";
 import {
   createStoreSession,
   verifyPurchaseWithServer,
   type StoreProduct,
   type StoreSession
 } from "@/monetization/purchase-service";
+import { unlockTheme } from "@/storage";
 import { useSaveProfile } from "@/storage/use-save-profile";
-import { colors, radius, spacing, typography } from "@/theme";
+import { colors, radius, spacing, typography, visualThemes } from "@/theme";
 import { LinearGradient } from "expo-linear-gradient";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { InteractionManager, Text, View } from "react-native";
@@ -45,8 +46,7 @@ const PRODUCT_COINS: Record<string, TileType> = {
   "app.vaultpop.coins.small": "gold",
   "app.vaultpop.coins.medium": "gold",
   "app.vaultpop.coins.large": "gold",
-  "app.vaultpop.remove_ads": "cyan",
-  "app.vaultpop.vaultpass.monthly": "violet"
+  "app.vaultpop.remove_ads": "cyan"
 };
 
 const PRODUCT_ACCENTS: Record<string, string> = {
@@ -54,24 +54,50 @@ const PRODUCT_ACCENTS: Record<string, string> = {
   "app.vaultpop.coins.small": colors.gold,
   "app.vaultpop.coins.medium": colors.gold,
   "app.vaultpop.coins.large": colors.gold,
-  "app.vaultpop.remove_ads": colors.cyan,
-  "app.vaultpop.vaultpass.monthly": colors.violet
+  "app.vaultpop.remove_ads": colors.cyan
+};
+
+const VAULTPASS = IAP_PRODUCTS.find(
+  (product) => product.id === "app.vaultpop.vaultpass.monthly"
+)!;
+const ONE_TIME_PRODUCTS = IAP_PRODUCTS.filter(
+  (product) => product.kind !== "subscription"
+);
+
+const BOOSTER_LABELS: Record<BoosterKind, string> = {
+  bonusLives: "Bonus Life",
+  chainBoosts: "Chain Boost",
+  vaultBursts: "Vault Burst"
 };
 
 export function ShopScreen() {
   const [profile, setProfile] = useSaveProfile();
   const profileRef = useRef(profile);
   const sessionRef = useRef<StoreSession | null>(null);
+  const forgeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [storeProducts, setStoreProducts] = useState<StoreProduct[]>([]);
   const [status, setStatus] = useState("Connecting to the App Store...");
   const [busyProductId, setBusyProductId] = useState<string | null>(null);
+  const [forgeResult, setForgeResult] = useState<{ id: BoosterKind; text: string } | null>(null);
+  const [watchingAd, setWatchingAd] = useState(false);
   const dateKey = getLocalDateKey();
   const rewardedCount = getRewardedCount(profile, dateKey);
   const adFree = isAdFree(profile);
+  const premiumAccess = hasPremiumThemeAccess(profile);
+  const vaultPassStore = storeProducts.find((item) => item.id === VAULTPASS.id);
 
   useEffect(() => {
     profileRef.current = profile;
   }, [profile]);
+
+  useEffect(
+    () => () => {
+      if (forgeTimerRef.current) {
+        clearTimeout(forgeTimerRef.current);
+      }
+    },
+    []
+  );
 
   const processPurchase = useCallback(
     async (purchase: Purchase) => {
@@ -181,40 +207,68 @@ export function ShopScreen() {
     }
   };
 
-  const watchRewarded = async () => {
-    const eligible = canShowRewarded({
-      adFree,
-      adsInitialized: isAdsInitialized(),
-      completedRounds: profile.ads.completedRounds,
-      lastInterstitialRound: profile.ads.lastInterstitialRound,
-      fullScreenAdShowing: isFullScreenAdShowing(),
-      rewardedCountToday: rewardedCount,
-      rewardedJustShown: wasRewardedJustShown(),
-      firstColdLaunch: false,
-      gameplayActive: false
+  const watchRewarded = async (kind: "life" | "coins") => {
+    setWatchingAd(true);
+    try {
+      const eligible = canShowRewarded({
+        adFree,
+        adsInitialized: isAdsInitialized(),
+        completedRounds: profile.ads.completedRounds,
+        lastInterstitialRound: profile.ads.lastInterstitialRound,
+        fullScreenAdShowing: isFullScreenAdShowing(),
+        rewardedCountToday: rewardedCount,
+        rewardedJustShown: wasRewardedJustShown(),
+        firstColdLaunch: false,
+        gameplayActive: false
+      });
+      if (!eligible && !(await initializeAdsAfterHome())) {
+        setStatus("A rewarded ad is unavailable right now. Please try again later.");
+        return;
+      }
+      const result =
+        kind === "life" ? await showRewardedBonusLifeAd() : await showRewardedCoinsAd();
+      if (!result.rewarded || !result.rewardId) {
+        setStatus(
+          kind === "life"
+            ? "The reward was not confirmed. No Bonus Life was added."
+            : "The reward was not confirmed. No Vault Coins were added."
+        );
+        return;
+      }
+      if (kind === "life") {
+        setProfile((current) => grantRewardedBonusLife(current, dateKey, result.rewardId!));
+        setStatus("1 Bonus Life added.");
+      } else {
+        setProfile((current) => grantRewardedVaultCoins(current, dateKey, result.rewardId!));
+        setStatus("10 Vault Coins added.");
+      }
+    } finally {
+      setWatchingAd(false);
+    }
+  };
+
+  const forge = (booster: BoosterKind) => {
+    const cost = BOOSTER_COSTS[booster];
+    if (profile.economy.vaultCoins < cost) {
+      setForgeResult({
+        id: booster,
+        text: `Need ${(cost - profile.economy.vaultCoins).toLocaleString()} more Vault Coins.`
+      });
+      return;
+    }
+    setProfile((current) => purchaseBoosterWithCoins(current, booster));
+    setForgeResult({
+      id: booster,
+      text: `✓ +1 ${BOOSTER_LABELS[booster]} forged — ${cost} Vault Coins spent.`
     });
-    if (!eligible && !(await initializeAdsAfterHome())) {
-      setStatus("A rewarded ad is unavailable right now. Please try again later.");
-      return;
+    if (forgeTimerRef.current) {
+      clearTimeout(forgeTimerRef.current);
     }
-    const result = await showRewardedBonusLifeAd();
-    if (!result.rewarded || !result.rewardId) {
-      setStatus("The reward was not confirmed. No Bonus Life was added.");
-      return;
-    }
-    setProfile((current) =>
-      grantRewardedBonusLife(current, dateKey, result.rewardId!)
-    );
-    setStatus("1 Bonus Life added.");
+    forgeTimerRef.current = setTimeout(() => setForgeResult(null), 4_000);
   };
 
   return (
-    <ScreenShell
-      eyebrow="VAULT SUPPLY"
-      title="Shop"
-      lead="Power up your next run."
-      accent={colors.gold}
-    >
+    <ScreenShell eyebrow="VAULT SUPPLY" title="Shop" accent={colors.gold} compact>
       {/* Player supply band */}
       <View
         style={{
@@ -224,7 +278,7 @@ export function ShopScreen() {
           borderRadius: radius.md,
           borderWidth: 1,
           flexDirection: "row",
-          paddingVertical: spacing.md
+          paddingVertical: spacing.sm + 2
         }}
       >
         <HudStat
@@ -245,16 +299,128 @@ export function ShopScreen() {
           accent={colors.ruby}
         />
       </View>
+
+      {/* VaultPass hero — always first */}
+      <View
+        testID={`shop-product-${VAULTPASS.id}`}
+        style={{
+          borderColor: `${colors.violet}88`,
+          borderCurve: "continuous",
+          borderRadius: radius.lg,
+          borderWidth: 1.5,
+          boxShadow: `0 16px 38px #00000077, 0 0 30px ${colors.violet}2E`,
+          overflow: "hidden"
+        }}
+      >
+        <LinearGradient
+          colors={["#241548", "#120B26"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0.9, y: 1 }}
+          style={{ gap: spacing.sm, padding: spacing.md }}
+        >
+          <View
+            style={{
+              backgroundColor: colors.violet,
+              borderBottomLeftRadius: radius.sm,
+              paddingHorizontal: spacing.sm,
+              paddingVertical: 3,
+              position: "absolute",
+              right: 0,
+              top: 0
+            }}
+          >
+            <Text
+              selectable={false}
+              style={{ color: "#140F02", fontSize: 10, fontWeight: "900", letterSpacing: 1 }}
+            >
+              MEMBER PICK
+            </Text>
+          </View>
+          <View style={{ alignItems: "center", flexDirection: "row", gap: spacing.md }}>
+            <CoinFace type="violet" size={54} glow />
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text selectable style={[typography.sectionTitle, { fontSize: 18 }]}>
+                {VAULTPASS.displayName}
+              </Text>
+              <Text
+                selectable
+                style={[typography.caption, { color: colors.violet, fontSize: 12, fontWeight: "700" }]}
+              >
+                {VAULTPASS.detail}
+              </Text>
+            </View>
+            <Text
+              numberOfLines={1}
+              selectable
+              style={[typography.numeral, { color: colors.textPrimary, flexShrink: 0, fontSize: 16 }]}
+            >
+              {vaultPassStore?.displayPrice ?? VAULTPASS.basePriceUsd}
+            </Text>
+          </View>
+          {/* Emphasized benefits */}
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.xs }}>
+            <BenefitChip label="AD-FREE" accent={colors.gold} strong />
+            <BenefitChip label="PRIORITY SUPPORT" accent={colors.cyan} strong />
+            <BenefitChip label="PREMIUM THEMES" accent={colors.violet} />
+            <BenefitChip label="MONTHLY BOOSTERS" accent={colors.emerald} />
+          </View>
+          <ActionButton
+            label={vaultPassStore ? "Get VaultPass Plus" : "Unavailable"}
+            disabled={!vaultPassStore || busyProductId !== null}
+            accent={colors.violet}
+            testID={`shop-buy-${VAULTPASS.id}`}
+            onPress={() => void buy(VAULTPASS.id)}
+          />
+          <Text selectable style={[typography.caption, { fontSize: 11 }]}>
+            Renews monthly until cancelled. Manage or cancel in Apple account settings.
+            Benefits remain active through the current paid period.
+          </Text>
+        </LinearGradient>
+      </View>
+
+      {/* Rewarded ad CTAs — near the top */}
+      {!adFree ? (
+        <View style={{ gap: spacing.xs }}>
+          <View style={{ flexDirection: "row", gap: spacing.sm }}>
+            <View style={{ flex: 1 }}>
+              <ActionButton
+                label="Watch for 1 Bonus Life"
+                disabled={rewardedCount >= 30 || watchingAd}
+                accent={colors.emerald}
+                tone="quiet"
+                testID="shop-rewarded-button"
+                onPress={() => void watchRewarded("life")}
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <ActionButton
+                label="Watch for 10 Vault Coins"
+                disabled={rewardedCount >= 30 || watchingAd}
+                accent={colors.gold}
+                tone="quiet"
+                testID="shop-rewarded-coins-button"
+                onPress={() => void watchRewarded("coins")}
+              />
+            </View>
+          </View>
+          <Text
+            selectable
+            style={[typography.caption, { color: colors.textMuted, fontSize: 11, textAlign: "center" }]}
+          >
+            {rewardedCount} of 30 rewarded ads used today — shared across all rewards.
+          </Text>
+        </View>
+      ) : null}
+
       <StatusPill label={status} tone="cyan" />
 
       <View style={{ gap: spacing.sm }}>
         <SectionHeader label="APP STORE" accent={colors.gold} />
-        {IAP_PRODUCTS.map((product) => {
+        {ONE_TIME_PRODUCTS.map((product) => {
           const storeProduct = storeProducts.find((item) => item.id === product.id);
           const available = Boolean(storeProduct);
           const accent = PRODUCT_ACCENTS[product.id] ?? colors.gold;
           const coin = PRODUCT_COINS[product.id] ?? "gold";
-          const featured = product.kind === "subscription";
           const badge = "badge" in product ? product.badge : undefined;
           return (
             <View
@@ -262,13 +428,11 @@ export function ShopScreen() {
               testID={`shop-product-${product.id}`}
               style={{
                 backgroundColor: colors.surfaceGlass,
-                borderColor: featured ? `${accent}88` : colors.border,
+                borderColor: colors.border,
                 borderCurve: "continuous",
                 borderRadius: radius.lg,
                 borderWidth: 1,
-                boxShadow: featured
-                  ? `0 14px 34px #00000066, 0 0 26px ${accent}22`
-                  : `0 10px 24px #00000055`,
+                boxShadow: `0 10px 24px #00000055`,
                 gap: spacing.sm,
                 overflow: "hidden",
                 padding: spacing.md
@@ -309,9 +473,9 @@ export function ShopScreen() {
                 </View>
               ) : null}
               <View style={{ alignItems: "center", flexDirection: "row", gap: spacing.md }}>
-                <CoinFace type={coin} size={52} glow={featured} />
+                <CoinFace type={coin} size={48} />
                 <View style={{ flex: 1, gap: 2 }}>
-                  <Text selectable style={[typography.sectionTitle, { fontSize: 17 }]}>
+                  <Text selectable style={[typography.sectionTitle, { fontSize: 16.5 }]}>
                     {product.displayName}
                   </Text>
                   <Text
@@ -339,12 +503,6 @@ export function ShopScreen() {
                 testID={`shop-buy-${product.id}`}
                 onPress={() => void buy(product.id)}
               />
-              {product.kind === "subscription" ? (
-                <Text selectable style={[typography.caption, { fontSize: 11 }]}>
-                  Renews monthly until cancelled. Manage or cancel in Apple account settings.
-                  Benefits remain active through the current paid period.
-                </Text>
-              ) : null}
             </View>
           );
         })}
@@ -356,13 +514,15 @@ export function ShopScreen() {
           const accent = [colors.cyan, colors.violet, colors.gold][index] ?? colors.gold;
           const glyph: TileType = index === 0 ? "cyan" : index === 1 ? "violet" : "gold";
           const cost = BOOSTER_COSTS[booster.id];
+          const result = forgeResult?.id === booster.id ? forgeResult : null;
+          const success = result?.text.startsWith("✓") ?? false;
           return (
             <View
               key={booster.id}
               testID={`shop-booster-${booster.id}`}
               style={{
                 backgroundColor: colors.surfaceGlass,
-                borderColor: colors.border,
+                borderColor: success ? `${colors.emerald}77` : colors.border,
                 borderCurve: "continuous",
                 borderRadius: radius.lg,
                 borderWidth: 1,
@@ -405,27 +565,138 @@ export function ShopScreen() {
                 disabled={profile.economy.vaultCoins < cost}
                 accent={accent}
                 testID={`shop-forge-${booster.id}`}
-                onPress={() =>
-                  setProfile((current) =>
-                    purchaseBoosterWithCoins(current, booster.id)
-                  )
-                }
+                onPress={() => forge(booster.id)}
               />
+              {result ? (
+                <Text
+                  selectable
+                  testID={`shop-forge-result-${booster.id}`}
+                  style={[
+                    typography.caption,
+                    {
+                      color: success ? colors.emerald : colors.ruby,
+                      fontSize: 12.5,
+                      fontWeight: "800",
+                      textAlign: "center"
+                    }
+                  ]}
+                >
+                  {result.text}
+                </Text>
+              ) : null}
             </View>
           );
         })}
       </View>
 
-      {!adFree ? (
-        <ActionButton
-          label="Watch for 1 Bonus Life"
-          detail={`${rewardedCount} of 30 used today.`}
-          disabled={rewardedCount >= 30}
-          tone="quiet"
-          testID="shop-rewarded-button"
-          onPress={() => void watchRewarded()}
-        />
-      ) : null}
+      {/* Styles & Customization (merged from Arcade Styles) */}
+      <View style={{ gap: spacing.sm }}>
+        <View style={{ alignItems: "center", flexDirection: "row", gap: spacing.sm }}>
+          <View
+            style={{
+              backgroundColor: colors.violet,
+              borderRadius: 999,
+              boxShadow: `0 0 8px ${colors.violet}`,
+              height: 2,
+              width: 22
+            }}
+          />
+          <Text selectable style={[typography.eyebrow, { color: colors.violet }]}>
+            STYLES & CUSTOMIZATION
+          </Text>
+          <View style={{ backgroundColor: colors.border, flex: 1, height: 1 }} />
+          <Text selectable style={[typography.eyebrow, { color: colors.textMuted, fontSize: 9.5 }]}>
+            {profile.cosmetics.fictionalPoints} STYLE POINTS
+          </Text>
+        </View>
+        {visualThemes.map((theme) => {
+          const subscriptionTheme = theme.id === "vaultpass-prism";
+          const unlocked =
+            profile.cosmetics.unlockedThemeIds.includes(theme.id) ||
+            (subscriptionTheme && premiumAccess);
+          const active = profile.cosmetics.activeThemeId === theme.id && unlocked;
+          const canUnlock =
+            !subscriptionTheme && profile.cosmetics.fictionalPoints >= theme.cost;
+          return (
+            <View
+              key={theme.id}
+              testID={`cosmetic-theme-${theme.id}`}
+              style={{
+                alignItems: "center",
+                backgroundColor: colors.surfaceGlass,
+                borderColor: active ? `${theme.accent}88` : colors.border,
+                borderCurve: "continuous",
+                borderRadius: radius.lg,
+                borderWidth: 1,
+                boxShadow: active ? `0 0 22px ${theme.accent}22` : undefined,
+                flexDirection: "row",
+                gap: spacing.md,
+                overflow: "hidden",
+                padding: spacing.md
+              }}
+            >
+              <LinearGradient
+                colors={[theme.glow, "#00000000"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={{ bottom: 0, left: 0, pointerEvents: "none", position: "absolute", top: 0, width: 120 }}
+              />
+              <View
+                style={{
+                  alignItems: "center",
+                  backgroundColor: theme.glow,
+                  borderColor: `${theme.accent}66`,
+                  borderRadius: radius.pill,
+                  borderWidth: 1.5,
+                  height: 54,
+                  justifyContent: "center",
+                  width: 54
+                }}
+              >
+                <CoinFace type="violet" size={36} />
+              </View>
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text selectable style={[typography.button, { fontSize: 15 }]}>
+                  {theme.title}
+                </Text>
+                <Text selectable style={[typography.caption, { fontSize: 11.5 }]}>
+                  {subscriptionTheme && !unlocked
+                    ? "Included with active VaultPass Plus."
+                    : theme.description}
+                </Text>
+              </View>
+              <View style={{ minWidth: 92 }}>
+                <ActionButton
+                  label={
+                    active
+                      ? "Active"
+                      : unlocked
+                        ? "Use"
+                        : subscriptionTheme
+                          ? "VaultPass"
+                          : `${theme.cost} pts`
+                  }
+                  disabled={active || (!unlocked && !canUnlock)}
+                  tone={active ? "quiet" : "primary"}
+                  accent={theme.accent}
+                  onPress={() =>
+                    setProfile((currentProfile) =>
+                      unlockTheme(currentProfile, theme.id, theme.cost)
+                    )
+                  }
+                />
+              </View>
+            </View>
+          );
+        })}
+        <Text
+          selectable
+          style={[typography.caption, { color: colors.textMuted, fontSize: 11, textAlign: "center" }]}
+        >
+          Collect Style Points by playing rounds — 1 point per 250 score.
+        </Text>
+      </View>
+
       <ActionButton
         label="Restore Purchases"
         detail="Restores Ad-Free Upgrade and active VaultPass access."
@@ -441,6 +712,42 @@ export function ShopScreen() {
       </Text>
       <AdBanner placement="shop" />
     </ScreenShell>
+  );
+}
+
+function BenefitChip({
+  label,
+  accent,
+  strong = false
+}: {
+  label: string;
+  accent: string;
+  strong?: boolean;
+}) {
+  return (
+    <View
+      style={{
+        backgroundColor: strong ? accent : `${accent}1C`,
+        borderColor: strong ? accent : `${accent}55`,
+        borderRadius: radius.pill,
+        borderWidth: 1,
+        boxShadow: strong ? `0 0 14px ${accent}55` : undefined,
+        paddingHorizontal: spacing.sm + 2,
+        paddingVertical: 4
+      }}
+    >
+      <Text
+        selectable={false}
+        style={{
+          color: strong ? "#140F02" : accent,
+          fontSize: 10.5,
+          fontWeight: "900",
+          letterSpacing: 0.8
+        }}
+      >
+        {label}
+      </Text>
+    </View>
   );
 }
 

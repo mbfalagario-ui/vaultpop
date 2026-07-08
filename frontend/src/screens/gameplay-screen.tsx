@@ -120,8 +120,18 @@ export function GameplayScreen() {
   }, [round.phase]);
 
   // Dopamine hooks: score pulse + vault-open gold flash.
+  // Reduced Motion keeps both as gentler, opacity-first confirmations.
   useEffect(() => {
-    if (round.score.current <= 0 || profile.settings.reducedMotion) {
+    if (round.score.current <= 0) {
+      return;
+    }
+    if (profile.settings.reducedMotion) {
+      scorePulse.setValue(1.06);
+      Animated.timing(scorePulse, {
+        duration: 220,
+        toValue: 1,
+        useNativeDriver: true
+      }).start();
       return;
     }
     scorePulse.setValue(1.24);
@@ -138,10 +148,8 @@ export function GameplayScreen() {
       return;
     }
     playSfx("chime", profile.settings.soundEnabled);
-    if (profile.settings.reducedMotion) {
-      return;
-    }
-    vaultFlash.setValue(0.26);
+    // Opacity-only flash stays satisfying in Reduced Motion at lower strength.
+    vaultFlash.setValue(profile.settings.reducedMotion ? 0.14 : 0.26);
     Animated.timing(vaultFlash, {
       duration: 550,
       toValue: 0,
@@ -201,6 +209,19 @@ export function GameplayScreen() {
   const animateFeedback = useCallback(
     (text: string) => {
       setFeedback(text);
+      if (profile.settings.reducedMotion) {
+        // Fade-only feedback: no scale spring, same information.
+        feedbackMotion.setValue(1);
+        Animated.sequence([
+          Animated.delay(620),
+          Animated.timing(feedbackMotion, {
+            duration: 200,
+            toValue: 0,
+            useNativeDriver: true
+          })
+        ]).start();
+        return;
+      }
       feedbackMotion.setValue(0);
       Animated.sequence([
         Animated.spring(feedbackMotion, {
@@ -217,7 +238,7 @@ export function GameplayScreen() {
         })
       ]).start();
     },
-    [feedbackMotion]
+    [feedbackMotion, profile.settings.reducedMotion]
   );
 
   const handleTilePress = useCallback(

@@ -1,5 +1,6 @@
 import { AdBanner } from "@/components/ad-banner";
 import { ActionButton } from "@/components/action-button";
+import { ActionLink } from "@/components/action-link";
 import { ScreenShell } from "@/components/screen-shell";
 import { StatusPill } from "@/components/status-pill";
 import { hasPrioritySupport } from "@/monetization/entitlements";
@@ -76,6 +77,19 @@ export function SupportScreen() {
       <Text selectable style={[typography.button, { color: colors.emerald }]}>
         support@vaultpop.app
       </Text>
+      <View style={{ flexDirection: "row", gap: spacing.sm }}>
+        <View style={{ flex: 1 }}>
+          <ActionLink href="/faq" label="Browse FAQ" accent={colors.violet} testID="support-faq-link" />
+        </View>
+        <View style={{ flex: 1 }}>
+          <ActionLink
+            href="/assistant"
+            label="Support Assistant"
+            accent={colors.cyan}
+            testID="support-assistant-link"
+          />
+        </View>
+      </View>
       {priority ? <StatusPill label="VaultPass priority routing" tone="gold" /> : null}
       <View style={{ gap: spacing.sm }}>
         <Text selectable style={typography.sectionTitle}>

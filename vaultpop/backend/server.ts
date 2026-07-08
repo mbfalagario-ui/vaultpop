@@ -2,8 +2,10 @@ import { createServer } from "node:http";
 
 import { ApplePurchaseVerifier } from "./apple-verifier";
 import { createApiHandler } from "./app";
+import { SqliteLeaderboardStore } from "./leaderboard-store";
 import { SqliteAccountStore } from "./sqlite-account-store";
 import { SqliteLedgerStore } from "./sqlite-ledger";
+import { GoogleSsvKeyProvider } from "./ssv";
 
 const host = process.env.VAULTPOP_API_HOST ?? "127.0.0.1";
 const port = Number(process.env.VAULTPOP_API_PORT ?? 8787);
@@ -32,10 +34,15 @@ accounts.upsertBootstrapAccount({
   }
 });
 
+const leaderboard = new SqliteLeaderboardStore(databasePath);
+
 const handler = createApiHandler({
   verifier: new ApplePurchaseVerifier(certificatePaths),
   ledger: new SqliteLedgerStore(databasePath),
-  accounts
+  accounts,
+  leaderboard,
+  rewards: leaderboard,
+  ssvKeys: new GoogleSsvKeyProvider()
 });
 
 const server = createServer(async (incoming, outgoing) => {

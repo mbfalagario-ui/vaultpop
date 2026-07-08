@@ -1,6 +1,14 @@
 import { getProductDefinition } from "../src/monetization/catalog";
 import { adminPage } from "./admin-page";
 import { grantForTransaction } from "./grants";
+import type { LeaderboardStore } from "./leaderboard-store";
+import {
+  handleSsvCallback,
+  isSsvCallback,
+  type RewardEventStore,
+  type SsvKeyProvider
+} from "./ssv";
+import { renderSupportPage } from "./support-page";
 import type {
   AccountRole,
   AccountStore,
@@ -19,41 +27,16 @@ const SUPPORT_CATEGORIES = new Set([
   "Other"
 ]);
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();
-
-type LeaderboardRow = {
-  installId: string;
-  handle: string;
-  score: number;
-  updatedAt: string;
-};
+const registrationAttempts = new Map<string, { count: number; resetAt: number }>();
 const LEADERBOARD_MODES = new Set(["classic", "dailyVault", "streak", "blitz"]);
-const leaderboardRows = new Map<string, LeaderboardRow>();
-
-function leaderboardTop(mode: string, limit: number, installId: string) {
-  const rows = [...leaderboardRows.entries()]
-    .filter(([key]) => key.startsWith(`${mode}:`))
-    .map(([, row]) => row)
-    .sort((a, b) => b.score - a.score);
-  const own = installId
-    ? rows.findIndex((row) => row.installId === installId)
-    : -1;
-  return {
-    entries: rows.slice(0, limit).map((row) => ({
-      handle: row.handle,
-      score: row.score,
-      mode,
-      updatedAt: row.updatedAt,
-      you: Boolean(installId) && row.installId === installId
-    })),
-    players: rows.length,
-    yourRank: own >= 0 ? own + 1 : null
-  };
-}
 
 export function createApiHandler(dependencies: {
   verifier: PurchaseVerifier;
   ledger: LedgerStore;
   accounts: AccountStore;
+  leaderboard: LeaderboardStore;
+  rewards: RewardEventStore;
+  ssvKeys: SsvKeyProvider;
 }) {
   return async (request: Request): Promise<Response> => {
     const url = new URL(request.url);
@@ -74,20 +57,13 @@ export function createApiHandler(dependencies: {
       if (!LEADERBOARD_MODES.has(mode) || installId.length < 4 || handle.length < 2 || (body?.score ?? -1) < 0) {
         return json({ accepted: false, error: "Invalid leaderboard submission." }, 400);
       }
-      const key = `${mode}:${installId}`;
-      const existing = leaderboardRows.get(key);
-      const best = Math.max(existing?.score ?? 0, score);
-      leaderboardRows.set(key, {
+      const result = dependencies.leaderboard.submit({
+        mode,
         installId,
         handle,
-        score: best,
-        updatedAt: new Date().toISOString()
+        score
       });
-      const rank =
-        [...leaderboardRows.entries()].filter(
-          ([rowKey, row]) => rowKey.startsWith(`${mode}:`) && row.score > best
-        ).length + 1;
-      return json({ accepted: true, bestScore: best, rank });
+      return json({ accepted: true, bestScore: result.bestScore, rank: result.rank });
     }
     if (request.method === "GET" && url.pathname === "/v1/leaderboard") {
       const mode = url.searchParams.get("mode") ?? "classic";
@@ -96,7 +72,7 @@ export function createApiHandler(dependencies: {
       }
       const limit = Math.max(1, Math.min(100, Number(url.searchParams.get("limit") ?? 50) || 50));
       const installId = url.searchParams.get("installId") ?? "";
-      return json(leaderboardTop(mode, limit, installId));
+      return json(dependencies.leaderboard.top(mode, limit, installId));
     }
     if (request.method === "GET" && url.pathname === "/privacy") {
       return html(
@@ -104,14 +80,58 @@ export function createApiHandler(dependencies: {
         "VaultPop stores core game progress on your device. Optional account login links an email address, role, session, install ID, and account inventory to the VaultPop service. Apple processes purchases. Google AdMob may process device identifiers, coarse location, product interaction, advertising, performance, crash, and diagnostic data under its SDK disclosures for ad delivery, consent, measurement, and fraud prevention. VaultPop asks for consent and App Tracking Transparency permission when advertising initialization requires it. Private support requests may include a category, message, optional email, install ID, app and build version, device model, and priority-routing status."
       );
     }
+    if (request.method === "GET" && url.pathname === "/api/ads/ssv_callback") {
+      // Preferred AdMob rewarded-ad SSV endpoint. Fail closed, idempotent.
+      return handleSsvCallback(url, dependencies.ssvKeys, dependencies.rewards);
+    }
     if (request.method === "GET" && url.pathname === "/support") {
-      return html(
-        "VaultPop Support",
-        "Email support@vaultpop.app or open Support inside VaultPop to send a private request. Support does not require an account. Choose a category, describe the issue, and optionally include an email address for a reply."
-      );
+      // Dual behavior: if AdMob still targets /support as its SSV callback,
+      // detect the SSV parameters and process the callback safely. Normal
+      // browser visits always receive the polished public support page.
+      if (isSsvCallback(url)) {
+        return handleSsvCallback(url, dependencies.ssvKeys, dependencies.rewards);
+      }
+      return new Response(renderSupportPage(), {
+        headers: {
+          "Content-Type": "text/html; charset=utf-8",
+          "Cache-Control": "public, max-age=300"
+        }
+      });
     }
     if (request.method === "GET" && url.pathname === "/admin") {
       return adminPage();
+    }
+
+    if (request.method === "POST" && url.pathname === "/v1/auth/register") {
+      const body = await readJson(request);
+      if (
+        !isEmail(body.email) ||
+        !isShortString(body.password, 200) ||
+        !isShortString(body.installId, 200)
+      ) {
+        return json({ error: "Enter a valid email and password." }, 400);
+      }
+      // Public sign-ups create "player" accounts only and are IP rate-limited.
+      const attemptKey = registrationKey(request);
+      if (registrationBlocked(attemptKey)) {
+        return json(
+          { error: "Too many account creations. Please try again later." },
+          429
+        );
+      }
+      recordRegistrationAttempt(attemptKey);
+      try {
+        const session = dependencies.accounts.registerPlayer({
+          email: body.email,
+          password: body.password,
+          installId: body.installId
+        });
+        return json(session, 201);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Registration failed.";
+        return json({ error: message }, message.includes("already exists") ? 409 : 400);
+      }
     }
 
     if (request.method === "POST" && url.pathname === "/v1/auth/login") {
@@ -465,6 +485,31 @@ function parseInventoryDelta(
 
 function isIsoDate(value: unknown): value is string {
   return typeof value === "string" && Number.isFinite(new Date(value).getTime());
+}
+
+function registrationKey(request: Request): string {
+  const forwardedFor = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  return forwardedFor ?? "unknown";
+}
+
+function registrationBlocked(key: string, now = Date.now()): boolean {
+  const attempt = registrationAttempts.get(key);
+  if (!attempt) {
+    return false;
+  }
+  if (attempt.resetAt <= now) {
+    registrationAttempts.delete(key);
+    return false;
+  }
+  return attempt.count >= 5;
+}
+
+function recordRegistrationAttempt(key: string, now = Date.now()): void {
+  const current = registrationAttempts.get(key);
+  registrationAttempts.set(key, {
+    count: current && current.resetAt > now ? current.count + 1 : 1,
+    resetAt: current && current.resetAt > now ? current.resetAt : now + 60 * 60 * 1_000
+  });
 }
 
 function loginAttemptKey(request: Request, email: string): string {

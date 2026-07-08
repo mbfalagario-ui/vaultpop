@@ -9,7 +9,8 @@ const allowedLegalPaths = [
   "docs/release/COMPLIANCE_RULEBOOK.md",
   "docs/release/PRODUCT_CONTRACT.md",
   "docs/release/APP_REVIEW_NOTES.md",
-  "docs/release/APP_PRIVACY_ANSWERS.md"
+  "docs/release/APP_PRIVACY_ANSWERS.md",
+  "docs/release/ACCEPTANCE_CRITERIA.md"
 ];
 const allowedTechnicalPaths = [
   "backend/sqlite-account-store.ts"
@@ -27,6 +28,8 @@ const bannedTerms = [
   "Ethereum",
   "Satoshi",
   "Hash",
+  "hashrate",
+  "hashratecloudminer",
   "mining",
   "miner",
   "wallet",
@@ -38,7 +41,11 @@ const bannedTerms = [
   "rich",
   "moon",
   "real rewards",
-  "financial freedom"
+  "financial freedom",
+  "cryptocurrency",
+  "gambling",
+  "casino",
+  "Coin Forge"
 ];
 
 function listFiles(path) {

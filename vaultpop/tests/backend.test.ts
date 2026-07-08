@@ -2,9 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createApiHandler } from "../backend/app";
+import { MemoryLeaderboardStore } from "../backend/leaderboard-store";
 import { MemoryAccountStore } from "../backend/memory-account-store";
 import { MemoryLedgerStore } from "../backend/memory-ledger";
 import { SqliteAccountStore } from "../backend/sqlite-account-store";
+import { StaticSsvKeyProvider } from "../backend/ssv";
 import type { PurchaseVerifier } from "../backend/types";
 
 const verifier: PurchaseVerifier = {
@@ -39,12 +41,16 @@ function createTestApi() {
       vaultBursts: 3
     }
   });
+  const leaderboard = new MemoryLeaderboardStore();
   return {
     accounts,
     handler: createApiHandler({
       verifier,
       ledger: new MemoryLedgerStore(),
-      accounts
+      accounts,
+      leaderboard,
+      rewards: leaderboard,
+      ssvKeys: new StaticSsvKeyProvider(new Map())
     })
   };
 }
@@ -114,10 +120,14 @@ test("subscription restore on another install does not replay monthly inventory"
       };
     }
   };
+  const subscriptionLeaderboard = new MemoryLeaderboardStore();
   const handler = createApiHandler({
     verifier: subscriptionVerifier,
     ledger: new MemoryLedgerStore(),
-    accounts: new MemoryAccountStore()
+    accounts: new MemoryAccountStore(),
+    leaderboard: subscriptionLeaderboard,
+    rewards: subscriptionLeaderboard,
+    ssvKeys: new StaticSsvKeyProvider(new Map())
   });
   const verifyFor = async (installId: string) => {
     const response = await handler(

@@ -4,6 +4,7 @@ import {
   clearAccountSession,
   isAccountSignedIn,
   refreshAccountState,
+  registerAccount,
   signInAccount,
   signOutAccount
 } from "@/account/account-service";
@@ -14,13 +15,19 @@ import { ScreenShell } from "@/components/screen-shell";
 import { StatusPill } from "@/components/status-pill";
 import { useSaveProfile } from "@/storage/use-save-profile";
 import { colors, radius, spacing, typography } from "@/theme";
+import { useLocalSearchParams } from "expo-router";
 import { useState } from "react";
-import { Text, TextInput, View } from "react-native";
+import { Pressable, Text, TextInput, View } from "react-native";
+
+type AuthMode = "signin" | "create";
 
 export function AccountScreen() {
+  const params = useLocalSearchParams<{ mode?: string }>();
   const [profile, setProfile] = useSaveProfile();
+  const [mode, setMode] = useState<AuthMode>(params.mode === "create" ? "create" : "signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
   const signedIn = isAccountSignedIn(profile);
@@ -40,12 +47,48 @@ export function AccountScreen() {
       });
       setProfile((current) => applyAccountLogin(current, login));
       setPassword("");
-      setStatus("Account linked to this installation.");
+      setStatus("Signed in. Account linked to this installation.");
     } catch (error) {
       setStatus(
         error instanceof Error
           ? error.message
           : "Sign in is unavailable. You can continue playing offline."
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const create = async () => {
+    if (!email.trim() || !password) {
+      setStatus("Enter an email and a password of at least 12 characters.");
+      return;
+    }
+    if (password.length < 12) {
+      setStatus("Password must be at least 12 characters.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setStatus("Passwords do not match.");
+      return;
+    }
+    setBusy(true);
+    setStatus("Creating your account...");
+    try {
+      const login = await registerAccount({
+        email: email.trim(),
+        password,
+        installId: profile.support.installId
+      });
+      setProfile((current) => applyAccountLogin(current, login));
+      setPassword("");
+      setConfirmPassword("");
+      setStatus("Account created and signed in.");
+    } catch (error) {
+      setStatus(
+        error instanceof Error
+          ? error.message
+          : "Account creation is unavailable. You can continue playing offline."
       );
     } finally {
       setBusy(false);
@@ -59,20 +102,20 @@ export function AccountScreen() {
     setStatus("Signed out. Local gameplay and progress remain available.");
   };
 
-  const refresh = async () => {
+  const sync = async () => {
     const token = profile.account.sessionToken;
     if (!token) {
-      setStatus("Sign in again to refresh your account.");
+      setStatus("Sign in again to sync your account.");
       return;
     }
     setBusy(true);
-    setStatus("Refreshing account...");
+    setStatus("Syncing account...");
     try {
       const state = await refreshAccountState(token);
       setProfile((current) => applyAccountRefresh(current, state));
       setStatus("Account inventory and access are up to date.");
     } catch {
-      setStatus("Account refresh is unavailable. You can continue playing offline.");
+      setStatus("Account Sync is unavailable. You can continue playing offline.");
     } finally {
       setBusy(false);
     }
@@ -82,7 +125,7 @@ export function AccountScreen() {
     <ScreenShell
       eyebrow="OPTIONAL SYNC"
       title="Account"
-      lead="Play offline anytime. Sign in only when you want linked inventory and support."
+      lead="Play offline anytime. An account only adds inventory sync and support history."
       accent={colors.cyan}
     >
       {signedIn ? (
@@ -103,6 +146,9 @@ export function AccountScreen() {
             <CoinFace type="cyan" size={56} glow />
             <View style={{ flex: 1, gap: spacing.xs }}>
               <StatusPill label="SYNCED" tone="emerald" />
+              <Text selectable style={[typography.caption, { color: colors.textMuted, fontSize: 11 }]}>
+                Signed in as
+              </Text>
               <Text selectable style={[typography.sectionTitle, { fontSize: 17 }]}>
                 {profile.account.email}
               </Text>
@@ -128,11 +174,11 @@ export function AccountScreen() {
             />
           </View>
           <ActionButton
-            label="Refresh Account"
+            label="Account Sync"
             detail="Updates account inventory and access from VaultPop."
             disabled={busy}
             testID="account-refresh-button"
-            onPress={() => void refresh()}
+            onPress={() => void sync()}
           />
           <ActionButton
             label="Sign Out"
@@ -154,6 +200,58 @@ export function AccountScreen() {
             padding: spacing.lg
           }}
         >
+          {/* Sign In / Create Account toggle */}
+          <View
+            style={{
+              backgroundColor: "#04030C",
+              borderColor: colors.border,
+              borderRadius: radius.pill,
+              borderWidth: 1,
+              flexDirection: "row",
+              overflow: "hidden",
+              padding: 3
+            }}
+          >
+            {(
+              [
+                { id: "signin", label: "Sign In" },
+                { id: "create", label: "Create Account" }
+              ] as const
+            ).map((tab) => {
+              const selected = mode === tab.id;
+              return (
+                <Pressable
+                  key={tab.id}
+                  testID={`account-mode-${tab.id}`}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  onPress={() => {
+                    setMode(tab.id);
+                    setStatus("");
+                  }}
+                  style={{
+                    alignItems: "center",
+                    backgroundColor: selected ? colors.cyan : "transparent",
+                    borderRadius: radius.pill,
+                    flex: 1,
+                    paddingVertical: spacing.sm
+                  }}
+                >
+                  <Text
+                    selectable={false}
+                    style={{
+                      color: selected ? "#0B0919" : colors.textSecondary,
+                      fontSize: 13.5,
+                      fontWeight: "800"
+                    }}
+                  >
+                    {tab.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
           <View style={{ gap: spacing.xs }}>
             <Text selectable style={[typography.eyebrow, { color: colors.textMuted }]}>
               EMAIL
@@ -168,16 +266,7 @@ export function AccountScreen() {
               onChangeText={setEmail}
               placeholder="you@example.com"
               placeholderTextColor={colors.textMuted}
-              style={{
-                backgroundColor: "#04030C",
-                borderColor: colors.border,
-                borderRadius: radius.sm,
-                borderWidth: 1,
-                color: colors.textPrimary,
-                fontSize: 15,
-                minHeight: 50,
-                paddingHorizontal: spacing.md
-              }}
+              style={inputStyle}
               value={email}
             />
           </View>
@@ -189,31 +278,51 @@ export function AccountScreen() {
               accessibilityLabel="Account password"
               testID="account-password-input"
               autoCapitalize="none"
-              autoComplete="current-password"
+              autoComplete={mode === "create" ? "new-password" : "current-password"}
               onChangeText={setPassword}
-              placeholder="Password"
+              placeholder={mode === "create" ? "At least 12 characters" : "Password"}
               placeholderTextColor={colors.textMuted}
               secureTextEntry
-              style={{
-                backgroundColor: "#04030C",
-                borderColor: colors.border,
-                borderRadius: radius.sm,
-                borderWidth: 1,
-                color: colors.textPrimary,
-                fontSize: 15,
-                minHeight: 50,
-                paddingHorizontal: spacing.md
-              }}
+              style={inputStyle}
               value={password}
             />
           </View>
-          <ActionButton
-            label="Sign In"
-            disabled={busy}
-            accent={colors.cyan}
-            testID="account-signin-button"
-            onPress={() => void signIn()}
-          />
+          {mode === "create" ? (
+            <View style={{ gap: spacing.xs }}>
+              <Text selectable style={[typography.eyebrow, { color: colors.textMuted }]}>
+                CONFIRM PASSWORD
+              </Text>
+              <TextInput
+                accessibilityLabel="Confirm account password"
+                testID="account-confirm-password-input"
+                autoCapitalize="none"
+                autoComplete="new-password"
+                onChangeText={setConfirmPassword}
+                placeholder="Repeat password"
+                placeholderTextColor={colors.textMuted}
+                secureTextEntry
+                style={inputStyle}
+                value={confirmPassword}
+              />
+            </View>
+          ) : null}
+          {mode === "create" ? (
+            <ActionButton
+              label="Create Account"
+              disabled={busy}
+              accent={colors.cyan}
+              testID="account-create-button"
+              onPress={() => void create()}
+            />
+          ) : (
+            <ActionButton
+              label="Sign In"
+              disabled={busy}
+              accent={colors.cyan}
+              testID="account-signin-button"
+              onPress={() => void signIn()}
+            />
+          )}
         </View>
       )}
       {status ? <StatusPill label={status} tone="cyan" /> : null}
@@ -221,11 +330,22 @@ export function AccountScreen() {
         selectable
         style={[typography.caption, { color: colors.textMuted, fontSize: 11.5, textAlign: "center" }]}
       >
-        Credentials are verified securely and are not stored in the app.
+        Play offline anytime. Credentials are verified securely and are not stored in the app.
       </Text>
     </ScreenShell>
   );
 }
+
+const inputStyle = {
+  backgroundColor: "#04030C",
+  borderColor: colors.border,
+  borderRadius: radius.sm,
+  borderWidth: 1,
+  color: colors.textPrimary,
+  fontSize: 15,
+  minHeight: 50,
+  paddingHorizontal: spacing.md
+} as const;
 
 function formatRole(role: "player" | "reviewer" | "admin" | null): string {
   return role === "admin" ? "Owner account" : "Player account";

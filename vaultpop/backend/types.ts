@@ -101,6 +101,17 @@ export interface AccountStore {
     installId: string;
     now?: Date;
   }): AuthSession | null;
+  /**
+   * Public self-service sign-up. Always creates a "player" role account —
+   * roles can never be self-assigned. Throws on duplicate email or weak
+   * password; returns a signed-in session on success.
+   */
+  registerPlayer(input: {
+    email: string;
+    password: string;
+    installId: string;
+    now?: Date;
+  }): AuthSession;
   authenticate(token: string, now?: Date): PublicAccount | null;
   revokeSession(token: string): void;
   getAccountState(accountId: string): AccountState | null;
