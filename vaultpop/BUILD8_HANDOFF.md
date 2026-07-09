@@ -45,8 +45,10 @@ eas build --platform ios --profile production
 
 ## Rewarded SSV endpoint status
 - Preferred endpoint implemented: `GET /api/ads/ssv_callback` — ECDSA-verified against Google's keys, fail-closed, idempotent per transaction_id (SQLite).
+- **AdMob console acceptance fix (2026-07-09):** the AdMob console validates a callback URL with a bare probe before saving; the endpoint previously returned `400` to bare requests, so the console rejected the URL ("Invalid server-side verification callback URL"). Bare `GET`/`HEAD` with **no query parameters** now returns `200 text/plain "VaultPop AdMob SSV endpoint ready."` — **no reward is granted, nothing is logged or exposed.** Any request WITH parameters still goes through full fail-closed signature verification (unsigned/forged → `400`; valid Google signature → verified, idempotent, correct reward only, shared 30/day cap).
 - Dual behavior implemented: if AdMob still calls `/support`, SSV parameters are detected and handled identically; normal browsers always get the support page.
-- ACTION (owner, in AdMob console): set SSV callback for BOTH rewarded units (`.../3409891849` bonus life, `.../9333822278` vault coins) to `https://vaultpop-api.fly.dev/api/ads/ssv_callback`.
+- **Recommended AdMob SSV URL for both rewarded units** (`.../3409891849` bonus life, `.../9333822278` vault coins): `https://vaultpop-api.fly.dev/api/ads/ssv_callback`
+- If AdMob still rejects that URL after the bare GET/HEAD 200 patch is deployed, fallback URL: `https://vaultpop-api.fly.dev/support` — use the fallback only because `/support` dual behavior is verified (SSV params processed fail-closed; browsers always get the support page).
 - The previously-flagged third-party SSV URL appears NOWHERE in source/config/docs (machine-audited).
 
 ## Leaderboard status

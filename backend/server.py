@@ -317,6 +317,56 @@ SOURCE_ZIP = Path("/app/vaultpop-iteration4-final-source-for-build6.zip")
 BUILD8_PROOF_ZIP = Path("/app/vaultpop-build8-readiness-proof.zip")
 BUILD8_SOURCE_ZIP = Path("/app/vaultpop-build8-final-source.zip")
 BUILD8_CORRECTION_PROOF_ZIP = Path("/app/vaultpop-build8-polish-correction-proof.zip")
+BUILD8_HANDOFF_MD = Path("/app/vaultpop/BUILD8_HANDOFF.md")
+BUILD8_DIAGNOSTIC_MD = Path("/app/vaultpop/docs/release/diagnostic-report-build8.md")
+BUILD8_APPLE_COMPLIANCE_MD = Path("/app/vaultpop/docs/release/apple-compliance-review-build8.md")
+BUILD8_SECURITY_AUDIT_MD = Path("/app/vaultpop/docs/release/security-code-audit-build8.md")
+BUILD8_COMPLETE_PACKAGE_ZIP = Path("/app/vaultpop-build8-complete-handoff-package.zip")
+
+
+@api_router.get("/export/build8-handoff")
+async def download_build8_handoff():
+    return FileResponse(
+        BUILD8_HANDOFF_MD,
+        media_type="text/markdown",
+        filename="BUILD8_HANDOFF.md",
+    )
+
+
+@api_router.get("/export/build8-diagnostic-report")
+async def download_build8_diagnostic_report():
+    return FileResponse(
+        BUILD8_DIAGNOSTIC_MD,
+        media_type="text/markdown",
+        filename="diagnostic-report-build8.md",
+    )
+
+
+@api_router.get("/export/build8-apple-compliance-report")
+async def download_build8_apple_compliance_report():
+    return FileResponse(
+        BUILD8_APPLE_COMPLIANCE_MD,
+        media_type="text/markdown",
+        filename="apple-compliance-review-build8.md",
+    )
+
+
+@api_router.get("/export/build8-security-code-audit-report")
+async def download_build8_security_code_audit_report():
+    return FileResponse(
+        BUILD8_SECURITY_AUDIT_MD,
+        media_type="text/markdown",
+        filename="security-code-audit-build8.md",
+    )
+
+
+@api_router.get("/export/build8-complete-package")
+async def download_build8_complete_package():
+    return FileResponse(
+        BUILD8_COMPLETE_PACKAGE_ZIP,
+        media_type="application/zip",
+        filename="vaultpop-build8-complete-handoff-package.zip",
+    )
 
 
 @api_router.get("/proof/build8-correction")

@@ -201,6 +201,27 @@ test("AdMob SSV callbacks verify signatures, stay idempotent, and fail closed", 
     )
   );
   assert.equal(unknownKey.status, 400);
+
+  // AdMob console URL-validation probe: bare GET/HEAD (no params) must get a
+  // 200 readiness response WITHOUT granting anything or leaking details.
+  const bareGet = await handler(
+    new Request("https://api.example/api/ads/ssv_callback")
+  );
+  assert.equal(bareGet.status, 200);
+  assert.match(bareGet.headers.get("content-type") ?? "", /text\/plain/);
+  assert.equal(await bareGet.text(), "VaultPop AdMob SSV endpoint ready.");
+  const bareHead = await handler(
+    new Request("https://api.example/api/ads/ssv_callback", { method: "HEAD" })
+  );
+  assert.equal(bareHead.status, 200);
+
+  // Unsigned params (no signature/key_id) still fail closed with 400.
+  const unsigned = await handler(
+    new Request(
+      "https://api.example/api/ads/ssv_callback?transaction_id=test-invalid&reward_item=VaultCoins&reward_amount=10"
+    )
+  );
+  assert.equal(unsigned.status, 400);
 });
 
 test("/support serves the polished public page for browsers and SSV dual behavior for AdMob", async () => {

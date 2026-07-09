@@ -80,8 +80,22 @@ export function createApiHandler(dependencies: {
         "VaultPop stores core game progress on your device. Optional account login links an email address, role, session, install ID, and account inventory to the VaultPop service. Apple processes purchases. Google AdMob may process device identifiers, coarse location, product interaction, advertising, performance, crash, and diagnostic data under its SDK disclosures for ad delivery, consent, measurement, and fraud prevention. VaultPop asks for consent and App Tracking Transparency permission when advertising initialization requires it. Private support requests may include a category, message, optional email, install ID, app and build version, device model, and priority-routing status."
       );
     }
-    if (request.method === "GET" && url.pathname === "/api/ads/ssv_callback") {
+    if (
+      (request.method === "GET" || request.method === "HEAD") &&
+      url.pathname === "/api/ads/ssv_callback"
+    ) {
       // Preferred AdMob rewarded-ad SSV endpoint. Fail closed, idempotent.
+      // The AdMob console validates a callback URL with a bare GET/HEAD probe
+      // before saving it; that probe carries no query parameters and must get
+      // a 200 or the console rejects the URL as invalid. Real SSV callbacks
+      // always carry query parameters and remain fail-closed: nothing below
+      // grants a reward without a verified Google signature.
+      if (![...url.searchParams.keys()].length) {
+        return new Response("VaultPop AdMob SSV endpoint ready.", {
+          status: 200,
+          headers: { "Cache-Control": "no-store", "Content-Type": "text/plain" }
+        });
+      }
       return handleSsvCallback(url, dependencies.ssvKeys, dependencies.rewards);
     }
     if (request.method === "GET" && url.pathname === "/support") {
