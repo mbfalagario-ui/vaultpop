@@ -234,6 +234,34 @@ test("AdMob SSV callbacks verify signatures, stay idempotent, and fail closed", 
   assert.equal(unsigned.status, 400);
 });
 
+test("SSV signatures over percent-DECODED content verify (real Google canonicalization)", async () => {
+  // Proven from live Fly diagnostics: Google's console verification callback
+  // signs the percent-decoded query content when values contain encoded
+  // characters (e.g. a reward_item with a space).
+  const fixture = createSsvFixture();
+  const { handler } = createApi({ ssvPem: fixture.pem });
+  const wireMessage =
+    "ad_network=5450213213286189855&ad_unit=3409891849&reward_amount=1" +
+    "&reward_item=Bonus%20life&timestamp=1750000007&transaction_id=txn-encoded-1&key_id=1";
+  // Google signs the DECODED form of the content.
+  const signature = fixture.signQuery(decodeURIComponent(wireMessage));
+
+  const verified = await handler(
+    new Request(
+      `https://api.example/api/ads/ssv_callback?${wireMessage}&signature=${signature}`
+    )
+  );
+  assert.equal(verified.status, 200);
+
+  // A signature that matches NEITHER the raw nor decoded content still fails.
+  const forged = await handler(
+    new Request(
+      `https://api.example/api/ads/ssv_callback?${wireMessage.replace("reward_amount=1", "reward_amount=9")}&signature=${signature}`
+    )
+  );
+  assert.equal(forged.status, 400);
+});
+
 test("valid Google-signed SSV callbacks that are not grantable return 200 without granting", async () => {
   const fixture = createSsvFixture();
   const { handler, leaderboard } = createApi({ ssvPem: fixture.pem });

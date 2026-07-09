@@ -202,7 +202,20 @@ export async function handleSsvCallback(
   }
 
   // Message = raw query content preceding "&signature=" exactly as received.
+  // PROVEN (Fly diagnostics, real Google callbacks 2026-07-09): Google signs
+  // the percent-DECODED form of that content — a callback whose reward_item
+  // contained percent-encoded characters verified ONLY after decoding
+  // (verify_raw=N verify_decoded=Y). Accept either canonicalization: a
+  // signature must still be a genuine Google ECDSA/SHA-256 signature over
+  // the exact callback content, so this weakens nothing; forged callbacks
+  // verify under neither form.
   const message = wireQuery.slice(0, signatureIndex);
+  let decodedMessage = "";
+  try {
+    decodedMessage = decodeURIComponent(message);
+  } catch {
+    decodedMessage = "";
+  }
 
   let keys: SsvKeySet;
   try {
@@ -237,7 +250,13 @@ export async function handleSsvCallback(
   }
 
   const signature = Buffer.from(signatureRaw, "base64url");
-  const valid = tryVerify(message, pem, signature);
+  const validRaw = tryVerify(message, pem, signature);
+  const validDecoded =
+    !validRaw &&
+    decodedMessage !== "" &&
+    decodedMessage !== message &&
+    tryVerify(decodedMessage, pem, signature);
+  const valid = validRaw || validDecoded;
 
   if (diagEnabled()) {
     diag.push(
@@ -245,17 +264,12 @@ export async function handleSsvCallback(
       `sig_bytes=${signature.length}`,
       `der_lead=${signature[0] === 0x30 ? "Y" : "N"}`,
       `msg_len=${message.length}`,
-      `verify_raw=${valid ? "Y" : "N"}`
+      `verify_raw=${validRaw ? "Y" : "N"}`,
+      `verify_decoded=${validDecoded ? "Y" : "N"}`
     );
     if (!valid) {
       // Redacted variant probes (booleans only) to pinpoint canonicalization
       // or encoding divergence without exposing any values.
-      let decoded = "";
-      try {
-        decoded = decodeURIComponent(message);
-      } catch {
-        decoded = "";
-      }
       const sorted = qsStringify(
         Object.fromEntries(
           Object.entries(qsParse(message)).sort(([a], [b]) =>
@@ -268,7 +282,6 @@ export async function handleSsvCallback(
         parsedQuery.indexOf("&signature=")
       );
       diag.push(
-        `verify_decoded=${decoded && tryVerify(decoded, pem, signature) ? "Y" : "N"}`,
         `verify_sorted=${tryVerify(sorted, pem, signature) ? "Y" : "N"}`,
         `verify_parsed=${parsedMessage && tryVerify(parsedMessage, pem, signature) ? "Y" : "N"}`,
         `verify_p1363=${signature.length === 64 && tryVerify(message, pem, signature, "ieee-p1363") ? "Y" : "N"}`
