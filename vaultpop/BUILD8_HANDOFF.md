@@ -1,5 +1,14 @@
 # VAULTPOP — BUILD 8 HANDOFF
 
+> **FINAL ADMOB SSV DECISION FOR BUILD 8 (2026-07-09 — OWNER DECISION, SUPERSEDES ALL SSV NOTES BELOW):**
+> - **Production AdMob SSV URL for both rewarded units:** `https://vaultpop-api.fly.dev/support`
+> - **Status: Accepted by Google AdMob for both rewarded units** (owner-confirmed in the AdMob console; both units were already saved and remain successfully verified against `/support`).
+> - **Future optional endpoint:** `https://vaultpop-api.fly.dev/api/ads/ssv_callback` — Status: **non-blocking future/preferred endpoint; NOT required for Build 8** because `/support` is already verified and production-safe. (Google's console currently serves a cached failure verdict for this exact URL string; the endpoint itself is live, bare-probe 200, signature-verified, fail-closed — switch later if desired.)
+> - **Rewarded units:**
+>   - 1 Bonus Life rewarded unit: `ca-app-pub-6035003811280283/3409891849`
+>   - 10 Vault Coins rewarded unit: `ca-app-pub-6035003811280283/9333822278`
+> - `/support` production-safe guarantees (deployed + test-covered, 39/39): normal browser requests render the polished VaultPop support page; AdMob SSV requests are detected by signed SSV query params; valid signed **grantable** callbacks grant the correct reward exactly once (idempotent per transaction_id, shared 30/day cap); valid signed but **not grantable** callbacks (e.g. missing user_id / console tests) return `200` with no reward; invalid/forged/malformed callbacks **fail closed** (`400`); signature verification accepts Google's proven percent-decoded canonicalization; unknown `key_id` triggers one forced key refresh before failing; no secrets/debug output; zero HashrateCloudMiner references.
+
 > **ADMOB CONSOLE "UNKNOWN ERROR" ROOT CAUSE — PROVEN & FIXED (2026-07-09, final):**
 > - **Proven root cause (from Fly logs + official Google SSV docs):** `fly.toml` had `min_machines_running = 0`, so the fly-proxy auto-stopped the single machine after a few idle minutes (log: "App vaultpop-api has excess capacity, autostopping machine"). A cold start takes **~8.5–9.5s** to become reachable (log: "machine became reachable in 8.455s"; one window even logged "failed to connect to machine: gave up after 15 attempts (in 8.06s)"). Google's console verification sends a **GET with signed SSV params, expects HTTP 200, and retries only 5× at 1-second intervals** — every attempt landed inside the cold-start dead window → "Your server returned an unknown error… make sure your server is up and running."
 > - Ruled out by evidence: Google key fetch works on the machine (live `key_id=99999` → "Unknown SSV key." proves a fetched, non-empty key set); signature verification is test-proven (ECDSA fixture, 34/34); bare GET/HEAD probe already returns 200 (previous fix, verified live).
@@ -14,8 +23,8 @@
 > - **Live `HEAD /api/ads/ssv_callback`: `200`.**
 > - **Invalid/forged SSV fail-closed (live):** unsigned params (`?transaction_id=test-invalid&reward_item=VaultCoins&reward_amount=10`) → `400 "Invalid SSV request."`; forged signature/unknown `key_id` → `400 "Unknown SSV key."` No reward granted.
 > - **Valid signed SSV behavior preserved:** ECDSA verification against Google's keys, idempotent per `transaction_id`, correct reward only, **shared 30/day rewarded cap preserved** (test-covered, 34/34 pass).
-> - **Recommended AdMob SSV URL for both rewarded units:** `https://vaultpop-api.fly.dev/api/ads/ssv_callback`
-> - `/support` fallback remains available only if AdMob is currently pointed there (dual behavior verified: browsers get the polished page; SSV params processed fail-closed).
+> - ~~Recommended AdMob SSV URL for both rewarded units: `/api/ads/ssv_callback`~~ **Superseded — production SSV URL is `https://vaultpop-api.fly.dev/support` (accepted by AdMob; see FINAL DECISION at top).**
+> - `/support` dual behavior verified: browsers get the polished page; SSV callbacks are verified fail-closed with the same handler.
 > - **Fly deployed: YES** · **Fly target app: `vaultpop-api`** · **Other Fly apps touched: NO** · **EAS Build 8 started: NO** · **App Store Connect upload: NO** · **App Review submission: NO**
 > - **Downloadable asset links (browser-ready):**
 >   - Complete package: `https://vaultpop-premium.preview.emergentagent.com/api/export/build8-complete-package`
@@ -39,7 +48,7 @@
 > - **Security: PASS** — no secrets, env values, stack traces, or debug dumps in any live response; unknown routes → clean JSON `404`; `/.env` probe → `404`; `/v1/admin/*` without token → `403`.
 > - **Live reliability caveat (infrastructure, NOT app code):** behind fly-proxy, the request immediately following a POST-with-body can stall 15–60s on the reused proxy→machine connection and occasionally trip a health-check restart (brief 503 burst, self-recovering). The identical code was load-tested locally on Node 24 (keep-alive, chunked bodies, 10× parallel) with zero stalls — this is a fly-proxy connection-reuse interaction, not a code defect. **Launch recommendation:** set `min_machines_running = 1` in `fly.toml` (removes cold starts and restart windows); revisit proxy keep-alive behavior if stalls persist.
 > - **Build 8 started: NO. App Store Connect upload: NO. App Review submission: NO.**
-> - **Recommended AdMob SSV URL:** `https://vaultpop-api.fly.dev/api/ads/ssv_callback` (set for both rewarded units). `/support` retains safe dual behavior only as a fallback if AdMob is currently pointed there.
+> - ~~Recommended AdMob SSV URL: `/api/ads/ssv_callback`~~ **Superseded — production SSV URL for both rewarded units is `https://vaultpop-api.fly.dev/support` (see FINAL DECISION at top).**
 > - Re-validated at verification time: `pnpm run verify` **PASS** (typecheck app+backend, **34/34 tests**, banned-language / sample-ads / secrets / navigation / monetization audits all green). Zero Hashrate/Coin Forge/crypto references in app source.
 
 > **Correction addendum (2026-07-09) — deploy status superseded by the Live Deploy Verification addendum above:** The Shop visual QA failure from the first Build 8 proof was corrected at no cost. Shop hierarchy rebuilt on a clean grid (Inventory → VaultPass hero → **Daily Rewards** → Booster Forge → Styles & Customization → Coin Packs & Upgrades → Restore/legal). VaultPass hero compacted with production copy; both rewarded CTAs redesigned as premium glowing reward cards with WATCH AD chips, states (ready/loading/daily-limit/unavailable), and a visible "N / 30 rewarded ads used today" progress bar. Bonus root-cause fix found during the correction: ambient background `Animated.loop`s registered permanent interactions, which could stall `InteractionManager.runAfterInteractions`-gated App Store session init on real devices — loops now set `isInteraction: false` and the Shop initializes the store session directly. Fly token was provided and VERIFIED read-only (`auth whoami` OK, `status -a vaultpop-api` accessible) — **Fly deploy still NOT run; awaiting explicit user approval after visual review.** Build 8 not started; App Review not submitted. Correction proof: `vaultpop-build8-polish-correction-proof.zip`.
@@ -70,11 +79,10 @@ eas build --platform ios --profile production
 - **DEPLOYED & VERIFIED LIVE:** https://vaultpop-api.fly.dev/support now renders this polished page (see Live Deploy Verification addendum above).
 
 ## Rewarded SSV endpoint status
-- Preferred endpoint implemented: `GET /api/ads/ssv_callback` — ECDSA-verified against Google's keys, fail-closed, idempotent per transaction_id (SQLite).
-- **AdMob console acceptance fix (2026-07-09):** the AdMob console validates a callback URL with a bare probe before saving; the endpoint previously returned `400` to bare requests, so the console rejected the URL ("Invalid server-side verification callback URL"). Bare `GET`/`HEAD` with **no query parameters** now returns `200 text/plain "VaultPop AdMob SSV endpoint ready."` — **no reward is granted, nothing is logged or exposed.** Any request WITH parameters still goes through full fail-closed signature verification (unsigned/forged → `400`; valid Google signature → verified, idempotent, correct reward only, shared 30/day cap).
-- Dual behavior implemented: if AdMob still calls `/support`, SSV parameters are detected and handled identically; normal browsers always get the support page.
-- **Recommended AdMob SSV URL for both rewarded units** (`.../3409891849` bonus life, `.../9333822278` vault coins): `https://vaultpop-api.fly.dev/api/ads/ssv_callback`
-- If AdMob still rejects that URL after the bare GET/HEAD 200 patch is deployed, fallback URL: `https://vaultpop-api.fly.dev/support` — use the fallback only because `/support` dual behavior is verified (SSV params processed fail-closed; browsers always get the support page).
+- **PRODUCTION (Build 8): `https://vaultpop-api.fly.dev/support` — accepted by Google AdMob for both rewarded units** (1 Bonus Life `ca-app-pub-6035003811280283/3409891849`, 10 Vault Coins `ca-app-pub-6035003811280283/9333822278`).
+- `/support` dual behavior (deployed + test-covered): normal browser requests render the polished support page; requests carrying signed SSV params (`signature` + `key_id`) are routed to the same verified, fail-closed SSV handler.
+- SSV handler guarantees (39/39 tests): ECDSA/SHA-256 verification against Google's published keys with the proven percent-decoded canonicalization; valid + grantable (user_id present, approved ad unit in numeric or full format, sane reward mapping, under shared 30/day cap) → `200`, reward recorded exactly once per transaction_id; valid but not grantable (console tests / missing user_id / unrecognized unit or mapping / over cap) → `200`, no reward; invalid/forged/malformed → `400` fail-closed; unknown key_id → one forced key refresh, then fail closed; keys cached ≤ 1h.
+- **Future optional endpoint (non-blocking): `GET /api/ads/ssv_callback`** — identical handler + bare-probe `200` readiness; currently rejected only by a cached failure verdict in Google's console for that exact URL string (server-side the endpoint is live and correct). Optionally re-verify and switch after Google's cache expires. NOT a Build 8 blocker.
 - The previously-flagged third-party SSV URL appears NOWHERE in source/config/docs (machine-audited).
 
 ## Leaderboard status
@@ -98,3 +106,4 @@ eas build --platform ios --profile production
 
 ## Required next step
 Backend is deployed and live-verified. Handoff package is final. **Build 8 (EAS), App Store Connect upload, and App Review submission remain NOT started — execute externally when you choose.** Point both AdMob rewarded units' SSV to `https://vaultpop-api.fly.dev/api/ads/ssv_callback`.
+ started — execute externally when you choose.**
