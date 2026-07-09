@@ -1,5 +1,12 @@
 # VAULTPOP — BUILD 8 HANDOFF
 
+> **ADMOB CONSOLE "UNKNOWN ERROR" ROOT CAUSE — PROVEN & FIXED (2026-07-09, final):**
+> - **Proven root cause (from Fly logs + official Google SSV docs):** `fly.toml` had `min_machines_running = 0`, so the fly-proxy auto-stopped the single machine after a few idle minutes (log: "App vaultpop-api has excess capacity, autostopping machine"). A cold start takes **~8.5–9.5s** to become reachable (log: "machine became reachable in 8.455s"; one window even logged "failed to connect to machine: gave up after 15 attempts (in 8.06s)"). Google's console verification sends a **GET with signed SSV params, expects HTTP 200, and retries only 5× at 1-second intervals** — every attempt landed inside the cold-start dead window → "Your server returned an unknown error… make sure your server is up and running."
+> - Ruled out by evidence: Google key fetch works on the machine (live `key_id=99999` → "Unknown SSV key." proves a fetched, non-empty key set); signature verification is test-proven (ECDSA fixture, 34/34); bare GET/HEAD probe already returns 200 (previous fix, verified live).
+> - **Exact fix applied & deployed:** `min_machines_running = 1` (machine now always on — no cold starts) + flag-gated **redacted** request diagnostics (`VAULTPOP_REQUEST_LOG=1`: method, path, query param NAMES only — never values — status, duration, and the fixed SSV reason strings; no signatures/tokens/secrets/user data). No reward-security changes: unsigned/forged/missing-param callbacks still fail closed, valid-signature-only rewards, idempotent per transaction_id, shared 30/day cap intact.
+> - Post-fix live state: machine `started`, health check passing, `/health` 0.1s, bare SSV GET 200 instant when warm, `[req]` diagnostics visible in `fly logs`.
+> - **AdMob console verification result: PENDING OWNER CLICK** — with the machine always-on, re-save/Verify `https://vaultpop-api.fly.dev/api/ads/ssv_callback` in the AdMob console; the `[req]` log line will show Google's request and our response status.
+
 > **ADMOB SSV ACCEPTANCE + DOWNLOADABLE HANDOFF ADDENDUM (2026-07-09, final):**
 > - **Root cause of AdMob rejection:** the AdMob console validates an SSV callback URL with a bare probe (no query parameters) before saving it; the endpoint returned `400` to bare probes, so the console rejected the URL as invalid.
 > - **SSV bare GET fixed for AdMob console verification: YES** — deployed live to `vaultpop-api`.
@@ -87,7 +94,7 @@ eas build --platform ios --profile production
 2. Nav stack grows on repeated "Play Again" (long sessions only).
 3. RN-Web console deprecation warnings (web preview only; absent in native builds).
 4. Preview FastAPI mirror: wildcard CORS + unauthenticated zip delivery endpoints (preview-only, not shipped).
-5. Fly idle cold starts + occasional post-POST stall behind fly-proxy (see Live Deploy Verification addendum) — recommend `min_machines_running = 1` before public launch; app code verified clean.
+5. ~~Fly idle cold starts + occasional post-POST stall behind fly-proxy~~ **FIXED (2026-07-09):** root cause was fly-proxy auto-stop with `min_machines_running = 0` (see AdMob root-cause addendum at top); now `min_machines_running = 1`, machine always on.
 
 ## Required next step
 Backend is deployed and live-verified. Handoff package is final. **Build 8 (EAS), App Store Connect upload, and App Review submission remain NOT started — execute externally when you choose.** Point both AdMob rewarded units' SSV to `https://vaultpop-api.fly.dev/api/ads/ssv_callback`.

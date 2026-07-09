@@ -15,6 +15,7 @@ const certificatePaths = (process.env.APPLE_ROOT_CA_PATHS ?? "")
   .split(",")
   .map((path) => path.trim())
   .filter(Boolean);
+const requestLogEnabled = process.env.VAULTPOP_REQUEST_LOG === "1";
 const accounts = new SqliteAccountStore(databasePath);
 
 accounts.upsertBootstrapAccount({
@@ -46,8 +47,10 @@ const handler = createApiHandler({
 });
 
 const server = createServer(async (incoming, outgoing) => {
+  const startedAt = Date.now();
   const origin = `http://${incoming.headers.host ?? `${host}:${port}`}`;
-  const request = new Request(new URL(incoming.url ?? "/", origin), {
+  const url = new URL(incoming.url ?? "/", origin);
+  const request = new Request(url, {
     method: incoming.method,
     headers: incoming.headers as HeadersInit,
     body:
@@ -57,10 +60,45 @@ const server = createServer(async (incoming, outgoing) => {
     duplex: "half"
   } as RequestInit);
   const response = await handler(request);
+  if (requestLogEnabled) {
+    await logRequestRedacted(incoming.method ?? "?", url, response, startedAt);
+  }
   outgoing.statusCode = response.status;
   response.headers.forEach((value, key) => outgoing.setHeader(key, value));
   outgoing.end(Buffer.from(await response.arrayBuffer()));
 });
+
+/**
+ * Flag-gated (VAULTPOP_REQUEST_LOG=1) redacted request diagnostics.
+ * Logs ONLY: method, path, query parameter NAMES (never values), status,
+ * duration. For SSV routes it also logs the response body, which on those
+ * routes is always one of our own fixed reason strings ("OK",
+ * "Invalid SSV request.", "Unknown SSV key.", "Invalid SSV signature.",
+ * "Verification keys unavailable.", readiness text) — never user data,
+ * signatures, tokens, or secrets.
+ */
+async function logRequestRedacted(
+  method: string,
+  url: URL,
+  response: Response,
+  startedAt: number
+): Promise<void> {
+  const paramNames = [...url.searchParams.keys()].join(",");
+  const isSsvRoute =
+    url.pathname === "/api/ads/ssv_callback" ||
+    (url.pathname === "/support" && url.searchParams.has("signature"));
+  let reason = "";
+  if (isSsvRoute) {
+    try {
+      reason = ` reason="${(await response.clone().text()).slice(0, 60)}"`;
+    } catch {
+      reason = "";
+    }
+  }
+  console.log(
+    `[req] ${method} ${url.pathname} params=[${paramNames}] status=${response.status} ms=${Date.now() - startedAt}${reason}`
+  );
+}
 
 server.listen(port, host);
 
