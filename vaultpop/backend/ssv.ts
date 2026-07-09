@@ -28,8 +28,13 @@ import { parse as qsParse, stringify as qsStringify } from "node:querystring";
 export const ADMOB_SSV_KEY_URL =
   "https://www.gstatic.com/admob/reward/verifier-keys.json";
 
-/** Approved VaultPop rewarded ad units (numeric ids as sent by AdMob SSV). */
-const APPROVED_REWARDED_AD_UNITS = new Set(["3409891849", "9333822278"]);
+/** Approved VaultPop rewarded ad units (AdMob may send either format). */
+const APPROVED_REWARDED_AD_UNITS = new Set([
+  "3409891849",
+  "9333822278",
+  "ca-app-pub-6035003811280283/3409891849",
+  "ca-app-pub-6035003811280283/9333822278"
+]);
 
 /** Shared daily rewarded cap across both rewarded units (mirrors client). */
 const SHARED_REWARDED_DAILY_CAP = 30;

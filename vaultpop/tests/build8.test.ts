@@ -234,6 +234,58 @@ test("AdMob SSV callbacks verify signatures, stay idempotent, and fail closed", 
   assert.equal(unsigned.status, 400);
 });
 
+test("SSV grantable callbacks accept both numeric and full ad unit formats", async () => {
+  const fixture = createSsvFixture();
+  const { handler, leaderboard } = createApi({ ssvPem: fixture.pem });
+
+  // Full ca-app-pub format for the bonus-life unit.
+  const fullFormat =
+    "ad_network=5450213213286189855&ad_unit=ca-app-pub-6035003811280283%2F3409891849" +
+    "&reward_amount=1&reward_item=bonus_life&timestamp=1750000008&transaction_id=txn-full-unit&user_id=install-2&key_id=1";
+  const full = await handler(
+    new Request(
+      `https://api.example/api/ads/ssv_callback?${fullFormat}&signature=${fixture.signQuery(decodeURIComponent(fullFormat))}`
+    )
+  );
+  assert.equal(full.status, 200);
+  assert.equal(await full.text(), "OK");
+  assert.equal(
+    leaderboard.recordOnce({ transactionId: "txn-full-unit" } as never),
+    false
+  );
+
+  // Numeric format for the vault-coins unit.
+  const numericFormat =
+    "ad_network=5450213213286189855&ad_unit=9333822278&reward_amount=10" +
+    "&reward_item=vault_coins&timestamp=1750000009&transaction_id=txn-numeric-unit&user_id=install-3&key_id=1";
+  const numeric = await handler(
+    new Request(
+      `https://api.example/api/ads/ssv_callback?${numericFormat}&signature=${fixture.signQuery(numericFormat)}`
+    )
+  );
+  assert.equal(numeric.status, 200);
+  assert.equal(await numeric.text(), "OK");
+
+  // Unrecognized reward mapping (amount outside VaultPop bounds): 200 no grant.
+  const badMapping =
+    "ad_network=5450213213286189855&ad_unit=9333822278&reward_amount=500" +
+    "&reward_item=vault_coins&timestamp=1750000010&transaction_id=txn-bad-map&user_id=install-3&key_id=1";
+  const noMap = await handler(
+    new Request(
+      `https://api.example/api/ads/ssv_callback?${badMapping}&signature=${fixture.signQuery(badMapping)}`
+    )
+  );
+  assert.equal(noMap.status, 200);
+  assert.equal(
+    await noMap.text(),
+    "Verified SSV callback received. No reward granted."
+  );
+  assert.equal(
+    leaderboard.recordOnce({ transactionId: "txn-bad-map" } as never),
+    true
+  );
+});
+
 test("SSV signatures over percent-DECODED content verify (real Google canonicalization)", async () => {
   // Proven from live Fly diagnostics: Google's console verification callback
   // signs the percent-decoded query content when values contain encoded
