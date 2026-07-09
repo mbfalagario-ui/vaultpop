@@ -81,3 +81,12 @@ No build/upload/submission; bundle ID, signing, IAP IDs, AdMob IDs unchanged; no
 - P2: Editable player handle; leaderboard pagination.
 - P2: textShadow*/useNativeDriver web-only dev warnings (harmless; migrate when RN versions align).
 - P2: Extract gameplay HUD/board/booster panel into components; shop card extraction.
+
+## Build 8 Backend Deploy + Handoff — COMPLETE (2026-07-09, forked session)
+- Prior `fly deploy -a vaultpop-api` HAD COMPLETED (CLI timeout was cosmetic). NO redeploy run. Fly token NOT present in this forked env (was session-only) and was NOT needed.
+- Live verification ALL PASS on https://vaultpop-api.fly.dev: /health 200; /support polished HTML; /api/ads/ssv_callback fail-closed 400 (no params + forged key_id); /support SSV dual behavior fail-closed; leaderboard submit/fetch 200 with SQLite persistence across live machine restart; auth register (409 dup)/login 200/bad-pw 401/bad-JSON 400; security probes clean (404 JSON, /.env 404, admin 403, no stack traces/secrets).
+- Live reliability caveat documented (NOT app code): behind fly-proxy, request after a POST-with-body can stall 15-60s and occasionally trip health-check restart (503 burst, self-recovers). Reproduced live 4x; local Node 24 load tests (keep-alive, chunked, 10x parallel) all clean. Recommendation in handoff: min_machines_running=1 before launch.
+- `pnpm run verify` rerun with local Node 24.4.1 (/tmp/node-v24.4.1-linux-arm64/bin): PASS 34/34 + all audits. Banned-language scan: zero Hashrate/Coin Forge/crypto refs.
+- BUILD8_HANDOFF.md updated: Live Deploy Verification addendum (all Step-3 fields), stale "old backend"/"404s"/"deploy pending" lines corrected, FLY DEPLOY section marked COMPLETED & VERIFIED, next step = external Build 8 execution + AdMob SSV URL pointing.
+- /app/vaultpop-build8-final-source.zip REBUILT (311 files, includes updated handoff + embedded correction proof zip; no .env/dist/node_modules). Proof zip + 3 release reports confirmed present.
+- EAS Build 8 / ASC upload / App Review: NOT started (per orders). Hashrate app: untouched.
