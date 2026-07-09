@@ -22,6 +22,11 @@ Date: 2026-07-08 · Scope: pre-patch diagnostic (Phase 1) and post-patch state.
 
 ## Post-patch validation
 - `pnpm run verify`: PASS (typecheck app + backend, 34/34 tests, banned-language, sample-ads, secrets, navigation, monetization audits)
+
+## Shop polish correction (2026-07-09, audit-failed correction)
+- Visual QA failure in the first Build 8 Shop proof corrected: grid hierarchy rebuilt (Inventory → VaultPass hero → Daily Rewards → Booster Forge → Styles & Customization → Coin Packs & Upgrades → Restore/legal); VaultPass hero compacted with production copy; rewarded CTAs rebuilt as premium reward cards with states + shared-cap progress bar; unavailable preview states made friendly ("Available on the App Store" / "Live prices load from the App Store on your device.").
+- NEW ROOT CAUSE FOUND during correction: ambient background `Animated.loop`s (screen-shell) ran with default `isInteraction: true`, permanently blocking `InteractionManager.runAfterInteractions` — the Shop's store-session init was gated on it and could stall on real devices too. Fixed: loops set `isInteraction: false`; Shop initializes the store session directly.
+- Cross-screen grid audit of all Build 8 screens completed; one global fix: ActionLink labels are now single-line auto-fit (removed awkward wrapping, e.g. "Create Account" in half-width cards).
 - New tests: registration (role lock, 409, 400, 429), leaderboard submit/fetch/mode-filter, SQLite restart persistence, SSV signature accept/tamper/unknown-key/idempotency, /support dual behavior + page content, shared 30/day rewarded cap + rewardId idempotency, booster forge affordability, FAQ intent search
 - E2E (preview): 31/31 backend API cases + 12/12 frontend flows pass (testing agent, iteration_3 report)
 - Local run of the patched TS backend verified: register 201/409, leaderboard submit/fetch, persistence across process restart, SSV fail-closed 400, polished /support page (200, HTML)

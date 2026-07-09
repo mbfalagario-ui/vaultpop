@@ -1,5 +1,7 @@
 # VAULTPOP — BUILD 8 HANDOFF
 
+> **Correction addendum (2026-07-09):** The Shop visual QA failure from the first Build 8 proof was corrected at no cost. Shop hierarchy rebuilt on a clean grid (Inventory → VaultPass hero → **Daily Rewards** → Booster Forge → Styles & Customization → Coin Packs & Upgrades → Restore/legal). VaultPass hero compacted with production copy; both rewarded CTAs redesigned as premium glowing reward cards with WATCH AD chips, states (ready/loading/daily-limit/unavailable), and a visible "N / 30 rewarded ads used today" progress bar. Bonus root-cause fix found during the correction: ambient background `Animated.loop`s registered permanent interactions, which could stall `InteractionManager.runAfterInteractions`-gated App Store session init on real devices — loops now set `isInteraction: false` and the Shop initializes the store session directly. Fly token was provided and VERIFIED read-only (`auth whoami` OK, `status -a vaultpop-api` accessible) — **Fly deploy still NOT run; awaiting explicit user approval after visual review.** Build 8 not started; App Review not submitted. Correction proof: `vaultpop-build8-polish-correction-proof.zip`.
+
 ## Project Identity
 - Expo account (owner): `pastrypuffz` · project (slug): `vaultpop` · EAS Project ID: `d9c9d243-9f5d-4839-ab0c-61d905857554`
 - App name: **VaultPop** · Version: `1.0.0` · Bundle ID: `app.vaultpop` (unchanged)
@@ -36,12 +38,13 @@ eas build --platform ios --profile production
 - **Live fly.dev currently 404s these routes — deploy required for device builds to show global ranks.**
 
 ## FLY DEPLOY READINESS
-- Fly token available: **NO** (no Fly CLI or token exists in this build environment)
-- Token can access vaultpop-api: **N/A — BLOCKED - FLY_TOKEN_DOES_NOT_ACCESS_VAULTPOP_API** (deploy portion only; source patching, validation, proof, and handoff are complete and unaffected)
+- Fly token available: **YES** (provided by owner; kept in session env only — never written to files or committed)
+- Token can access vaultpop-api: **YES** (verified read-only: `fly auth whoami` succeeded; `fly status -a vaultpop-api` returned the app — currently suspended/auto-stopped machine)
 - Target app for future deploy: **vaultpop-api** ONLY
-- Hashrate Cloud Miner app touched: **NO** (and no such domain/callback/config exists anywhere in VaultPop)
-- Fly deploy command (run from the repo root after `fly auth whoami` succeeds and `fly status -a vaultpop-api` confirms the target):
+- Hashrate Cloud Miner app touched: **NO** (it exists on the same Fly account but was not read, modified, or deployed; no such domain/callback/config exists anywhere in VaultPop)
+- Fly deploy command (run only after explicit user approval):
   ```bash
+  fly status -a vaultpop-api   # confirm target first
   fly deploy -a vaultpop-api
   ```
   Required server env (already expected by `backend/server.ts`): `VAULTPOP_ADMIN_PASSWORD`, `VAULTPOP_REVIEWER_PASSWORD`, `APPLE_ROOT_CA_PATHS`, optional `VAULTPOP_DATABASE_PATH` (must point at a persistent volume so leaderboards survive restarts).

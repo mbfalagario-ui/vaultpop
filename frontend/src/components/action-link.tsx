@@ -131,7 +131,13 @@ export function ActionLink({
               }}
             />
             <View style={{ flex: 1, gap: 2 }}>
-              <Text selectable={false} style={[typography.button, { fontSize: 15 }]}>
+              <Text
+                selectable={false}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.8}
+                style={[typography.button, { fontSize: 15 }]}
+              >
                 {label}
               </Text>
               {detail ? (

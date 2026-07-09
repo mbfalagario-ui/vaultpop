@@ -12,7 +12,6 @@ import { ActionButton } from "@/components/action-button";
 import { CoinFace } from "@/components/coin-face";
 import { HudStat } from "@/components/hud-stat";
 import { ScreenShell } from "@/components/screen-shell";
-import { StatusPill } from "@/components/status-pill";
 import { getLocalDateKey } from "@/game/daily-seed";
 import type { TileType } from "@/game/models";
 import { IAP_PRODUCTS, type IapProductId } from "@/monetization/catalog";
@@ -38,8 +37,7 @@ import { useSaveProfile } from "@/storage/use-save-profile";
 import { colors, radius, spacing, typography, visualThemes } from "@/theme";
 import { LinearGradient } from "expo-linear-gradient";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { InteractionManager, Text, View } from "react-native";
-import type { Purchase } from "react-native-iap";
+import { Pressable, Text, View } from "react-native";import type { Purchase } from "react-native-iap";
 
 const PRODUCT_COINS: Record<string, TileType> = {
   "app.vaultpop.boosters.starter": "emerald",
@@ -57,9 +55,8 @@ const PRODUCT_ACCENTS: Record<string, string> = {
   "app.vaultpop.remove_ads": colors.cyan
 };
 
-const VAULTPASS = IAP_PRODUCTS.find(
-  (product) => product.id === "app.vaultpop.vaultpass.monthly"
-)!;
+const VAULTPASS_ID: IapProductId = "app.vaultpop.vaultpass.monthly";
+const VAULTPASS = IAP_PRODUCTS.find((product) => product.id === VAULTPASS_ID)!;
 const ONE_TIME_PRODUCTS = IAP_PRODUCTS.filter(
   (product) => product.kind !== "subscription"
 );
@@ -70,6 +67,8 @@ const BOOSTER_LABELS: Record<BoosterKind, string> = {
   vaultBursts: "Vault Burst"
 };
 
+const REWARDED_DAILY_CAP = 30;
+
 export function ShopScreen() {
   const [profile, setProfile] = useSaveProfile();
   const profileRef = useRef(profile);
@@ -77,14 +76,19 @@ export function ShopScreen() {
   const forgeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [storeProducts, setStoreProducts] = useState<StoreProduct[]>([]);
   const [status, setStatus] = useState("Connecting to the App Store...");
+  const [rewardStatus, setRewardStatus] = useState<{
+    text: string;
+    success: boolean;
+  } | null>(null);
   const [busyProductId, setBusyProductId] = useState<string | null>(null);
   const [forgeResult, setForgeResult] = useState<{ id: BoosterKind; text: string } | null>(null);
-  const [watchingAd, setWatchingAd] = useState(false);
+  const [watchingAd, setWatchingAd] = useState<"life" | "coins" | null>(null);
   const dateKey = getLocalDateKey();
   const rewardedCount = getRewardedCount(profile, dateKey);
+  const capped = rewardedCount >= REWARDED_DAILY_CAP;
   const adFree = isAdFree(profile);
   const premiumAccess = hasPremiumThemeAccess(profile);
-  const vaultPassStore = storeProducts.find((item) => item.id === VAULTPASS.id);
+  const vaultPassStore = storeProducts.find((item) => item.id === VAULTPASS_ID);
 
   useEffect(() => {
     profileRef.current = profile;
@@ -125,37 +129,36 @@ export function ShopScreen() {
 
   useEffect(() => {
     let active = true;
-    const task = InteractionManager.runAfterInteractions(() => {
-      void createStoreSession({
-        onPurchase: processPurchase,
-        onError: setStatus
+    // Direct init — never gated on InteractionManager (ambient animations
+    // would otherwise delay or block the store session).
+    void createStoreSession({
+      onPurchase: processPurchase,
+      onError: setStatus
+    })
+      .then(async (session) => {
+        if (!active) {
+          await session.close();
+          return;
+        }
+        sessionRef.current = session;
+        const products = await session.fetchCatalog();
+        if (active) {
+          setStoreProducts(products);
+          setStatus(
+            products.length > 0
+              ? "App Store products loaded."
+              : "Live prices load from the App Store on your device."
+          );
+        }
       })
-        .then(async (session) => {
-          if (!active) {
-            await session.close();
-            return;
-          }
-          sessionRef.current = session;
-          const products = await session.fetchCatalog();
-          if (active) {
-            setStoreProducts(products);
-            setStatus(
-              products.length > 0
-                ? "App Store products loaded."
-                : "Products are unavailable from the App Store right now."
-            );
-          }
-        })
-        .catch(() => {
-          if (active) {
-            setStatus("The App Store is unavailable right now.");
-          }
-        });
+      .catch(() => {
+        if (active) {
+          setStatus("Live prices load from the App Store on your device.");
+        }
       });
 
     return () => {
       active = false;
-      task.cancel();
       const session = sessionRef.current;
       sessionRef.current = null;
       if (session) {
@@ -208,7 +211,8 @@ export function ShopScreen() {
   };
 
   const watchRewarded = async (kind: "life" | "coins") => {
-    setWatchingAd(true);
+    setWatchingAd(kind);
+    setRewardStatus(null);
     try {
       const eligible = canShowRewarded({
         adFree,
@@ -222,28 +226,30 @@ export function ShopScreen() {
         gameplayActive: false
       });
       if (!eligible && !(await initializeAdsAfterHome())) {
-        setStatus("A rewarded ad is unavailable right now. Please try again later.");
+        setRewardStatus({
+          text: "Rewarded ads are unavailable right now. Please try again later.",
+          success: false
+        });
         return;
       }
       const result =
         kind === "life" ? await showRewardedBonusLifeAd() : await showRewardedCoinsAd();
       if (!result.rewarded || !result.rewardId) {
-        setStatus(
-          kind === "life"
-            ? "The reward was not confirmed. No Bonus Life was added."
-            : "The reward was not confirmed. No Vault Coins were added."
-        );
+        setRewardStatus({
+          text: "The reward was not confirmed, so nothing was granted. Try again anytime.",
+          success: false
+        });
         return;
       }
       if (kind === "life") {
         setProfile((current) => grantRewardedBonusLife(current, dateKey, result.rewardId!));
-        setStatus("1 Bonus Life added.");
+        setRewardStatus({ text: "✓ 1 Bonus Life added to your supply.", success: true });
       } else {
         setProfile((current) => grantRewardedVaultCoins(current, dateKey, result.rewardId!));
-        setStatus("10 Vault Coins added.");
+        setRewardStatus({ text: "✓ 10 Vault Coins added to your supply.", success: true });
       }
     } finally {
-      setWatchingAd(false);
+      setWatchingAd(null);
     }
   };
 
@@ -269,7 +275,7 @@ export function ShopScreen() {
 
   return (
     <ScreenShell eyebrow="VAULT SUPPLY" title="Shop" accent={colors.gold} compact>
-      {/* Player supply band */}
+      {/* 1 — Compact inventory summary */}
       <View
         style={{
           backgroundColor: colors.surfaceGlass,
@@ -300,15 +306,15 @@ export function ShopScreen() {
         />
       </View>
 
-      {/* VaultPass hero — always first */}
+      {/* 2 — VaultPass hero */}
       <View
-        testID={`shop-product-${VAULTPASS.id}`}
+        testID={`shop-product-${VAULTPASS_ID}`}
         style={{
           borderColor: `${colors.violet}88`,
           borderCurve: "continuous",
           borderRadius: radius.lg,
           borderWidth: 1.5,
-          boxShadow: `0 16px 38px #00000077, 0 0 30px ${colors.violet}2E`,
+          boxShadow: `0 14px 32px #00000077, 0 0 26px ${colors.violet}2E`,
           overflow: "hidden"
         }}
       >
@@ -318,198 +324,138 @@ export function ShopScreen() {
           end={{ x: 0.9, y: 1 }}
           style={{ gap: spacing.sm, padding: spacing.md }}
         >
-          <View
-            style={{
-              backgroundColor: colors.violet,
-              borderBottomLeftRadius: radius.sm,
-              paddingHorizontal: spacing.sm,
-              paddingVertical: 3,
-              position: "absolute",
-              right: 0,
-              top: 0
-            }}
-          >
-            <Text
-              selectable={false}
-              style={{ color: "#140F02", fontSize: 10, fontWeight: "900", letterSpacing: 1 }}
-            >
-              MEMBER PICK
-            </Text>
-          </View>
-          <View style={{ alignItems: "center", flexDirection: "row", gap: spacing.md }}>
-            <CoinFace type="violet" size={54} glow />
-            <View style={{ flex: 1, gap: 2 }}>
-              <Text selectable style={[typography.sectionTitle, { fontSize: 18 }]}>
-                {VAULTPASS.displayName}
-              </Text>
+          <View style={{ alignItems: "center", flexDirection: "row", gap: spacing.sm }}>
+            <CoinFace type="violet" size={40} glow />
+            <View style={{ flex: 1 }}>
               <Text
-                selectable
-                style={[typography.caption, { color: colors.violet, fontSize: 12, fontWeight: "700" }]}
+                selectable={false}
+                style={[typography.eyebrow, { color: colors.violet, fontSize: 9 }]}
               >
-                {VAULTPASS.detail}
+                MEMBER PICK
+              </Text>
+              <Text selectable style={[typography.sectionTitle, { fontSize: 18 }]}>
+                VaultPass Plus
               </Text>
             </View>
-            <Text
-              numberOfLines={1}
-              selectable
-              style={[typography.numeral, { color: colors.textPrimary, flexShrink: 0, fontSize: 16 }]}
-            >
-              {vaultPassStore?.displayPrice ?? VAULTPASS.basePriceUsd}
-            </Text>
+            <View style={{ alignItems: "flex-end" }}>
+              <Text
+                numberOfLines={1}
+                selectable
+                style={[typography.numeral, { color: colors.textPrimary, fontSize: 16 }]}
+              >
+                {(vaultPassStore?.displayPrice ?? VAULTPASS.basePriceUsd).replace(/\/month$/, "")}
+              </Text>
+              <Text selectable={false} style={[typography.caption, { color: colors.textMuted, fontSize: 10 }]}>
+                per month
+              </Text>
+            </View>
           </View>
-          {/* Emphasized benefits */}
+          <Text selectable style={[typography.caption, { color: colors.textSecondary, fontSize: 12.5 }]}>
+            Ad-free play, priority support, premium styles, and monthly boosters.
+          </Text>
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.xs }}>
             <BenefitChip label="AD-FREE" accent={colors.gold} strong />
             <BenefitChip label="PRIORITY SUPPORT" accent={colors.cyan} strong />
-            <BenefitChip label="PREMIUM THEMES" accent={colors.violet} />
+            <BenefitChip label="PREMIUM STYLES" accent={colors.violet} />
             <BenefitChip label="MONTHLY BOOSTERS" accent={colors.emerald} />
           </View>
           <ActionButton
-            label={vaultPassStore ? "Get VaultPass Plus" : "Unavailable"}
+            label={vaultPassStore ? "Get VaultPass Plus" : "Available on the App Store"}
             disabled={!vaultPassStore || busyProductId !== null}
             accent={colors.violet}
-            testID={`shop-buy-${VAULTPASS.id}`}
-            onPress={() => void buy(VAULTPASS.id)}
+            tone={vaultPassStore ? "primary" : "quiet"}
+            testID={`shop-buy-${VAULTPASS_ID}`}
+            onPress={() => void buy(VAULTPASS_ID)}
           />
-          <Text selectable style={[typography.caption, { fontSize: 11 }]}>
-            Renews monthly until cancelled. Manage or cancel in Apple account settings.
-            Benefits remain active through the current paid period.
+          <Text
+            selectable
+            style={[typography.caption, { color: colors.textMuted, fontSize: 10.5, textAlign: "center" }]}
+          >
+            Renews monthly. Manage or cancel in your Apple account settings.
           </Text>
         </LinearGradient>
       </View>
 
-      {/* Rewarded ad CTAs — near the top */}
+      {/* 3 — Daily Rewards */}
       {!adFree ? (
-        <View style={{ gap: spacing.xs }}>
-          <View style={{ flexDirection: "row", gap: spacing.sm }}>
-            <View style={{ flex: 1 }}>
-              <ActionButton
-                label="Watch for 1 Bonus Life"
-                disabled={rewardedCount >= 30 || watchingAd}
-                accent={colors.emerald}
-                tone="quiet"
-                testID="shop-rewarded-button"
-                onPress={() => void watchRewarded("life")}
-              />
-            </View>
-            <View style={{ flex: 1 }}>
-              <ActionButton
-                label="Watch for 10 Vault Coins"
-                disabled={rewardedCount >= 30 || watchingAd}
-                accent={colors.gold}
-                tone="quiet"
-                testID="shop-rewarded-coins-button"
-                onPress={() => void watchRewarded("coins")}
-              />
-            </View>
-          </View>
+        <View style={{ gap: spacing.sm }}>
+          <SectionHeader label="DAILY REWARDS" accent={colors.emerald} />
           <Text
             selectable
-            style={[typography.caption, { color: colors.textMuted, fontSize: 11, textAlign: "center" }]}
+            style={[typography.caption, { color: colors.textMuted, fontSize: 11.5 }]}
           >
-            {rewardedCount} of 30 rewarded ads used today — shared across all rewards.
+            Watch optional rewarded ads for in-game rewards. Shared daily limit: 30.
           </Text>
+          <View style={{ flexDirection: "row", gap: spacing.sm }}>
+            <RewardCard
+              title="1 Bonus Life"
+              sub="+15 seconds in any round"
+              accent={colors.emerald}
+              coin="emerald"
+              state={capped ? "capped" : watchingAd === "life" ? "loading" : "ready"}
+              disabledByOther={watchingAd === "coins"}
+              testID="shop-rewarded-button"
+              onPress={() => void watchRewarded("life")}
+            />
+            <RewardCard
+              title="10 Vault Coins"
+              sub="Fuel for the Booster Forge"
+              accent={colors.gold}
+              coin="gold"
+              state={capped ? "capped" : watchingAd === "coins" ? "loading" : "ready"}
+              disabledByOther={watchingAd === "life"}
+              testID="shop-rewarded-coins-button"
+              onPress={() => void watchRewarded("coins")}
+            />
+          </View>
+          <View style={{ gap: 5 }}>
+            <View
+              style={{
+                backgroundColor: colors.border,
+                borderRadius: 999,
+                height: 4,
+                overflow: "hidden"
+              }}
+            >
+              <View
+                style={{
+                  backgroundColor: capped ? colors.ruby : colors.emerald,
+                  borderRadius: 999,
+                  height: 4,
+                  width: `${Math.min(100, (rewardedCount / REWARDED_DAILY_CAP) * 100)}%`
+                }}
+              />
+            </View>
+            <Text
+              selectable
+              style={[typography.caption, { color: colors.textMuted, fontSize: 11, textAlign: "center" }]}
+            >
+              {rewardedCount} / {REWARDED_DAILY_CAP} rewarded ads used today
+            </Text>
+          </View>
+          {rewardStatus ? (
+            <Text
+              selectable
+              testID="shop-reward-status"
+              style={[
+                typography.caption,
+                {
+                  color: rewardStatus.success ? colors.emerald : colors.textSecondary,
+                  fontSize: 12.5,
+                  fontWeight: "800",
+                  textAlign: "center"
+                }
+              ]}
+            >
+              {rewardStatus.text}
+            </Text>
+          ) : null}
         </View>
       ) : null}
 
-      <StatusPill label={status} tone="cyan" />
-
+      {/* 4 — Booster Forge */}
       <View style={{ gap: spacing.sm }}>
-        <SectionHeader label="APP STORE" accent={colors.gold} />
-        {ONE_TIME_PRODUCTS.map((product) => {
-          const storeProduct = storeProducts.find((item) => item.id === product.id);
-          const available = Boolean(storeProduct);
-          const accent = PRODUCT_ACCENTS[product.id] ?? colors.gold;
-          const coin = PRODUCT_COINS[product.id] ?? "gold";
-          const badge = "badge" in product ? product.badge : undefined;
-          return (
-            <View
-              key={product.id}
-              testID={`shop-product-${product.id}`}
-              style={{
-                backgroundColor: colors.surfaceGlass,
-                borderColor: colors.border,
-                borderCurve: "continuous",
-                borderRadius: radius.lg,
-                borderWidth: 1,
-                boxShadow: `0 10px 24px #00000055`,
-                gap: spacing.sm,
-                overflow: "hidden",
-                padding: spacing.md
-              }}
-            >
-              <LinearGradient
-                colors={[`${accent}22`, `${accent}00`]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 0.9, y: 1 }}
-                style={{
-                  pointerEvents: "none",
-                  borderRadius: 999,
-                  height: 150,
-                  left: -50,
-                  position: "absolute",
-                  top: -50,
-                  width: 150
-                }}
-              />
-              {badge ? (
-                <View
-                  style={{
-                    backgroundColor: accent,
-                    borderBottomLeftRadius: radius.sm,
-                    paddingHorizontal: spacing.sm,
-                    paddingVertical: 3,
-                    position: "absolute",
-                    right: 0,
-                    top: 0
-                  }}
-                >
-                  <Text
-                    selectable={false}
-                    style={{ color: "#140F02", fontSize: 10, fontWeight: "900", letterSpacing: 1 }}
-                  >
-                    {badge.toUpperCase()}
-                  </Text>
-                </View>
-              ) : null}
-              <View style={{ alignItems: "center", flexDirection: "row", gap: spacing.md }}>
-                <CoinFace type={coin} size={48} />
-                <View style={{ flex: 1, gap: 2 }}>
-                  <Text selectable style={[typography.sectionTitle, { fontSize: 16.5 }]}>
-                    {product.displayName}
-                  </Text>
-                  <Text
-                    selectable
-                    style={[typography.caption, { color: accent, fontSize: 12, fontWeight: "700" }]}
-                  >
-                    {product.detail}
-                  </Text>
-                </View>
-                <Text
-                  numberOfLines={1}
-                  selectable
-                  style={[typography.numeral, { color: colors.textPrimary, flexShrink: 0, fontSize: 16 }]}
-                >
-                  {storeProduct?.displayPrice ?? product.basePriceUsd}
-                </Text>
-              </View>
-              <Text selectable style={[typography.caption, { color: colors.textSecondary, fontSize: 12 }]}>
-                {product.description}
-              </Text>
-              <ActionButton
-                label={available ? "Get" : "Unavailable"}
-                disabled={!available || busyProductId !== null}
-                accent={accent}
-                testID={`shop-buy-${product.id}`}
-                onPress={() => void buy(product.id)}
-              />
-            </View>
-          );
-        })}
-      </View>
-
-      <View style={{ gap: spacing.sm }}>
-        <SectionHeader label="BOOSTER FORGE" accent={colors.emerald} />
+        <SectionHeader label="BOOSTER FORGE" accent={colors.cyan} />
         {BOOSTER_GUIDE.map((booster, index) => {
           const accent = [colors.cyan, colors.violet, colors.gold][index] ?? colors.gold;
           const glyph: TileType = index === 0 ? "cyan" : index === 1 ? "violet" : "gold";
@@ -531,7 +477,7 @@ export function ShopScreen() {
               }}
             >
               <View style={{ alignItems: "center", flexDirection: "row", gap: spacing.md }}>
-                <CoinFace type={glyph} size={48} />
+                <CoinFace type={glyph} size={44} />
                 <View style={{ flex: 1, gap: 2 }}>
                   <View style={{ alignItems: "center", flexDirection: "row", gap: spacing.sm }}>
                     <Text selectable style={[typography.sectionTitle, { fontSize: 16 }]}>
@@ -589,26 +535,13 @@ export function ShopScreen() {
         })}
       </View>
 
-      {/* Styles & Customization (merged from Arcade Styles) */}
+      {/* 5 — Styles & Customization */}
       <View style={{ gap: spacing.sm }}>
-        <View style={{ alignItems: "center", flexDirection: "row", gap: spacing.sm }}>
-          <View
-            style={{
-              backgroundColor: colors.violet,
-              borderRadius: 999,
-              boxShadow: `0 0 8px ${colors.violet}`,
-              height: 2,
-              width: 22
-            }}
-          />
-          <Text selectable style={[typography.eyebrow, { color: colors.violet }]}>
-            STYLES & CUSTOMIZATION
-          </Text>
-          <View style={{ backgroundColor: colors.border, flex: 1, height: 1 }} />
-          <Text selectable style={[typography.eyebrow, { color: colors.textMuted, fontSize: 9.5 }]}>
-            {profile.cosmetics.fictionalPoints} STYLE POINTS
-          </Text>
-        </View>
+        <SectionHeader
+          label="STYLES & CUSTOMIZATION"
+          accent={colors.violet}
+          trailing={`${profile.cosmetics.fictionalPoints} STYLE POINTS`}
+        />
         {visualThemes.map((theme) => {
           const subscriptionTheme = theme.id === "vaultpass-prism";
           const unlocked =
@@ -648,12 +581,12 @@ export function ShopScreen() {
                   borderColor: `${theme.accent}66`,
                   borderRadius: radius.pill,
                   borderWidth: 1.5,
-                  height: 54,
+                  height: 50,
                   justifyContent: "center",
-                  width: 54
+                  width: 50
                 }}
               >
-                <CoinFace type="violet" size={36} />
+                <CoinFace type="violet" size={34} />
               </View>
               <View style={{ flex: 1, gap: 2 }}>
                 <Text selectable style={[typography.button, { fontSize: 15 }]}>
@@ -697,6 +630,106 @@ export function ShopScreen() {
         </Text>
       </View>
 
+      {/* 6 — Coin Packs & Upgrades */}
+      <View style={{ gap: spacing.sm }}>
+        <SectionHeader label="COIN PACKS & UPGRADES" accent={colors.gold} />
+        <Text selectable style={[typography.caption, { color: colors.textMuted, fontSize: 11.5 }]}>
+          {status}
+        </Text>
+        {ONE_TIME_PRODUCTS.map((product) => {
+          const storeProduct = storeProducts.find((item) => item.id === product.id);
+          const available = Boolean(storeProduct);
+          const accent = PRODUCT_ACCENTS[product.id] ?? colors.gold;
+          const coin = PRODUCT_COINS[product.id] ?? "gold";
+          const badge = "badge" in product ? product.badge : undefined;
+          return (
+            <View
+              key={product.id}
+              testID={`shop-product-${product.id}`}
+              style={{
+                backgroundColor: colors.surfaceGlass,
+                borderColor: colors.border,
+                borderCurve: "continuous",
+                borderRadius: radius.lg,
+                borderWidth: 1,
+                boxShadow: `0 10px 24px #00000055`,
+                gap: spacing.sm,
+                overflow: "hidden",
+                padding: spacing.md
+              }}
+            >
+              <LinearGradient
+                colors={[`${accent}22`, `${accent}00`]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0.9, y: 1 }}
+                style={{
+                  pointerEvents: "none",
+                  borderRadius: 999,
+                  height: 150,
+                  left: -50,
+                  position: "absolute",
+                  top: -50,
+                  width: 150
+                }}
+              />
+              {badge ? (
+                <View
+                  style={{
+                    backgroundColor: accent,
+                    borderBottomLeftRadius: radius.sm,
+                    paddingHorizontal: spacing.sm,
+                    paddingVertical: 3,
+                    position: "absolute",
+                    right: 0,
+                    top: 0
+                  }}
+                >
+                  <Text
+                    selectable={false}
+                    style={{ color: "#140F02", fontSize: 10, fontWeight: "900", letterSpacing: 1 }}
+                  >
+                    {badge.toUpperCase()}
+                  </Text>
+                </View>
+              ) : null}
+              <View style={{ alignItems: "center", flexDirection: "row", gap: spacing.md }}>
+                <CoinFace type={coin} size={44} />
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text selectable style={[typography.sectionTitle, { fontSize: 16 }]}>
+                    {product.displayName}
+                  </Text>
+                  <Text
+                    selectable
+                    style={[typography.caption, { color: accent, fontSize: 12, fontWeight: "700" }]}
+                  >
+                    {product.detail}
+                  </Text>
+                </View>
+                <Text
+                  numberOfLines={1}
+                  selectable
+                  style={[typography.numeral, { color: colors.textPrimary, flexShrink: 0, fontSize: 16 }]}
+                >
+                  {storeProduct?.displayPrice ?? product.basePriceUsd}
+                </Text>
+              </View>
+              <Text selectable style={[typography.caption, { color: colors.textSecondary, fontSize: 12 }]}>
+                {product.description}
+              </Text>
+              <ActionButton
+                label={available ? "Get" : "Available on the App Store"}
+                disabled={!available || busyProductId !== null}
+                accent={accent}
+                tone={available ? "primary" : "quiet"}
+                testID={`shop-buy-${product.id}`}
+                onPress={() => void buy(product.id)}
+              />
+            </View>
+          );
+        })}
+      </View>
+
+      {/* 7 — Restore + legal */}
       <ActionButton
         label="Restore Purchases"
         detail="Restores Ad-Free Upgrade and active VaultPass access."
@@ -706,12 +739,130 @@ export function ShopScreen() {
       />
       <Text
         selectable
-        style={[typography.caption, { color: colors.textMuted, fontSize: 11.5, textAlign: "center" }]}
+        style={[typography.caption, { color: colors.textMuted, fontSize: 11, textAlign: "center" }]}
       >
-        Vault Coins are fictional game currency used only for fixed in-game boosters.
+        Vault Coins, boosters, and rewards are fictional in-game content with no
+        real-world value.
       </Text>
       <AdBanner placement="shop" />
     </ScreenShell>
+  );
+}
+
+type RewardState = "ready" | "loading" | "capped";
+
+function RewardCard({
+  title,
+  sub,
+  accent,
+  coin,
+  state,
+  disabledByOther,
+  testID,
+  onPress
+}: {
+  title: string;
+  sub: string;
+  accent: string;
+  coin: TileType;
+  state: RewardState;
+  disabledByOther: boolean;
+  testID: string;
+  onPress: () => void;
+}) {
+  const disabled = state !== "ready" || disabledByOther;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Watch for ${title}`}
+      accessibilityState={{ disabled }}
+      testID={testID}
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => ({
+        flex: 1,
+        opacity: state === "capped" ? 0.55 : 1,
+        transform: [{ scale: pressed ? 0.97 : 1 }]
+      })}
+    >
+      <View
+        style={{
+          borderColor: `${accent}66`,
+          borderCurve: "continuous",
+          borderRadius: radius.lg,
+          borderWidth: 1.5,
+          boxShadow: `0 10px 24px #00000066, 0 0 22px ${accent}26`,
+          overflow: "hidden"
+        }}
+      >
+        <LinearGradient
+          colors={[`${accent}2A`, "#0B0F1F"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0.7, y: 1 }}
+          style={{ alignItems: "center", gap: spacing.xs, padding: spacing.md }}
+        >
+          <View
+            style={{
+              alignItems: "center",
+              backgroundColor: `${accent}1F`,
+              borderColor: `${accent}66`,
+              borderRadius: 999,
+              borderWidth: 1.5,
+              boxShadow: `0 0 16px ${accent}44`,
+              height: 52,
+              justifyContent: "center",
+              width: 52
+            }}
+          >
+            <CoinFace type={coin} size={36} glow />
+          </View>
+          <Text
+            selectable={false}
+            style={[typography.eyebrow, { color: accent, fontSize: 8.5 }]}
+          >
+            WATCH FOR
+          </Text>
+          <Text
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            selectable={false}
+            style={[typography.sectionTitle, { fontSize: 16, textAlign: "center" }]}
+          >
+            {title}
+          </Text>
+          <Text
+            numberOfLines={1}
+            selectable={false}
+            style={[typography.caption, { color: colors.textMuted, fontSize: 10.5, textAlign: "center" }]}
+          >
+            {sub}
+          </Text>
+          <View
+            style={{
+              alignItems: "center",
+              backgroundColor: disabled && state !== "loading" ? colors.border : accent,
+              borderRadius: radius.pill,
+              boxShadow: state === "ready" && !disabled ? `0 0 14px ${accent}66` : undefined,
+              marginTop: 2,
+              paddingVertical: 8,
+              width: "100%"
+            }}
+          >
+            <Text
+              selectable={false}
+              style={{
+                color: disabled && state !== "loading" ? colors.textMuted : "#140F02",
+                fontSize: 12,
+                fontWeight: "900",
+                letterSpacing: 1
+              }}
+            >
+              {state === "loading" ? "LOADING AD..." : state === "capped" ? "DAILY LIMIT" : "▶ WATCH AD"}
+            </Text>
+          </View>
+        </LinearGradient>
+      </View>
+    </Pressable>
   );
 }
 
@@ -751,7 +902,15 @@ function BenefitChip({
   );
 }
 
-function SectionHeader({ label, accent }: { label: string; accent: string }) {
+function SectionHeader({
+  label,
+  accent,
+  trailing
+}: {
+  label: string;
+  accent: string;
+  trailing?: string;
+}) {
   return (
     <View style={{ alignItems: "center", flexDirection: "row", gap: spacing.sm }}>
       <View
@@ -767,6 +926,11 @@ function SectionHeader({ label, accent }: { label: string; accent: string }) {
         {label}
       </Text>
       <View style={{ backgroundColor: colors.border, flex: 1, height: 1 }} />
+      {trailing ? (
+        <Text selectable style={[typography.eyebrow, { color: colors.textMuted, fontSize: 9.5 }]}>
+          {trailing}
+        </Text>
+      ) : null}
     </View>
   );
 }

@@ -316,6 +316,16 @@ PROOF_ZIP = Path("/app/vaultpop-iteration4-polish-proof.zip")
 SOURCE_ZIP = Path("/app/vaultpop-iteration4-final-source-for-build6.zip")
 BUILD8_PROOF_ZIP = Path("/app/vaultpop-build8-readiness-proof.zip")
 BUILD8_SOURCE_ZIP = Path("/app/vaultpop-build8-final-source.zip")
+BUILD8_CORRECTION_PROOF_ZIP = Path("/app/vaultpop-build8-polish-correction-proof.zip")
+
+
+@api_router.get("/proof/build8-correction")
+async def download_build8_correction_proof():
+    return FileResponse(
+        BUILD8_CORRECTION_PROOF_ZIP,
+        media_type="application/zip",
+        filename="vaultpop-build8-polish-correction-proof.zip",
+    )
 
 
 @api_router.get("/proof/build8")

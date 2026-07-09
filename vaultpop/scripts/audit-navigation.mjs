@@ -30,7 +30,7 @@ const requiredScreenCopy = [
   ["src/screens/faq-screen.tsx", ["FAQ_ENTRIES", "Contact Support", "Support Assistant"]],
   ["src/screens/assistant-screen.tsx", ["SUGGESTED ANSWERS", "Submit a Support Request", "support@vaultpop.app"]],
   ["src/screens/cosmetics-screen.tsx", ["Redirect", "/shop"]],
-  ["src/screens/shop-screen.tsx", ["Restore Purchases", "Watch for 1 Bonus Life", "Watch for 10 Vault Coins", "IAP_PRODUCTS", "STYLES & CUSTOMIZATION", "BOOSTER FORGE", "AD-FREE", "PRIORITY SUPPORT"]],
+  ["src/screens/shop-screen.tsx", ["Restore Purchases", "DAILY REWARDS", "Watch for", "1 Bonus Life", "10 Vault Coins", "WATCH AD", "rewarded ads used today", "IAP_PRODUCTS", "STYLES & CUSTOMIZATION", "BOOSTER FORGE", "AD-FREE", "PRIORITY SUPPORT"]],
   ["src/screens/support-screen.tsx", ["SUPPORT_CATEGORIES", "Submit Support Request", "Email (Optional)"]],
   ["src/screens/account-screen.tsx", ["Sign In", "Create Account", "Sign Out", "Account Sync", "Signed in as", "Play offline anytime"]],
   ["src/screens/privacy-support-legal-screen.tsx", ["In-App Support", "Email Support", "Privacy Policy"]]

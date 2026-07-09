@@ -1,6 +1,7 @@
 # VaultPop Build 8 — Security / Code Audit Report
 
 Date: 2026-07-08 · Report-only audit of all Build 8 patch surfaces (independent security agent + repo audits).
+Correction addendum (2026-07-09): the Shop polish correction touched UI-layer files only (`shop-screen.tsx`, `screen-shell.tsx` animation flags, `action-link.tsx` label fit). No auth/IAP/ads/network logic changed; rewarded flows still fail closed with shared cap + idempotency; verify re-run PASS (34/34). The provided Fly token was used for READ-ONLY access verification and was never printed, stored in files, or committed.
 
 ## Verdict: PASS — Build 8 QA safe to proceed
 No CRITICAL, HIGH, or MEDIUM functional issues on any new surface.

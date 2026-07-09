@@ -77,16 +77,18 @@ export function ScreenShell({
       drift.setValue(0.5);
       return;
     }
+    // isInteraction: false — ambient loops must never block InteractionManager
+    // (a perpetual "interaction" would stall store/session init on iOS).
     Animated.loop(
       Animated.sequence([
-        Animated.timing(breathe, { duration: 2600, toValue: 1, useNativeDriver: true }),
-        Animated.timing(breathe, { duration: 2600, toValue: 0.55, useNativeDriver: true })
+        Animated.timing(breathe, { duration: 2600, isInteraction: false, toValue: 1, useNativeDriver: true }),
+        Animated.timing(breathe, { duration: 2600, isInteraction: false, toValue: 0.55, useNativeDriver: true })
       ])
     ).start();
     Animated.loop(
       Animated.sequence([
-        Animated.timing(drift, { duration: 5200, toValue: 1, useNativeDriver: true }),
-        Animated.timing(drift, { duration: 5200, toValue: 0, useNativeDriver: true })
+        Animated.timing(drift, { duration: 5200, isInteraction: false, toValue: 1, useNativeDriver: true }),
+        Animated.timing(drift, { duration: 5200, isInteraction: false, toValue: 0, useNativeDriver: true })
       ])
     ).start();
   }, [breathe, drift, profile.settings.reducedMotion]);
