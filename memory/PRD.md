@@ -90,3 +90,11 @@ No build/upload/submission; bundle ID, signing, IAP IDs, AdMob IDs unchanged; no
 - BUILD8_HANDOFF.md updated: Live Deploy Verification addendum (all Step-3 fields), stale "old backend"/"404s"/"deploy pending" lines corrected, FLY DEPLOY section marked COMPLETED & VERIFIED, next step = external Build 8 execution + AdMob SSV URL pointing.
 - /app/vaultpop-build8-final-source.zip REBUILT (311 files, includes updated handoff + embedded correction proof zip; no .env/dist/node_modules). Proof zip + 3 release reports confirmed present.
 - EAS Build 8 / ASC upload / App Review: NOT started (per orders). Hashrate app: untouched.
+
+## Build 8 AdMob SSV Correction + Downloadable Handoff — COMPLETE (2026-07-09)
+- ROOT CAUSE AdMob URL rejection: console validates callback with bare no-param probe; endpoint returned 400 -> rejected. FIX: GET/HEAD /api/ads/ssv_callback with ZERO query params -> 200 text/plain "VaultPop AdMob SSV endpoint ready." (no reward, no debug); ANY params -> full fail-closed SSV verification unchanged. Patched app.ts route; assertions added to existing SSV test in tests/build8.test.ts (still 34 tests, all pass + audits).
+- Fly token re-provided by user (session env only, never on disk). fly deploy -a vaultpop-api SUCCEEDED (machine 847560c9de6498 updated, ~25s cached build). Only vaultpop-api touched.
+- LIVE verified post-deploy: bare GET 200 ready / HEAD 200 / unsigned params 400 / forged sig 400 / health 200 / support HTML 200 / leaderboard submit+fetch 200 (volume data retained across deploy) / security probes clean.
+- Downloadable assets (preview FastAPI, all verified 200 externally): /api/export/build8-complete-package (vaultpop-build8-complete-handoff-package.zip, 91MB, contains all 6 assets), /api/export/build8-final-source, /api/export/build8-handoff, /api/proof/build8-correction, /api/export/build8-diagnostic-report, /api/export/build8-apple-compliance-report, /api/export/build8-security-code-audit-report on https://vaultpop-premium.preview.emergentagent.com
+- BUILD8_HANDOFF.md: new top addendum (SSV acceptance fix + live results + download links); superseded old bare-400 bullet; SSV section documents /support fallback-only guidance. Source zip rebuilt WITH patch + final handoff; complete package rebuilt after.
+- EAS Build 8 / ASC upload / App Review: NOT started. Hashrate: untouched, zero refs.

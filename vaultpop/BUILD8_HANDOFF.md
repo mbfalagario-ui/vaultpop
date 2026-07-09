@@ -1,12 +1,31 @@
 # VAULTPOP — BUILD 8 HANDOFF
 
+> **ADMOB SSV ACCEPTANCE + DOWNLOADABLE HANDOFF ADDENDUM (2026-07-09, final):**
+> - **Root cause of AdMob rejection:** the AdMob console validates an SSV callback URL with a bare probe (no query parameters) before saving it; the endpoint returned `400` to bare probes, so the console rejected the URL as invalid.
+> - **SSV bare GET fixed for AdMob console verification: YES** — deployed live to `vaultpop-api`.
+> - **Live `GET /api/ads/ssv_callback` (no params): `200 text/plain` — body `VaultPop AdMob SSV endpoint ready.` No reward granted, no secrets/debug.**
+> - **Live `HEAD /api/ads/ssv_callback`: `200`.**
+> - **Invalid/forged SSV fail-closed (live):** unsigned params (`?transaction_id=test-invalid&reward_item=VaultCoins&reward_amount=10`) → `400 "Invalid SSV request."`; forged signature/unknown `key_id` → `400 "Unknown SSV key."` No reward granted.
+> - **Valid signed SSV behavior preserved:** ECDSA verification against Google's keys, idempotent per `transaction_id`, correct reward only, **shared 30/day rewarded cap preserved** (test-covered, 34/34 pass).
+> - **Recommended AdMob SSV URL for both rewarded units:** `https://vaultpop-api.fly.dev/api/ads/ssv_callback`
+> - `/support` fallback remains available only if AdMob is currently pointed there (dual behavior verified: browsers get the polished page; SSV params processed fail-closed).
+> - **Fly deployed: YES** · **Fly target app: `vaultpop-api`** · **Other Fly apps touched: NO** · **EAS Build 8 started: NO** · **App Store Connect upload: NO** · **App Review submission: NO**
+> - **Downloadable asset links (browser-ready):**
+>   - Complete package: `https://vaultpop-premium.preview.emergentagent.com/api/export/build8-complete-package`
+>   - Source zip: `https://vaultpop-premium.preview.emergentagent.com/api/export/build8-final-source`
+>   - This handoff doc: `https://vaultpop-premium.preview.emergentagent.com/api/export/build8-handoff`
+>   - Shop-correction proof zip: `https://vaultpop-premium.preview.emergentagent.com/api/proof/build8-correction`
+>   - Diagnostic report: `https://vaultpop-premium.preview.emergentagent.com/api/export/build8-diagnostic-report`
+>   - Apple compliance report: `https://vaultpop-premium.preview.emergentagent.com/api/export/build8-apple-compliance-report`
+>   - Security/code audit report: `https://vaultpop-premium.preview.emergentagent.com/api/export/build8-security-code-audit-report`
+
 > **LIVE DEPLOY VERIFICATION ADDENDUM (2026-07-09, post-approval):**
 > - **Fly deployed: YES** — the previously initiated `fly deploy -a vaultpop-api` **completed successfully** (the local CLI session merely timed out while streaming logs). Confirmed by live endpoints: Build 8-only routes (`/api/ads/ssv_callback`, polished `/support`, SQLite leaderboard) are all serving on https://vaultpop-api.fly.dev. No redeploy was necessary or performed.
 > - **Fly target app: `vaultpop-api`** (only app touched). **Hashrate app touched: NO.**
 > - **Fly deploy status: LIVE & HEALTHY** — `GET /health` → `200 {"status":"ok"}` (fly health checks passing; machine auto-stops when idle per `min_machines_running = 0`, first request after idle cold-starts in ~10s).
 > - **`/health`: PASS** — `200 {"status":"ok"}`.
 > - **`/support` polished page: PASS** — `200 text/html`, renders the branded VaultPop support page (FAQ, categories, contact, disclaimers). Not a bare backend response.
-> - **`/api/ads/ssv_callback`: PASS (fail-closed)** — no params → `400 "Invalid SSV request."`; forged params/unknown `key_id` → `400 "Unknown SSV key."`. Never 200 for invalid input. Idempotent per `transaction_id` (SQLite).
+> - **`/api/ads/ssv_callback`: PASS (fail-closed for anything unsigned)** — *(superseded by the AdMob SSV Acceptance addendum above:)* bare GET/HEAD with no params now returns `200` readiness for AdMob console validation; any request WITH params remains fail-closed: unsigned/forged → `400`. Never 200 for invalid signed input. Idempotent per `transaction_id` (SQLite).
 > - **`/support` SSV dual behavior: PASS** — SSV-style query params are detected and processed by the same fail-closed SSV handler (`400` for forged params); normal browser requests always render the support page.
 > - **Leaderboard live: PASS** — `POST /v1/leaderboard/submit` → `200 {"accepted":true,"bestScore":…,"rank":…}`; `GET /v1/leaderboard?mode=classic` returns the submitted entry with `yourRank`. **Persistence confirmed live:** a submitted score survived a full machine restart (SQLite on the `vaultpop_data` volume). Invalid mode → safe empty payload; invalid submission → `400`.
 > - **Auth/account live: PASS** — `POST /v1/auth/register` creates a player account (duplicate email → `409`); `POST /v1/auth/login` → `200` with session token + account state; wrong password → `401`; malformed JSON → clean `400`. Sufficient for Build 8 QA.
