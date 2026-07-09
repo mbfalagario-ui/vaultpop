@@ -52,7 +52,16 @@ const server = createServer(async (incoming, outgoing) => {
   const url = new URL(incoming.url ?? "/", origin);
   const request = new Request(url, {
     method: incoming.method,
-    headers: incoming.headers as HeadersInit,
+    headers: {
+      ...(incoming.headers as Record<string, string>),
+      // Query string exactly as received on the socket, for SSV signature
+      // canonicalization (WHATWG URL parsing may normalize percent-encoding).
+      "x-vaultpop-raw-query": (() => {
+        const target = incoming.url ?? "/";
+        const index = target.indexOf("?");
+        return index >= 0 ? target.slice(index + 1) : "";
+      })()
+    } as HeadersInit,
     body:
       incoming.method === "GET" || incoming.method === "HEAD"
         ? undefined

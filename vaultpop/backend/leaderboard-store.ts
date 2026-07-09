@@ -155,6 +155,15 @@ export class SqliteLeaderboardStore implements LeaderboardStore, RewardEventStor
       );
     return Number(result.changes) > 0;
   }
+
+  countRecentForUser(userId: string, sinceIso: string): number {
+    const row = this.database
+      .prepare(
+        "SELECT COUNT(*) AS total FROM rewarded_ad_events WHERE user_id = ? AND created_at >= ?"
+      )
+      .get(userId, sinceIso) as { total: number };
+    return Number(row.total);
+  }
 }
 
 /** In-memory implementation for tests. */
@@ -208,11 +217,23 @@ export class MemoryLeaderboardStore implements LeaderboardStore, RewardEventStor
     };
   }
 
-  recordOnce(input: { transactionId: string }): boolean {
+  recordOnce(input: { transactionId: string; userId: string | null }): boolean {
     if (this.rewardIds.has(input.transactionId)) {
       return false;
     }
     this.rewardIds.add(input.transactionId);
+    this.rewardEvents.push({
+      userId: input.userId,
+      createdAt: new Date().toISOString()
+    });
     return true;
   }
+
+  countRecentForUser(userId: string, sinceIso: string): number {
+    return this.rewardEvents.filter(
+      (event) => event.userId === userId && event.createdAt >= sinceIso
+    ).length;
+  }
+
+  private rewardEvents: { userId: string | null; createdAt: string }[] = [];
 }

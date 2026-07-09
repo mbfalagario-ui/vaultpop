@@ -96,14 +96,24 @@ export function createApiHandler(dependencies: {
           headers: { "Cache-Control": "no-store", "Content-Type": "text/plain" }
         });
       }
-      return handleSsvCallback(url, dependencies.ssvKeys, dependencies.rewards);
+      return handleSsvCallback(
+        url,
+        dependencies.ssvKeys,
+        dependencies.rewards,
+        request.headers.get("x-vaultpop-raw-query") ?? undefined
+      );
     }
     if (request.method === "GET" && url.pathname === "/support") {
       // Dual behavior: if AdMob still targets /support as its SSV callback,
       // detect the SSV parameters and process the callback safely. Normal
       // browser visits always receive the polished public support page.
       if (isSsvCallback(url)) {
-        return handleSsvCallback(url, dependencies.ssvKeys, dependencies.rewards);
+        return handleSsvCallback(
+          url,
+          dependencies.ssvKeys,
+          dependencies.rewards,
+          request.headers.get("x-vaultpop-raw-query") ?? undefined
+        );
       }
       return new Response(renderSupportPage(), {
         headers: {

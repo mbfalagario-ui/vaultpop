@@ -12,7 +12,7 @@ import {
 } from "../backend/leaderboard-store";
 import { MemoryAccountStore } from "../backend/memory-account-store";
 import { MemoryLedgerStore } from "../backend/memory-ledger";
-import { StaticSsvKeyProvider } from "../backend/ssv";
+import { handleSsvCallback, StaticSsvKeyProvider } from "../backend/ssv";
 import type { PurchaseVerifier } from "../backend/types";
 import {
   getRewardedCount,
@@ -182,9 +182,19 @@ test("AdMob SSV callbacks verify signatures, stay idempotent, and fail closed", 
     new Request(`https://api.example/api/ads/ssv_callback?${message}&signature=${signature}`)
   );
   assert.equal(valid.status, 200);
+  assert.equal(await valid.text(), "OK");
 
   // Idempotency: the same transaction is recorded exactly once.
-  assert.equal(leaderboard.recordOnce({ transactionId: "txn-001" } as never), false);
+  assert.equal(
+    leaderboard.recordOnce({ transactionId: "txn-001" } as never),
+    false
+  );
+
+  // Duplicate delivery of the same signed callback still returns 200.
+  const duplicate = await handler(
+    new Request(`https://api.example/api/ads/ssv_callback?${message}&signature=${signature}`)
+  );
+  assert.equal(duplicate.status, 200);
 
   // Tampered reward amount must fail closed.
   const tampered = await handler(
@@ -194,7 +204,7 @@ test("AdMob SSV callbacks verify signatures, stay idempotent, and fail closed", 
   );
   assert.equal(tampered.status, 400);
 
-  // Unknown key id fails closed.
+  // Unknown key id fails closed (after one forced key refresh).
   const unknownKey = await handler(
     new Request(
       `https://api.example/api/ads/ssv_callback?${message.replace("key_id=1", "key_id=7")}&signature=${signature}`
@@ -224,6 +234,118 @@ test("AdMob SSV callbacks verify signatures, stay idempotent, and fail closed", 
   assert.equal(unsigned.status, 400);
 });
 
+test("valid Google-signed SSV callbacks that are not grantable return 200 without granting", async () => {
+  const fixture = createSsvFixture();
+  const { handler, leaderboard } = createApi({ ssvPem: fixture.pem });
+  const noGrantBody = "Verified SSV callback received. No reward granted.";
+
+  // AdMob console verification style: validly signed, NO user_id/custom_data.
+  const consoleMessage =
+    "ad_network=5450213213286189855&ad_unit=3409891849&reward_amount=1" +
+    "&reward_item=Reward&timestamp=1750000002&transaction_id=txn-console-1&key_id=1";
+  const consoleTest = await handler(
+    new Request(
+      `https://api.example/api/ads/ssv_callback?${consoleMessage}&signature=${fixture.signQuery(consoleMessage)}`
+    )
+  );
+  assert.equal(consoleTest.status, 200);
+  assert.equal(await consoleTest.text(), noGrantBody);
+  // Nothing was granted/recorded for the console test transaction.
+  assert.equal(
+    leaderboard.recordOnce({ transactionId: "txn-console-1" } as never),
+    true
+  );
+
+  // Valid signature but user_id does not map to a VaultPop install context.
+  const unknownUserMessage =
+    "ad_network=5450213213286189855&ad_unit=3409891849&reward_amount=1" +
+    "&reward_item=Reward&timestamp=1750000003&transaction_id=txn-unknown-user&user_id=x&key_id=1";
+  const unknownUser = await handler(
+    new Request(
+      `https://api.example/api/ads/ssv_callback?${unknownUserMessage}&signature=${fixture.signQuery(unknownUserMessage)}`
+    )
+  );
+  assert.equal(unknownUser.status, 200);
+  assert.equal(await unknownUser.text(), noGrantBody);
+
+  // Valid signature but the ad unit is not an approved VaultPop rewarded unit.
+  const wrongUnitMessage =
+    "ad_network=5450213213286189855&ad_unit=1111111111&reward_amount=1" +
+    "&reward_item=Reward&timestamp=1750000004&transaction_id=txn-wrong-unit&user_id=install-1&key_id=1";
+  const wrongUnit = await handler(
+    new Request(
+      `https://api.example/api/ads/ssv_callback?${wrongUnitMessage}&signature=${fixture.signQuery(wrongUnitMessage)}`
+    )
+  );
+  assert.equal(wrongUnit.status, 200);
+  assert.equal(await wrongUnit.text(), noGrantBody);
+});
+
+test("unknown SSV key ids trigger exactly one key refresh before failing or succeeding", async () => {
+  const fixture = createSsvFixture();
+  const message =
+    "ad_network=5450213213286189855&ad_unit=9333822278&reward_amount=10" +
+    "&reward_item=vault_coins&timestamp=1750000005&transaction_id=txn-rotate&user_id=install-1&key_id=2";
+  const signature = fixture.signQuery(message);
+
+  // Key 2 is unknown initially but appears after one refresh (rotation).
+  const rotatingProvider = new StaticSsvKeyProvider(
+    new Map<number, string>([[1, fixture.pem]]),
+    new Map<number, string>([
+      [1, fixture.pem],
+      [2, fixture.pem]
+    ])
+  );
+  const rotated = await handleSsvCallback(
+    new URL(`https://api.example/api/ads/ssv_callback?${message}&signature=${signature}`),
+    rotatingProvider,
+    new MemoryLeaderboardStore()
+  );
+  assert.equal(rotatingProvider.refreshCount, 1);
+  assert.equal(rotated.status, 200);
+
+  // Still-unknown key after the single refresh fails closed.
+  const staleProvider = new StaticSsvKeyProvider(
+    new Map<number, string>([[1, fixture.pem]])
+  );
+  const stale = await handleSsvCallback(
+    new URL(`https://api.example/api/ads/ssv_callback?${message}&signature=${signature}`),
+    staleProvider,
+    new MemoryLeaderboardStore()
+  );
+  assert.equal(staleProvider.refreshCount, 1);
+  assert.equal(stale.status, 400);
+});
+
+test("SSV grants enforce the shared 30/day rewarded cap per user", async () => {
+  const fixture = createSsvFixture();
+  const { handler, leaderboard } = createApi({ ssvPem: fixture.pem });
+  for (let index = 0; index < 30; index += 1) {
+    leaderboard.recordOnce({
+      transactionId: `txn-cap-${index}`,
+      userId: "install-capped"
+    } as never);
+  }
+  const message =
+    "ad_network=5450213213286189855&ad_unit=9333822278&reward_amount=10" +
+    "&reward_item=vault_coins&timestamp=1750000006&transaction_id=txn-cap-31&user_id=install-capped&key_id=1";
+  const capped = await handler(
+    new Request(
+      `https://api.example/api/ads/ssv_callback?${message}&signature=${fixture.signQuery(message)}`
+    )
+  );
+  assert.equal(capped.status, 200);
+  assert.equal(
+    await capped.text(),
+    "Verified SSV callback received. No reward granted."
+  );
+  // The capped transaction was NOT recorded as a grant.
+  assert.equal(
+    leaderboard.recordOnce({ transactionId: "txn-cap-31" } as never),
+    true
+  );
+});
+
 test("/support serves the polished public page for browsers and SSV dual behavior for AdMob", async () => {
   const fixture = createSsvFixture();
   const { handler } = createApi({ ssvPem: fixture.pem });
@@ -246,7 +368,12 @@ test("/support serves the polished public page for browsers and SSV dual behavio
     new Request(`https://api.example/support?${message}&signature=${fixture.signQuery(message)}`)
   );
   assert.equal(dual.status, 200);
-  assert.equal(await dual.text(), "OK");
+  // The dual-behavior test callback carries no user_id, so it is verified
+  // but not grantable.
+  assert.equal(
+    await dual.text(),
+    "Verified SSV callback received. No reward granted."
+  );
 
   const badDual = await handler(
     new Request(`https://api.example/support?${message}&signature=not-a-signature`)
