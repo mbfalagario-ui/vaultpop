@@ -1,6 +1,16 @@
 # VaultPop — Premium UI Rescue (PRD / Memory)
 
-## Build 8 Readiness Patch (2026-07-08, latest)
+## Build 8 Shop Polish Correction (2026-07-09, latest)
+Audit-failed visual QA correction, no scope broadening. Verify PASS (34/34 + audits).
+- Shop rebuilt on clean grid: Inventory → VaultPass hero (compact, production copy, price w/o "/month" dup) → DAILY REWARDS section (premium RewardCard components w/ WATCH AD chips, ready/loading/capped/unavailable states, N/30 progress bar) → Booster Forge → Styles & Customization → Coin Packs & Upgrades → Restore/legal.
+- ROOT CAUSE FIX: screen-shell ambient Animated.loops now isInteraction:false (they permanently blocked InteractionManager → store session init stalled, incl. on device); shop now inits store session directly (no InteractionManager gate).
+- ActionLink labels single-line auto-fit (fixed "Create Account" wrap).
+- Fly token PROVIDED by user & verified READ-ONLY: can access vaultpop-api (fly v0.4.68 at /root/.fly/bin; token in session env only, NEVER in files/commits). DEPLOY NOT RUN — awaits explicit user approval post visual review.
+- New proof: vaultpop-build8-polish-correction-proof.zip (15 shots + contact sheet) served at /api/proof/build8-correction; source zip rebuilt (incl. correction proof + updated handoff/reports).
+- Audit-navigation shop copy expectations updated (DAILY REWARDS/WATCH AD strings).
+- Status: awaiting USER VISUAL REVIEW before Build 8 + Fly deploy approval.
+
+## Build 8 Readiness Patch (2026-07-08)
 User-approved full patch, all phases complete, verify PASS (34/34 tests + 5 audits), E2E 31/31 backend + 12/12 UI flows.
 - ROOT CAUSE leaderboards: live fly.dev backend is OLD (404 on /v1/leaderboard) — source now has SQLite persistence (backend/leaderboard-store.ts); FLY DEPLOY still required by user (no Fly token in env → deploy portion BLOCKED, documented in BUILD8_HANDOFF.md).
 - /support: polished branded page (backend/support-page.ts) + AdMob SSV dual behavior; preferred SSV endpoint /api/ads/ssv_callback (backend/ssv.ts — ECDSA fail-closed, idempotent, SQLite ledger).
