@@ -322,6 +322,16 @@ BUILD8_DIAGNOSTIC_MD = Path("/app/vaultpop/docs/release/diagnostic-report-build8
 BUILD8_APPLE_COMPLIANCE_MD = Path("/app/vaultpop/docs/release/apple-compliance-review-build8.md")
 BUILD8_SECURITY_AUDIT_MD = Path("/app/vaultpop/docs/release/security-code-audit-build8.md")
 BUILD8_COMPLETE_PACKAGE_ZIP = Path("/app/vaultpop-build8-complete-handoff-package.zip")
+BUILD11_COMPLETE_PACKAGE_ZIP = Path("/app/vaultpop-build11-complete-handoff-package.zip")
+
+
+@api_router.get("/export/build11-complete-package")
+async def download_build11_complete_package():
+    return FileResponse(
+        BUILD11_COMPLETE_PACKAGE_ZIP,
+        media_type="application/zip",
+        filename="vaultpop-build11-complete-handoff-package.zip",
+    )
 
 
 @api_router.get("/export/build8-handoff")

@@ -1,5 +1,27 @@
 # VAULTPOP BUILD 11 TARGETED QA CORRECTION — PATCH HANDOFF
 
+> ## FINAL HANDOFF STATUS (2026-07-24 — deploy addendum)
+> - **Build 10 completed before this patch: YES**
+> - **Patch target: Build 11**
+> - **Backend deployed to vaultpop-api: YES** (`fly deploy -a vaultpop-api`, machine 847560c9de6498 updated to a good state, DNS verified; only `vaultpop-api` touched)
+> - **Fly token stored securely for future VaultPop deploys: NO**
+>   - Reason: TOKEN_PERSISTENCE_NOT_AVAILABLE_SECURELY — this environment has no secure persistent secret store; the token was used session-only from a temp env file outside the repo and shredded immediately after deploy. It appears in no source, logs, screenshots, or packages.
+> - **Live backend verification (all on https://vaultpop-api.fly.dev):**
+>   - /health: PASS — 200 `{"status":"ok"}`
+>   - /support: PASS — 200 polished VaultPop Support HTML page (7,979 bytes)
+>   - admin verification: PASS — new `/admin` console live (all Build 11 markers present: Restricted Access, Owner Status / Operations Health / Monetization Status / Support & Account Tools cards, safe-parse + timeout guards); `/v1/admin/*` without or with an invalid token → 403 `{"error":"Admin authorization required."}`
+>   - account login: PASS — 200 with session token (live QA player account)
+>   - account sync: PASS — `GET /v1/account` with session token → 200 `{state:…}`; bogus token → 401 JSON (feeds the app's new session-expired handling)
+>   - leaderboard: PASS — submit 200 (`{"accepted":true,"bestScore":4321,"rank":2}`) and fetch 200; pre-deploy entries retained (SQLite volume persistence intact across deploy)
+>   - security probes: PASS — unknown route 404 JSON, `/.env` 404, malformed JSON login body 400; no secrets, debug output, or stack traces exposed
+> - **Admin JSON parse fixed: YES** · **Admin Console reconfigured: YES** · **Sign-in speed fixed: YES** · **Account Sync fixed: YES** · **VaultPass handling fixed: YES** · **Rewarded ads UX fixed: YES** (details below)
+> - **Production AdMob SSV URL: https://vaultpop-api.fly.dev/support** (unchanged)
+> - **/api/ads/ssv_callback: future/non-blocking only** (unchanged)
+> - **pnpm run verify: PASS** — app + backend typecheck, 46/46 tests, all 5 audits (re-confirmed immediately before deploy)
+> - **EAS Build 11 started: NO** · **App Store Connect upload: NO** · **App Review submission: NO**
+> - **Downloadable package URL:** https://vaultpop-premium.preview.emergentagent.com/api/export/build11-complete-package
+>   (serves `vaultpop-build11-complete-handoff-package.zip` containing `vaultpop-build11-final-source.zip`, this handoff, `vaultpop-build11-patch-proof.zip`, and the live deploy verification notes)
+
 Date: 2026-07-24 (preview environment date 2026-06)
 Scope: 5 user-verified Build 10 failures. Code-only patch for the next external build (Build 11).
 No EAS build run. No App Store Connect upload. No App Review submission. No Hashrate Cloud Miner changes.
