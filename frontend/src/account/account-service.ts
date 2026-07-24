@@ -25,22 +25,73 @@ export type AccountLoginResponse = {
 
 const API_BASE_URL =
   process.env.EXPO_PUBLIC_VAULTPOP_API_URL ?? "https://vaultpop-api.fly.dev";
+const REQUEST_TIMEOUT_MS = 15_000;
+
+export class SessionExpiredError extends Error {}
+
+type ApiResult = {
+  ok: boolean;
+  status: number;
+  body: Record<string, any> | null;
+};
+
+/**
+ * Fetch with a hard timeout and safe JSON parsing. Never throws a raw
+ * SyntaxError: proxy HTML error pages, empty bodies, and stalled requests
+ * all resolve to friendly, user-presentable failures.
+ */
+export async function requestJson(
+  path: string,
+  options: RequestInit = {},
+  timeoutMs = REQUEST_TIMEOUT_MS
+): Promise<ApiResult> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      ...options,
+      signal: controller.signal
+    });
+  } catch {
+    throw new Error(
+      controller.signal.aborted
+        ? "The VaultPop service took too long to respond. Please try again."
+        : "The VaultPop service could not be reached. Check your connection and try again."
+    );
+  } finally {
+    clearTimeout(timer);
+  }
+  const text = await response.text().catch(() => "");
+  let body: Record<string, any> | null = null;
+  if (text) {
+    try {
+      body = JSON.parse(text) as Record<string, any>;
+    } catch {
+      body = null;
+    }
+  }
+  return { ok: response.ok, status: response.status, body };
+}
+
+function errorMessage(result: ApiResult, fallback: string): string {
+  return typeof result.body?.error === "string" ? result.body.error : fallback;
+}
 
 export async function signInAccount(input: {
   email: string;
   password: string;
   installId: string;
 }): Promise<AccountLoginResponse> {
-  const response = await fetch(`${API_BASE_URL}/v1/auth/login`, {
+  const result = await requestJson("/v1/auth/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input)
   });
-  const body = (await response.json()) as AccountLoginResponse & { error?: string };
-  if (!response.ok) {
-    throw new Error(body.error ?? "Sign in failed.");
+  if (!result.ok || typeof result.body?.token !== "string") {
+    throw new Error(errorMessage(result, "Sign in failed. Please try again."));
   }
-  return body;
+  return result.body as AccountLoginResponse;
 }
 
 export async function registerAccount(input: {
@@ -48,23 +99,22 @@ export async function registerAccount(input: {
   password: string;
   installId: string;
 }): Promise<AccountLoginResponse> {
-  const response = await fetch(`${API_BASE_URL}/v1/auth/register`, {
+  const result = await requestJson("/v1/auth/register", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input)
   });
-  const body = (await response.json()) as AccountLoginResponse & { error?: string };
-  if (!response.ok) {
-    throw new Error(body.error ?? "Account creation failed.");
+  if (!result.ok || typeof result.body?.token !== "string") {
+    throw new Error(errorMessage(result, "Account creation failed. Please try again."));
   }
-  return body;
+  return result.body as AccountLoginResponse;
 }
 
 export async function signOutAccount(token: string | null): Promise<void> {
   if (!token) {
     return;
   }
-  await fetch(`${API_BASE_URL}/v1/auth/logout`, {
+  await requestJson("/v1/auth/logout", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -76,17 +126,16 @@ export async function signOutAccount(token: string | null): Promise<void> {
 export async function refreshAccountState(
   token: string
 ): Promise<AccountStateResponse> {
-  const response = await fetch(`${API_BASE_URL}/v1/account`, {
+  const result = await requestJson("/v1/account", {
     headers: { Authorization: `Bearer ${token}` }
   });
-  const body = (await response.json()) as {
-    state?: AccountStateResponse;
-    error?: string;
-  };
-  if (!response.ok || !body.state) {
-    throw new Error(body.error ?? "Account refresh failed.");
+  if (result.status === 401) {
+    throw new SessionExpiredError("Your session expired. Sign in again to sync.");
   }
-  return body.state;
+  if (!result.ok || !result.body?.state) {
+    throw new Error(errorMessage(result, "Account refresh failed."));
+  }
+  return result.body.state as AccountStateResponse;
 }
 
 export function applyAccountLogin(

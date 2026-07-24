@@ -75,10 +75,13 @@ export function ShopScreen() {
   const sessionRef = useRef<StoreSession | null>(null);
   const forgeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [storeProducts, setStoreProducts] = useState<StoreProduct[]>([]);
+  const [catalogState, setCatalogState] = useState<"loading" | "ready" | "unavailable">(
+    "loading"
+  );
   const [status, setStatus] = useState("Connecting to the App Store...");
   const [rewardStatus, setRewardStatus] = useState<{
     text: string;
-    success: boolean;
+    tone: "pending" | "success" | "error";
   } | null>(null);
   const [busyProductId, setBusyProductId] = useState<string | null>(null);
   const [forgeResult, setForgeResult] = useState<{ id: BoosterKind; text: string } | null>(null);
@@ -144,6 +147,7 @@ export function ShopScreen() {
         const products = await session.fetchCatalog();
         if (active) {
           setStoreProducts(products);
+          setCatalogState(products.length > 0 ? "ready" : "unavailable");
           setStatus(
             products.length > 0
               ? "App Store products loaded."
@@ -153,6 +157,7 @@ export function ShopScreen() {
       })
       .catch(() => {
         if (active) {
+          setCatalogState("unavailable");
           setStatus("Live prices load from the App Store on your device.");
         }
       });
@@ -211,43 +216,62 @@ export function ShopScreen() {
   };
 
   const watchRewarded = async (kind: "life" | "coins") => {
+    if (capped) {
+      setRewardStatus({ text: "Daily reward limit reached.", tone: "error" });
+      return;
+    }
     setWatchingAd(kind);
-    setRewardStatus(null);
+    setRewardStatus({ text: "Loading ad...", tone: "pending" });
     try {
-      const eligible = canShowRewarded({
-        adFree,
-        adsInitialized: isAdsInitialized(),
-        completedRounds: profile.ads.completedRounds,
-        lastInterstitialRound: profile.ads.lastInterstitialRound,
-        fullScreenAdShowing: isFullScreenAdShowing(),
-        rewardedCountToday: rewardedCount,
-        rewardedJustShown: wasRewardedJustShown(),
-        firstColdLaunch: false,
-        gameplayActive: false
-      });
-      if (!eligible && !(await initializeAdsAfterHome())) {
+      const adsReady = isAdsInitialized() || (await initializeAdsAfterHome());
+      const eligible =
+        adsReady &&
+        canShowRewarded({
+          adFree,
+          adsInitialized: adsReady,
+          completedRounds: profile.ads.completedRounds,
+          lastInterstitialRound: profile.ads.lastInterstitialRound,
+          fullScreenAdShowing: isFullScreenAdShowing(),
+          rewardedCountToday: rewardedCount,
+          rewardedJustShown: wasRewardedJustShown(),
+          firstColdLaunch: false,
+          gameplayActive: false
+        });
+      if (!eligible) {
         setRewardStatus({
-          text: "Rewarded ads are unavailable right now. Please try again later.",
-          success: false
+          text: "Ad unavailable right now. Try again later.",
+          tone: "error"
         });
         return;
       }
       const result =
         kind === "life" ? await showRewardedBonusLifeAd() : await showRewardedCoinsAd();
+      if (!result.shown) {
+        setRewardStatus({
+          text: "Ad unavailable right now. Try again later.",
+          tone: "error"
+        });
+        return;
+      }
       if (!result.rewarded || !result.rewardId) {
         setRewardStatus({
           text: "The reward was not confirmed, so nothing was granted. Try again anytime.",
-          success: false
+          tone: "error"
         });
         return;
       }
       if (kind === "life") {
         setProfile((current) => grantRewardedBonusLife(current, dateKey, result.rewardId!));
-        setRewardStatus({ text: "✓ 1 Bonus Life added to your supply.", success: true });
+        setRewardStatus({ text: "✓ 1 Bonus Life added to your supply.", tone: "success" });
       } else {
         setProfile((current) => grantRewardedVaultCoins(current, dateKey, result.rewardId!));
-        setRewardStatus({ text: "✓ 10 Vault Coins added to your supply.", success: true });
+        setRewardStatus({ text: "✓ 10 Vault Coins added to your supply.", tone: "success" });
       }
+    } catch {
+      setRewardStatus({
+        text: "Ad unavailable right now. Try again later.",
+        tone: "error"
+      });
     } finally {
       setWatchingAd(null);
     }
@@ -360,13 +384,32 @@ export function ShopScreen() {
             <BenefitChip label="MONTHLY BOOSTERS" accent={colors.emerald} />
           </View>
           <ActionButton
-            label={vaultPassStore ? "Get VaultPass Plus" : "Available on the App Store"}
+            label={
+              vaultPassStore
+                ? "Get VaultPass Plus"
+                : catalogState === "loading"
+                  ? "Connecting to the App Store..."
+                  : "Currently Unavailable"
+            }
             disabled={!vaultPassStore || busyProductId !== null}
             accent={colors.violet}
             tone={vaultPassStore ? "primary" : "quiet"}
             testID={`shop-buy-${VAULTPASS_ID}`}
             onPress={() => void buy(VAULTPASS_ID)}
           />
+          {!vaultPassStore && catalogState === "unavailable" ? (
+            <Text
+              selectable
+              testID="shop-vaultpass-unavailable"
+              style={[
+                typography.caption,
+                { color: colors.textSecondary, fontSize: 12, textAlign: "center" }
+              ]}
+            >
+              VaultPass is unavailable right now. Products load from the App
+              Store on your device.
+            </Text>
+          ) : null}
           <Text
             selectable
             style={[typography.caption, { color: colors.textMuted, fontSize: 10.5, textAlign: "center" }]}
@@ -440,7 +483,12 @@ export function ShopScreen() {
               style={[
                 typography.caption,
                 {
-                  color: rewardStatus.success ? colors.emerald : colors.textSecondary,
+                  color:
+                    rewardStatus.tone === "success"
+                      ? colors.emerald
+                      : rewardStatus.tone === "pending"
+                        ? colors.cyan
+                        : colors.textSecondary,
                   fontSize: 12.5,
                   fontWeight: "800",
                   textAlign: "center"
@@ -770,7 +818,7 @@ function RewardCard({
   testID: string;
   onPress: () => void;
 }) {
-  const disabled = state !== "ready" || disabledByOther;
+  const disabled = state === "loading" || disabledByOther;
   return (
     <Pressable
       accessibilityRole="button"
@@ -840,7 +888,7 @@ function RewardCard({
           <View
             style={{
               alignItems: "center",
-              backgroundColor: disabled && state !== "loading" ? colors.border : accent,
+              backgroundColor: state === "capped" || disabledByOther ? colors.border : accent,
               borderRadius: radius.pill,
               boxShadow: state === "ready" && !disabled ? `0 0 14px ${accent}66` : undefined,
               marginTop: 2,
@@ -851,7 +899,7 @@ function RewardCard({
             <Text
               selectable={false}
               style={{
-                color: disabled && state !== "loading" ? colors.textMuted : "#140F02",
+                color: state === "capped" || disabledByOther ? colors.textMuted : "#140F02",
                 fontSize: 12,
                 fontWeight: "900",
                 letterSpacing: 1

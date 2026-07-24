@@ -98,6 +98,7 @@ export async function showAppOpenAd(): Promise<boolean> {
 
 export async function showRewardedBonusLifeAd(): Promise<{
   rewarded: boolean;
+  shown: boolean;
   rewardId?: string;
 }> {
   return showRewardedAdForUnit(ADMOB_IOS.rewarded);
@@ -105,6 +106,7 @@ export async function showRewardedBonusLifeAd(): Promise<{
 
 export async function showRewardedCoinsAd(): Promise<{
   rewarded: boolean;
+  shown: boolean;
   rewardId?: string;
 }> {
   return showRewardedAdForUnit(ADMOB_IOS.rewardedCoins);
@@ -112,10 +114,11 @@ export async function showRewardedCoinsAd(): Promise<{
 
 async function showRewardedAdForUnit(unitId: string): Promise<{
   rewarded: boolean;
+  shown: boolean;
   rewardId?: string;
 }> {
   if (!(await initializeAdsAfterHome()) || fullScreenAdShowing) {
-    return { rewarded: false };
+    return { rewarded: false, shown: false };
   }
   const ads = await import("react-native-google-mobile-ads");
   const ad = ads.RewardedAd.createForAdRequest(unitId, {
@@ -124,12 +127,14 @@ async function showRewardedAdForUnit(unitId: string): Promise<{
 
   return new Promise((resolve) => {
     let rewarded = false;
+    let shown = false;
     const finish = () => {
       fullScreenAdShowing = false;
       rewardedJustShown = true;
       ad.removeAllListeners();
       resolve({
         rewarded,
+        shown,
         rewardId: rewarded ? `reward-${Date.now().toString(36)}` : undefined
       });
     };
@@ -138,6 +143,7 @@ async function showRewardedAdForUnit(unitId: string): Promise<{
     });
     ad.addAdEventListener(ads.AdEventType.LOADED, () => {
       fullScreenAdShowing = true;
+      shown = true;
       void ad.show();
     });
     ad.addAdEventListener(ads.AdEventType.ERROR, finish);

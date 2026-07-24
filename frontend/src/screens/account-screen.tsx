@@ -5,6 +5,7 @@ import {
   isAccountSignedIn,
   refreshAccountState,
   registerAccount,
+  SessionExpiredError,
   signInAccount,
   signOutAccount
 } from "@/account/account-service";
@@ -113,9 +114,14 @@ export function AccountScreen() {
     try {
       const state = await refreshAccountState(token);
       setProfile((current) => applyAccountRefresh(current, state));
-      setStatus("Account inventory and access are up to date.");
-    } catch {
-      setStatus("Account Sync is unavailable. You can continue playing offline.");
+      setStatus("Account synced.");
+    } catch (error) {
+      if (error instanceof SessionExpiredError) {
+        setProfile((current) => clearAccountSession(current));
+        setStatus(error.message);
+      } else {
+        setStatus("Sync unavailable. Try again.");
+      }
     } finally {
       setBusy(false);
     }
