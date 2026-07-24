@@ -101,3 +101,28 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+## Build 11 Admin Operations Completion (2026-07-24) — pending testing_agent verification
+user_problem_statement: |
+  Build 11 targeted correction: Admin Console was status-only, not operational. Required: Support Inbox
+  (list/detail/reply/close, escalation visibility), AI Support Agent visibility, ads analytics (24h by
+  reward type + failures + 30/day cap + SSV URL), purchase/premium analytics (estimated gross labeled),
+  user management (ban/unban with reason + audit), password reset (admin-assisted + user "Forgot password?").
+  Also fixed: preview mirror lacked /api/v1/auth/password-reset (app showed "reset unavailable").
+backend:
+  - task: "Ops endpoints on preview mirror: POST /api/v1/auth/password-reset (safe non-revealing), POST /api/v1/ads/events (202 valid / 400 invalid)"
+    file: /app/backend/server.py
+    status: needs_retesting
+frontend:
+  - task: "Account screen: 'Forgot password?' link under Sign In → safe message 'If an account exists...'"
+    file: /app/frontend/src/screens/account-screen.tsx
+    status: needs_retesting
+  - task: "Shop rewarded buttons: press shows 'Loading ad...' then 'Ad unavailable right now. Try again later.' on web preview (ads unavailable); VaultPass unavailable message visible"
+    file: /app/frontend/src/screens/shop-screen.tsx
+    status: needs_retesting
+  - task: "Account sign-in + Account Sync still work (qa.player@vaultpop.app / VaultPopQA2026!x) with 'Account synced.' confirmation"
+    file: /app/frontend/src/screens/account-screen.tsx
+    status: needs_retesting
+notes: |
+  Production TS backend (fly.dev) and its /admin operator console are OUT OF SCOPE for the testing agent
+  (already live-verified via curl + identical local build screenshots + 51/51 node tests). Test ONLY the
+  preview app (expo web) + preview FastAPI mirror /api endpoints.

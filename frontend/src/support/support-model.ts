@@ -18,6 +18,8 @@ export type SupportTicketInput = {
   buildNumber: string;
   deviceInfo: string;
   priority: boolean;
+  /** True when the Support Assistant escalated this conversation. */
+  escalated?: boolean;
 };
 
 export type SupportValidation = {

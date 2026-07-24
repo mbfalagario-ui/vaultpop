@@ -10,6 +10,8 @@ RUN pnpm install --frozen-lockfile
 
 COPY backend ./backend
 COPY src/monetization ./src/monetization
+COPY src/ads/constants.ts ./src/ads/constants.ts
+COPY src/support/faq-data.ts ./src/support/faq-data.ts
 COPY tsconfig.json ./
 RUN pnpm run backend:build
 

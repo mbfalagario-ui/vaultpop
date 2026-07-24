@@ -1,0 +1,41 @@
+{
+  "summary": "VaultPop Build 11 second-pass verified end-to-end on preview. Backend 12/12 pytest cases PASS on preview base https://vaultpop-premium.preview.emergentagent.com/api: POST /v1/auth/password-reset returns 200 {accepted:true, message:'If an account exists for this email, a reset request has been received. Support will follow up.'} for the known qa.player@vaultpop.app AND for a random unknown email — bodies are byte-identical (no account-existence leak); invalid email 'not-an-email' returns 400 {error}; missing email field returns 400 {error}. POST /v1/ads/events returns 202 {recorded:true} for {installId:'test-agent-install', event:'granted', rewardType:'vault_coins'} (also verified for granted+bonus_life and failed+vault_coins); returns 400 {error:'Invalid ad event.'} for event:'bogus', bogus rewardType, and short installId. Regression: POST /v1/auth/login for qa.player@vaultpop.app / VaultPopQA2026!x (installId 'qa-install-1') returns 200 with token + state.account.email; GET /v1/account with Bearer returns 200 with state.balance. Frontend on 390x844 verified: /account shows 'Forgot password?' pressable under Sign In (testID account-forgot-password), tapping it with qa.player email prefilled produces the status pill 'If an account exists for this email, a reset request has been received. Support will follow up.'; sign-in with qa.player / VaultPopQA2026!x succeeds (account-refresh-button visible), tapping Account Sync shows 'Account synced.' pill; /shop hero shows 'Currently Unavailable' button and the exact copy 'VaultPass is unavailable right now. Products load from the App Store on your device.' (testID shop-vaultpass-unavailable); tapping the Bonus Life rewarded WATCH AD (testID shop-rewarded-button) renders the shop-reward-status text ending in 'Ad unavailable right now. Try again later.' — no silent failure. Zero console errors during the run.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "LinearGradient pointerEvents / textShadow* / useNativeDriver warnings", "issue": "Pre-existing RN-web deprecation warnings carried from earlier iterations remain. Not introduced by Build 11 patch. References: /app/frontend/src/screens/shop-screen.tsx (pointerEvents inline in gradient styles, lines ~630, 720), /app/frontend/src/screens/round-result-screen.tsx, /app/frontend/src/screens/gameplay-screen.tsx (textShadow* props)."}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_build11_patch.py",
+    "/app/test_reports/pytest/build11_patch_results.xml"
+  ],
+  "action_items": [
+    "None required for Build 11 patch. Optional cleanup carried from prior iterations: consolidate textShadow* into `textShadow` shorthand and gate useNativeDriver behind Platform.OS !== 'web' in home-screen.tsx / round-result-screen.tsx."
+  ],
+  "critical_code_review_comments": [
+    "server.py /v1/auth/password-reset correctly avoids existence leak — same JSON body returned for known/unknown, no timing branch that would tip existence; DB write only happens when account exists AND no pending reset (idempotent).",
+    "server.py /v1/ads/events validates installId length (4..200) + strict event enum {granted, failed} + rewardType enum {bonus_life, vault_coins} — matches contract exactly.",
+    "shop-screen.tsx watchRewarded() fires reportRewardedAdEvent on every failed/ineligible branch (fire-and-forget) and on granted — good coverage; when eligibility fails immediately, the 'Loading ad...' pending message transitions cleanly to the 'Ad unavailable right now. Try again later.' error state (observed in browser).",
+    "account-screen.tsx forgotPassword() prompts to enter email first if empty (good UX), sets busy state, and surfaces server message via requestPasswordReset. testID='account-forgot-password' is present with min 44pt touch target (minHeight:44).",
+    "server.py still uses datetime.utcnow() in several places (deprecated in Py3.12+) mixed with datetime.now(timezone.utc); harmless today but should be normalized to timezone-aware in a future pass."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_build11_patch.py (new — 12 tests: 4 password-reset, 6 ads/events, 2 regression)"
+  ],
+  "success_rate": {
+    "backend": "100% (12/12 new patch tests; existing 31 auth/support + 12 leaderboard suites remain green from prior iterations)",
+    "frontend": "100% (all 6 requested flows verified: forgot-password link visibility+tap, reset status copy, sign-in, Account Sync toast, shop-vaultpass-unavailable copy + button label, rewarded ad error feedback)"
+  },
+  "seed_data_creation": "No new accounts created (qa.player@vaultpop.app already seeded and reused). Ad-event test rows inserted into vaultpop_ad_events (installId='test-agent-install', 3 rows). One password-reset row may have been upserted for qa.player@vaultpop.app (idempotent, status='pending'). All harmless for regression.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Preview URL: https://vaultpop-premium.preview.emergentagent.com. Run regression: `pytest /app/backend/tests/ -v` covers auth+support+leaderboard+build11 patch (43+ tests total). Endpoint contracts confirmed: /v1/auth/password-reset returns identical body {accepted:true, message:'If an account exists ...'} regardless of email existence, 400 on invalid email/missing field. /v1/ads/events returns 202 {recorded:true} on valid granted|failed + bonus_life|vault_coins, 400 {error:'Invalid ad event.'} otherwise. Frontend testIDs added in this patch: account-forgot-password, shop-vaultpass-unavailable, shop-reward-status. qa.player@vaultpop.app / VaultPopQA2026!x remains valid. Web preview will always show 'Ad unavailable right now. Try again later.' because ads/StoreKit are unimplemented on web — this is the intentional graceful failure path.",
+  "rca_of_issue": "N/A — all Build 11 second-pass features verified. No blocking issues."
+}

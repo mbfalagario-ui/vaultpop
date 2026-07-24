@@ -13,7 +13,7 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 from typing import List, Optional
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 ROOT_DIR = Path(__file__).parent
@@ -252,6 +252,47 @@ async def login_account(payload: AuthPayload):
     return await _create_session(doc, payload.installId)
 
 
+@api_router.post("/v1/auth/password-reset")
+async def request_password_reset(payload: dict):
+    email = str(payload.get("email", "")).strip().lower()
+    if "@" not in email or "." not in email or len(email) > 254:
+        return JSONResponse(status_code=400, content={"error": "Enter a valid email address."})
+    # Never reveal whether an account exists (mirrors production TS backend).
+    if await db.vaultpop_accounts.find_one({"email": email}):
+        existing = await db.vaultpop_password_resets.find_one({"email": email, "status": "pending"})
+        if not existing:
+            await db.vaultpop_password_resets.insert_one({
+                "email": email,
+                "status": "pending",
+                "createdAt": datetime.now(timezone.utc).isoformat(),
+            })
+    return {
+        "accepted": True,
+        "message": "If an account exists for this email, a reset request has been received. Support will follow up.",
+    }
+
+
+@api_router.post("/v1/ads/events", status_code=202)
+async def record_ad_event(payload: dict):
+    install_id = str(payload.get("installId", ""))
+    event = payload.get("event")
+    reward_type = payload.get("rewardType")
+    if (
+        len(install_id) < 4
+        or len(install_id) > 200
+        or event not in {"granted", "failed"}
+        or reward_type not in {"bonus_life", "vault_coins"}
+    ):
+        return JSONResponse(status_code=400, content={"error": "Invalid ad event."})
+    await db.vaultpop_ad_events.insert_one({
+        "installId": install_id,
+        "event": event,
+        "rewardType": reward_type,
+        "createdAt": datetime.now(timezone.utc).isoformat(),
+    })
+    return {"recorded": True}
+
+
 @api_router.post("/v1/auth/logout")
 async def logout_account(authorization: Optional[str] = Header(default=None)):
     if authorization and authorization.startswith("Bearer "):
@@ -323,6 +364,16 @@ BUILD8_APPLE_COMPLIANCE_MD = Path("/app/vaultpop/docs/release/apple-compliance-r
 BUILD8_SECURITY_AUDIT_MD = Path("/app/vaultpop/docs/release/security-code-audit-build8.md")
 BUILD8_COMPLETE_PACKAGE_ZIP = Path("/app/vaultpop-build8-complete-handoff-package.zip")
 BUILD11_COMPLETE_PACKAGE_ZIP = Path("/app/vaultpop-build11-complete-handoff-package.zip")
+BUILD11_ADMIN_PACKAGE_ZIP = Path("/app/vaultpop-build11-admin-completion-package.zip")
+
+
+@api_router.get("/export/build11-admin-completion-package")
+async def download_build11_admin_completion_package():
+    return FileResponse(
+        BUILD11_ADMIN_PACKAGE_ZIP,
+        media_type="application/zip",
+        filename="vaultpop-build11-admin-completion-package.zip",
+    )
 
 
 @api_router.get("/export/build11-complete-package")

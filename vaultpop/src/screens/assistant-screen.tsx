@@ -179,7 +179,7 @@ export function AssistantScreen() {
           {"Some issues — refunds, account recovery, or bugs — need a real person. Send a support request or email support@vaultpop.app and we'll follow up."}
         </Text>
         <ActionLink
-          href="/support"
+          href="/support?from=assistant"
           label="Submit a Support Request"
           accent={colors.emerald}
           testID="assistant-escalate-link"

@@ -1,3 +1,4 @@
+import { reportRewardedAdEvent } from "@/ads/ad-events";
 import { canShowRewarded } from "@/ads/ad-policy";
 import {
   initializeAdsAfterHome,
@@ -220,6 +221,7 @@ export function ShopScreen() {
       setRewardStatus({ text: "Daily reward limit reached.", tone: "error" });
       return;
     }
+    const rewardType = kind === "life" ? ("bonus_life" as const) : ("vault_coins" as const);
     setWatchingAd(kind);
     setRewardStatus({ text: "Loading ad...", tone: "pending" });
     try {
@@ -238,6 +240,7 @@ export function ShopScreen() {
           gameplayActive: false
         });
       if (!eligible) {
+        reportRewardedAdEvent(profile.support.installId, { event: "failed", rewardType });
         setRewardStatus({
           text: "Ad unavailable right now. Try again later.",
           tone: "error"
@@ -247,6 +250,7 @@ export function ShopScreen() {
       const result =
         kind === "life" ? await showRewardedBonusLifeAd() : await showRewardedCoinsAd();
       if (!result.shown) {
+        reportRewardedAdEvent(profile.support.installId, { event: "failed", rewardType });
         setRewardStatus({
           text: "Ad unavailable right now. Try again later.",
           tone: "error"
@@ -254,12 +258,14 @@ export function ShopScreen() {
         return;
       }
       if (!result.rewarded || !result.rewardId) {
+        reportRewardedAdEvent(profile.support.installId, { event: "failed", rewardType });
         setRewardStatus({
           text: "The reward was not confirmed, so nothing was granted. Try again anytime.",
           tone: "error"
         });
         return;
       }
+      reportRewardedAdEvent(profile.support.installId, { event: "granted", rewardType });
       if (kind === "life") {
         setProfile((current) => grantRewardedBonusLife(current, dateKey, result.rewardId!));
         setRewardStatus({ text: "✓ 1 Bonus Life added to your supply.", tone: "success" });
@@ -268,6 +274,7 @@ export function ShopScreen() {
         setRewardStatus({ text: "✓ 10 Vault Coins added to your supply.", tone: "success" });
       }
     } catch {
+      reportRewardedAdEvent(profile.support.installId, { event: "failed", rewardType });
       setRewardStatus({
         text: "Ad unavailable right now. Try again later.",
         tone: "error"

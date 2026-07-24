@@ -1,6 +1,24 @@
 # VAULTPOP BUILD 11 TARGETED QA CORRECTION — PATCH HANDOFF
 
-> ## FINAL HANDOFF STATUS (2026-07-24 — deploy addendum)
+> ## ADMIN OPERATIONS COMPLETION (2026-07-24 — Build 11 patch, second pass)
+> - **Build 10 completed before this patch: YES** · **Patch target: Build 11**
+> - **Admin Console converted to operational dashboard: YES** — status-only layout replaced by an operator console: Support Inbox KPIs, Rewarded Ads (24h) analytics, Purchases & Premium analytics, Operations card, AI Support Agent card, Support Tickets (list/filter/detail/reply/close/reopen), User Management (search, summary, inventory/entitlements, ban/unban with reason, temp-password reset), Password Resets queue, formatted Audit Log. No raw JSON dumps; every visible action works.
+> - **Support Inbox added: YES** — tickets now carry status (open/closed) + escalation flag + replies; admin-only endpoints: list (`GET /v1/admin/support/tickets[?status=open|closed|escalated]`), detail, reply, status. Player/anonymous → 403. Actions audit-logged (`support.reply`, `support.close`, `support.reopen`).
+> - **AI Support Agent visibility added: YES** — the on-device structured FAQ assistant (intent detection, guided troubleshooting, NO external LLM) now flags its escalations (`escalated: true` on tickets created via the assistant path); the console shows agent status (ACTIVE · ON-DEVICE), escalated open count, latest escalations, and the 8 coverage categories.
+> - **Ads analytics added: YES** — app now reports watched/granted + failed/unavailable rewarded events (`POST /v1/ads/events`, analytics-only, grants nothing, no SSV payloads/signatures stored); console shows last-24h watched by reward type (1 Bonus Life / 10 Vault Coins), failures, SSV-confirmed grants, the shared 30/day cap, production SSV URL `https://vaultpop-api.fly.dev/support`, and both rewarded ad units (`…/3409891849`, `…/9333822278` — unchanged).
+> - **Purchase/premium analytics added: YES** — total verified purchases, last-24h, active VaultPass entitlements, Ad-Free users, recent purchase events, and estimated gross **labeled "Estimated gross based on configured product prices."** (exact transaction price/currency is not stored; no official Apple proceeds claimed).
+> - **User management added: YES** — search/filter, summary card (role, status, install ID, inventory, VaultPass/Ad-Free badges, ticket count), inventory & entitlement tools retained.
+> - **Ban/unban added: YES** — `disable` (existing) + new `enable` endpoint; reason required in the console; both audit-logged; banned users are blocked from sign-in and sync (sessions revoked); no hard delete, no public self-assigned admin, admin-only.
+> - **Password reset handling added: YES** — user side: "Forgot password?" on the sign-in card → `POST /v1/auth/password-reset` (rate-limited 5/hr/IP, response never reveals account existence). Admin side: pending-request queue in the console + existing audited temp-password reset (revokes sessions, never shows/logs plaintext) + "mark handled".
+> - **External blockers: EMAIL_PROVIDER_NOT_CONFIGURED_FOR_SELF_SERVICE_RESET** — no email service exists, so reset links/codes cannot be emailed; requests queue for admin-assisted reset (implemented). No email delivery is faked.
+> - **Production AdMob SSV URL unchanged: https://vaultpop-api.fly.dev/support** · **/api/ads/ssv_callback: future/non-blocking only**
+> - **pnpm run verify: PASS** — app + backend typecheck, **51/51 tests** (5 new admin-ops tests), all 5 audits.
+> - **Backend deployed to vaultpop-api: YES** — live verification: /health 200 · /support 200 · new /admin operator console live (all sections present, no raw state dump) · new admin endpoints deployed and fail-closed (403 without owner token) · safe test ticket VP-000001 created (escalated) · password-reset request accepted with identical non-revealing response for unknown emails · ad event recorded (202) and invalid event rejected (400) · account login/sync still work · leaderboard submit/fetch still work · 404s are clean JSON, no secrets/debug/stack traces.
+> - Note: production admin **actions** (reply/close, ban/unban, mark-handled) require the owner's private admin credentials, which are Fly secrets never shared with this environment — those flows were fully verified on an identical local build of the deployed backend (screenshots in the proof set) and by the automated test suite; the production endpoints are live and fail-closed.
+> - **EAS Build 11 started: NO** · **App Store Connect upload: NO** · **App Review submission: NO**
+> - **Downloadable package URL:** https://vaultpop-premium.preview.emergentagent.com/api/export/build11-admin-completion-package
+
+> ## FINAL HANDOFF STATUS (2026-07-24 — first-pass deploy addendum)
 > - **Build 10 completed before this patch: YES**
 > - **Patch target: Build 11**
 > - **Backend deployed to vaultpop-api: YES** (`fly deploy -a vaultpop-api`, machine 847560c9de6498 updated to a good state, DNS verified; only `vaultpop-api` touched)

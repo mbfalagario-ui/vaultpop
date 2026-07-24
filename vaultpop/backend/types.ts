@@ -129,6 +129,11 @@ export interface AccountStore {
     accountId: string,
     reason?: string
   ): AccountState;
+  enableAccount(
+    actor: PublicAccount,
+    accountId: string,
+    reason?: string
+  ): AccountState;
   resetPassword(
     actor: PublicAccount,
     accountId: string,

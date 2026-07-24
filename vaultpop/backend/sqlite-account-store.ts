@@ -402,6 +402,24 @@ export class SqliteAccountStore implements AccountStore {
     }
   }
 
+  enableAccount(actor: PublicAccount, accountId: string, reason?: string): AccountState {
+    assertAdmin(actor);
+    const before = this.requireAccountState(accountId);
+    this.database.exec("BEGIN IMMEDIATE");
+    try {
+      this.database
+        .prepare("UPDATE accounts SET active = 1, updated_at = ? WHERE id = ?")
+        .run(new Date().toISOString(), accountId);
+      const after = this.requireAccountState(accountId);
+      this.recordAudit(actor, after, "account.enable", before, after, null, reason);
+      this.database.exec("COMMIT");
+      return after;
+    } catch (error) {
+      this.database.exec("ROLLBACK");
+      throw error;
+    }
+  }
+
   resetPassword(
     actor: PublicAccount,
     accountId: string,

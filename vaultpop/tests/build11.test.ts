@@ -109,11 +109,11 @@ test("admin console ships VaultPop cards, restricted access, and safe JSON handl
   const html = await response.text();
   for (const marker of [
     "Restricted Access",
-    "Owner Status",
-    "Operations Health",
-    "Monetization Status",
-    "Support &amp; Account Tools",
-    "Audit log",
+    "Support Inbox",
+    "Rewarded Ads (24h)",
+    "Purchases &amp; Premium",
+    "Operations",
+    "Audit Log",
     "VaultPop Admin Console"
   ]) {
     assert.ok(html.includes(marker), `admin page must include "${marker}"`);

@@ -11,6 +11,7 @@ import {
   SqliteLeaderboardStore
 } from "../backend/leaderboard-store";
 import { MemoryAccountStore } from "../backend/memory-account-store";
+import { MemoryOpsStore } from "../backend/ops-store";
 import { MemoryLedgerStore } from "../backend/memory-ledger";
 import { handleSsvCallback, StaticSsvKeyProvider } from "../backend/ssv";
 import type { PurchaseVerifier } from "../backend/types";
@@ -45,15 +46,17 @@ function createApi(options?: { ssvPem?: string }) {
   if (options?.ssvPem) {
     keys.set(1, options.ssvPem);
   }
+  const accounts = new MemoryAccountStore();
   return {
     leaderboard,
     handler: createApiHandler({
       verifier: noopVerifier,
       ledger: new MemoryLedgerStore(),
-      accounts: new MemoryAccountStore(),
+      accounts,
       leaderboard,
       rewards: leaderboard,
-      ssvKeys: new StaticSsvKeyProvider(keys)
+      ssvKeys: new StaticSsvKeyProvider(keys),
+      ops: new MemoryOpsStore(accounts)
     })
   };
 }

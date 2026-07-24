@@ -3,6 +3,7 @@ import { createServer } from "node:http";
 import { ApplePurchaseVerifier } from "./apple-verifier";
 import { createApiHandler } from "./app";
 import { SqliteLeaderboardStore } from "./leaderboard-store";
+import { SqliteOpsStore } from "./ops-store";
 import { SqliteAccountStore } from "./sqlite-account-store";
 import { SqliteLedgerStore } from "./sqlite-ledger";
 import { GoogleSsvKeyProvider } from "./ssv";
@@ -36,14 +37,17 @@ accounts.upsertBootstrapAccount({
 });
 
 const leaderboard = new SqliteLeaderboardStore(databasePath);
+const ledger = new SqliteLedgerStore(databasePath);
+const ops = new SqliteOpsStore(databasePath);
 
 const handler = createApiHandler({
   verifier: new ApplePurchaseVerifier(certificatePaths),
-  ledger: new SqliteLedgerStore(databasePath),
+  ledger,
   accounts,
   leaderboard,
   rewards: leaderboard,
-  ssvKeys: new GoogleSsvKeyProvider()
+  ssvKeys: new GoogleSsvKeyProvider(),
+  ops
 });
 
 const server = createServer(async (incoming, outgoing) => {

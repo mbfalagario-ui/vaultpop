@@ -223,6 +223,15 @@ export class MemoryAccountStore implements AccountStore {
     return after;
   }
 
+  enableAccount(actor: PublicAccount, accountId: string, reason?: string): AccountState {
+    assertAdmin(actor);
+    const before = this.requireAccountState(accountId);
+    this.requireInternalAccount(accountId).active = true;
+    const after = this.requireAccountState(accountId);
+    this.recordAudit(actor, after, "account.enable", before, after, null, reason);
+    return after;
+  }
+
   resetPassword(
     actor: PublicAccount,
     accountId: string,
@@ -235,6 +244,11 @@ export class MemoryAccountStore implements AccountStore {
     const next = hashPassword(password);
     account.passwordHash = next.passwordHash;
     account.passwordSalt = next.passwordSalt;
+    for (const [tokenHash, session] of this.sessions) {
+      if (session.accountId === accountId) {
+        this.sessions.delete(tokenHash);
+      }
+    }
     const after = this.requireAccountState(accountId);
     this.recordAudit(actor, after, "account.password.reset", before, after, null, reason);
     return after;

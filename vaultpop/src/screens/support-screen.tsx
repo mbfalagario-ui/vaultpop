@@ -15,10 +15,12 @@ import { submitSupportTicket } from "@/support/support-service";
 import { colors, spacing, typography } from "@/theme";
 import * as Application from "expo-application";
 import * as Device from "expo-device";
+import { useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { Linking, Pressable, Text, TextInput, View } from "react-native";
 
 export function SupportScreen() {
+  const params = useLocalSearchParams<{ from?: string }>();
   const [profile] = useSaveProfile();
   const [category, setCategory] = useState<SupportCategory>("Gameplay issue");
   const [message, setMessage] = useState("");
@@ -42,7 +44,8 @@ export function SupportScreen() {
       appVersion: Application.nativeApplicationVersion ?? "1.0.0",
       buildNumber: Application.nativeBuildVersion ?? "1",
       deviceInfo: `${Device.manufacturer ?? "Apple"} ${Device.modelName ?? "iPhone"}`,
-      priority
+      priority,
+      escalated: params.from === "assistant"
     };
     const result = await submitSupportTicket(ticket);
     if (result.delivered) {

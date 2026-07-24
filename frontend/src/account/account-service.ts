@@ -110,6 +110,27 @@ export async function registerAccount(input: {
   return result.body as AccountLoginResponse;
 }
 
+/**
+ * Safe self-service reset request. The backend never reveals whether the
+ * email exists; with no email provider configured, requests queue for an
+ * admin-assisted reset.
+ */
+export async function requestPasswordReset(email: string): Promise<string> {
+  const result = await requestJson("/v1/auth/password-reset", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email })
+  });
+  if (!result.ok) {
+    throw new Error(
+      errorMessage(result, "Password reset is unavailable right now. Try again later.")
+    );
+  }
+  return typeof result.body?.message === "string"
+    ? result.body.message
+    : "If an account exists for this email, a reset request has been received.";
+}
+
 export async function signOutAccount(token: string | null): Promise<void> {
   if (!token) {
     return;

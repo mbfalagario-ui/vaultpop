@@ -1,7 +1,10 @@
+import { ADMOB_IOS, REWARDED_DAILY_CAP } from "../src/ads/constants";
 import { getProductDefinition } from "../src/monetization/catalog";
+import { FAQ_CATEGORIES } from "../src/support/faq-data";
 import { adminPage } from "./admin-page";
 import { grantForTransaction } from "./grants";
 import type { LeaderboardStore } from "./leaderboard-store";
+import type { OpsStore } from "./ops-store";
 import {
   handleSsvCallback,
   isSsvCallback,
@@ -28,7 +31,10 @@ const SUPPORT_CATEGORIES = new Set([
 ]);
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();
 const registrationAttempts = new Map<string, { count: number; resetAt: number }>();
+const passwordResetAttempts = new Map<string, { count: number; resetAt: number }>();
 const LEADERBOARD_MODES = new Set(["classic", "dailyVault", "streak", "blitz"]);
+const AD_EVENT_KINDS = new Set(["granted", "failed"]);
+const AD_REWARD_TYPES = new Set(["bonus_life", "vault_coins"]);
 
 export function createApiHandler(dependencies: {
   verifier: PurchaseVerifier;
@@ -37,6 +43,7 @@ export function createApiHandler(dependencies: {
   leaderboard: LeaderboardStore;
   rewards: RewardEventStore;
   ssvKeys: SsvKeyProvider;
+  ops: OpsStore;
 }) {
   return async (request: Request): Promise<Response> => {
     const url = new URL(request.url);
@@ -194,6 +201,31 @@ export function createApiHandler(dependencies: {
       return json({ signedOut: true });
     }
 
+    if (request.method === "POST" && url.pathname === "/v1/auth/password-reset") {
+      const body = await readJson(request);
+      if (!isEmail(body.email)) {
+        return json({ error: "Enter a valid email address." }, 400);
+      }
+      // Never reveal whether an account exists; rate-limited per IP.
+      const attemptKey = registrationKey(request);
+      if (resetBlocked(attemptKey)) {
+        return json({ error: "Too many reset requests. Please try again later." }, 429);
+      }
+      recordResetAttempt(attemptKey);
+      const email = body.email.trim().toLowerCase();
+      const exists = dependencies.accounts
+        .listAccounts({ query: email })
+        .some((state) => state.account.email === email);
+      if (exists) {
+        dependencies.ops.createPasswordResetRequest(email);
+      }
+      return json({
+        accepted: true,
+        message:
+          "If an account exists for this email, a reset request has been received. Support will follow up."
+      });
+    }
+
     if (request.method === "GET" && url.pathname === "/v1/account") {
       const account = authenticatedAccount(request, dependencies.accounts);
       if (!account) {
@@ -203,7 +235,27 @@ export function createApiHandler(dependencies: {
     }
 
     if (url.pathname.startsWith("/v1/admin/")) {
-      return handleAdminRequest(request, url, dependencies.accounts);
+      return handleAdminRequest(request, url, dependencies.accounts, dependencies.ops);
+    }
+
+    if (request.method === "POST" && url.pathname === "/v1/ads/events") {
+      // Analytics-only event from the app (rewarded ad watched or failed).
+      // Grants NOTHING — reward grants remain SSV/local-economy controlled.
+      const body = await readJson(request);
+      if (
+        !isShortString(body.installId, 200) ||
+        (body.installId as string).length < 4 ||
+        !AD_EVENT_KINDS.has(body.event) ||
+        !AD_REWARD_TYPES.has(body.rewardType)
+      ) {
+        return json({ error: "Invalid ad event." }, 400);
+      }
+      dependencies.ops.recordAdEvent({
+        installId: body.installId,
+        event: body.event,
+        rewardType: body.rewardType
+      });
+      return json({ recorded: true }, 202);
     }
 
     if (request.method === "POST" && url.pathname === "/v1/purchases/verify") {
@@ -218,6 +270,12 @@ export function createApiHandler(dependencies: {
           return json({ error: "Unknown product." }, 400);
         }
         const applied = dependencies.ledger.applyTransaction(body.installId, transaction);
+        if (applied.firstGrant) {
+          dependencies.ops.recordPurchase({
+            transactionId: transaction.transactionId,
+            productId: transaction.productId
+          });
+        }
         const fullGrant = grantForTransaction(transaction);
         const grant = applied.inventoryGrantAllowed
           ? fullGrant
@@ -282,7 +340,7 @@ export function createApiHandler(dependencies: {
           (accountBalance?.vaultPassExpiresAt &&
             new Date(accountBalance.vaultPassExpiresAt).getTime() > Date.now())
       );
-      const ticketId = dependencies.ledger.createSupportTicket({
+      const ticketId = dependencies.ops.createTicket({
         installId: body.installId,
         category: body.category,
         message: body.message.trim(),
@@ -290,7 +348,8 @@ export function createApiHandler(dependencies: {
         appVersion: body.appVersion,
         buildNumber: body.buildNumber,
         deviceInfo: body.deviceInfo,
-        priority
+        priority,
+        escalated: body.escalated === true
       });
       return json({ ticketId }, 201);
     }
@@ -302,7 +361,8 @@ export function createApiHandler(dependencies: {
 async function handleAdminRequest(
   request: Request,
   url: URL,
-  accounts: AccountStore
+  accounts: AccountStore,
+  ops: OpsStore
 ): Promise<Response> {
   const actor = authenticatedAccount(request, accounts);
   if (!actor || actor.role !== "admin") {
@@ -310,6 +370,94 @@ async function handleAdminRequest(
   }
 
   try {
+    if (request.method === "GET" && url.pathname === "/v1/admin/analytics") {
+      const now = new Date();
+      const purchases = ops.purchaseAnalytics(now);
+      const premium = ops.premiumCounts(now);
+      return json({
+        ads: {
+          ...ops.adsAnalytics(now),
+          dailyCap: REWARDED_DAILY_CAP,
+          ssvUrl: "https://vaultpop-api.fly.dev/support",
+          adUnits: {
+            bonusLife: ADMOB_IOS.rewarded,
+            vaultCoins: ADMOB_IOS.rewardedCoins
+          }
+        },
+        purchases: {
+          ...purchases,
+          activeVaultPass: premium.vaultPass,
+          removeAdsUsers: premium.removeAds,
+          estimatedGrossUsd: estimatedGrossUsd(purchases.productCounts),
+          revenueNote: "Estimated gross based on configured product prices."
+        },
+        support: {
+          ...ops.supportStats(),
+          assistant: "on-device",
+          categoriesCovered: FAQ_CATEGORIES
+        },
+        passwordResets: { pending: ops.countPendingPasswordResets() }
+      });
+    }
+
+    if (request.method === "GET" && url.pathname === "/v1/admin/support/tickets") {
+      const filterValue = url.searchParams.get("status");
+      const filter =
+        filterValue === "open" || filterValue === "closed" || filterValue === "escalated"
+          ? filterValue
+          : undefined;
+      return json({ tickets: ops.listTickets(filter) });
+    }
+
+    const ticketMatch = url.pathname.match(
+      /^\/v1\/admin\/support\/tickets\/([^/]+)(?:\/(reply|status))?$/
+    );
+    if (ticketMatch) {
+      const ticketId = decodeURIComponent(ticketMatch[1] ?? "");
+      const ticketAction = ticketMatch[2];
+      if (request.method === "GET" && !ticketAction) {
+        const ticket = ops.getTicket(ticketId);
+        return ticket ? json({ ticket }) : json({ error: "Ticket not found." }, 404);
+      }
+      if (request.method === "POST" && ticketAction === "reply") {
+        const body = await readJson(request);
+        if (!isShortString(body.message, 2_000)) {
+          return json({ error: "Reply must be 1-2,000 characters." }, 400);
+        }
+        const ticket = ops.addReply(ticketId, "admin", body.message.trim());
+        ops.logAdminAction(actor, "support.reply", ticketId);
+        return json({ ticket });
+      }
+      if (request.method === "POST" && ticketAction === "status") {
+        const body = await readJson(request);
+        if (body.status !== "open" && body.status !== "closed") {
+          return json({ error: "Status must be open or closed." }, 400);
+        }
+        const ticket = ops.setTicketStatus(ticketId, body.status);
+        ops.logAdminAction(
+          actor,
+          `support.${body.status === "closed" ? "close" : "reopen"}`,
+          ticketId
+        );
+        return json({ ticket });
+      }
+      return json({ error: "Not found." }, 404);
+    }
+
+    if (request.method === "GET" && url.pathname === "/v1/admin/password-resets") {
+      return json({ requests: ops.listPasswordResetRequests() });
+    }
+
+    const resetMatch = url.pathname.match(
+      /^\/v1\/admin\/password-resets\/([^/]+)\/handled$/
+    );
+    if (resetMatch && request.method === "POST") {
+      const requestId = decodeURIComponent(resetMatch[1] ?? "");
+      const handled = ops.markPasswordResetHandled(requestId, actor.email);
+      ops.logAdminAction(actor, "password.reset.handled", handled.email);
+      return json({ request: handled });
+    }
+
     if (request.method === "GET" && url.pathname === "/v1/admin/accounts") {
       const roleValue = url.searchParams.get("role");
       const role = isAccountRole(roleValue) ? roleValue : undefined;
@@ -347,7 +495,7 @@ async function handleAdminRequest(
     }
 
     const match = url.pathname.match(
-      /^\/v1\/admin\/accounts\/([^/]+)(?:\/(inventory|entitlements|disable|password|role))?$/
+      /^\/v1\/admin\/accounts\/([^/]+)(?:\/(inventory|entitlements|disable|enable|password|role))?$/
     );
     if (!match) {
       return json({ error: "Not found." }, 404);
@@ -402,6 +550,11 @@ async function handleAdminRequest(
     if (action === "disable") {
       return json({
         state: accounts.disableAccount(actor, accountId, optionalReason(body.reason))
+      });
+    }
+    if (action === "enable") {
+      return json({
+        state: accounts.enableAccount(actor, accountId, optionalReason(body.reason))
       });
     }
     if (action === "password") {
@@ -581,4 +734,36 @@ function html(title: string, body: string): Response {
       }
     }
   );
+}
+
+function resetBlocked(key: string, now = Date.now()): boolean {
+  const attempt = passwordResetAttempts.get(key);
+  if (!attempt) {
+    return false;
+  }
+  if (attempt.resetAt <= now) {
+    passwordResetAttempts.delete(key);
+    return false;
+  }
+  return attempt.count >= 5;
+}
+
+function recordResetAttempt(key: string, now = Date.now()): void {
+  const current = passwordResetAttempts.get(key);
+  passwordResetAttempts.set(key, {
+    count: current && current.resetAt > now ? current.count + 1 : 1,
+    resetAt: current && current.resetAt > now ? current.resetAt : now + 60 * 60 * 1_000
+  });
+}
+
+function estimatedGrossUsd(productCounts: Record<string, number>): number {
+  let total = 0;
+  for (const [productId, count] of Object.entries(productCounts)) {
+    const definition = getProductDefinition(productId);
+    const price = definition
+      ? Number(/([0-9]+\.[0-9]{2})/.exec(definition.basePriceUsd)?.[1] ?? 0)
+      : 0;
+    total += price * count;
+  }
+  return Math.round(total * 100) / 100;
 }

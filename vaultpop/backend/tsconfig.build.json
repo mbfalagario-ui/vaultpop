@@ -20,5 +20,10 @@
     "declaration": false,
     "sourceMap": false
   },
-  "include": ["./**/*.ts", "../src/monetization/catalog.ts"]
+  "include": [
+    "./**/*.ts",
+    "../src/monetization/catalog.ts",
+    "../src/ads/constants.ts",
+    "../src/support/faq-data.ts"
+  ]
 }

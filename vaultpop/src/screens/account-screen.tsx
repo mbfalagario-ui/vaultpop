@@ -5,6 +5,7 @@ import {
   isAccountSignedIn,
   refreshAccountState,
   registerAccount,
+  requestPasswordReset,
   SessionExpiredError,
   signInAccount,
   signOutAccount
@@ -101,6 +102,26 @@ export function AccountScreen() {
     setProfile((current) => clearAccountSession(current));
     await signOutAccount(token);
     setStatus("Signed out. Local gameplay and progress remain available.");
+  };
+
+  const forgotPassword = async () => {
+    if (!email.trim()) {
+      setStatus("Enter your email above, then tap Forgot password.");
+      return;
+    }
+    setBusy(true);
+    setStatus("Sending reset request...");
+    try {
+      setStatus(await requestPasswordReset(email.trim()));
+    } catch (error) {
+      setStatus(
+        error instanceof Error
+          ? error.message
+          : "Password reset is unavailable right now. Try again later."
+      );
+    } finally {
+      setBusy(false);
+    }
   };
 
   const sync = async () => {
@@ -321,13 +342,30 @@ export function AccountScreen() {
               onPress={() => void create()}
             />
           ) : (
-            <ActionButton
-              label="Sign In"
-              disabled={busy}
-              accent={colors.cyan}
-              testID="account-signin-button"
-              onPress={() => void signIn()}
-            />
+            <>
+              <ActionButton
+                label="Sign In"
+                disabled={busy}
+                accent={colors.cyan}
+                testID="account-signin-button"
+                onPress={() => void signIn()}
+              />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Forgot password"
+                testID="account-forgot-password"
+                disabled={busy}
+                onPress={() => void forgotPassword()}
+                style={{ alignItems: "center", minHeight: 44, justifyContent: "center" }}
+              >
+                <Text
+                  selectable={false}
+                  style={{ color: colors.cyan, fontSize: 12.5, fontWeight: "700" }}
+                >
+                  Forgot password?
+                </Text>
+              </Pressable>
+            </>
           )}
         </View>
       )}
