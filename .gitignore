@@ -86,3 +86,7 @@ android-sdk/
 credentials.json
 *.key
 .credentials
+
+# pnpm content-addressable store (created by CI/test runs)
+.pnpm-store/
+/yarn.lock

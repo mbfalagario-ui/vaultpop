@@ -1,0 +1,17 @@
+{
+  "name": "vaultpop-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "description": "VaultPop repository root. The iOS app + Node backend live in ./vaultpop (canonical Build 11 source); ./frontend is the Emergent live-preview mirror. Root scripts delegate to the real verification/audit suite in ./vaultpop.",
+  "scripts": {
+    "verify": "cd vaultpop && pnpm run verify",
+    "test": "cd vaultpop && pnpm run test",
+    "typecheck": "cd vaultpop && pnpm run typecheck",
+    "typecheck:backend": "cd vaultpop && pnpm run typecheck:backend",
+    "audit:banned-language": "cd vaultpop && pnpm run audit:banned-language",
+    "audit:sample-ads": "cd vaultpop && pnpm run audit:sample-ads",
+    "audit:secrets": "cd vaultpop && pnpm run audit:secrets",
+    "audit:navigation": "cd vaultpop && pnpm run audit:navigation",
+    "audit:monetization": "cd vaultpop && pnpm run audit:monetization"
+  }
+}
