@@ -136,3 +136,10 @@ No build/upload/submission; bundle ID, signing, IAP IDs, AdMob IDs unchanged; no
 - verify PASS 51/51 (+5 tests tests/build11-admin.test.ts) + all audits. Deployed vaultpop-api (2nd Build 11 deploy) — live verified (admin endpoints fail-closed 403; safe test ticket VP-000001; reset request identical for unknown emails; ad events 202/400; login/sync/leaderboard OK). Prod admin ACTIONS not run live (owner creds are private Fly secrets) — verified on identical local build + tests; documented in handoff.
 - Proofs: outputs/build11-admin-proof/ (6 jpegs). Package: /app/vaultpop-build11-admin-completion-package.zip → https://vaultpop-premium.preview.emergentagent.com/api/export/build11-admin-completion-package (externally verified 200).
 - IMPORTANT for prod deploys: Fly token session-only; pnpm needs Node 24 shim (/tmp/bin/pnpm w/ --config.verify-deps-before-run=false).
+
+## Build 11 GitHub Save Blocker — FIXED (2026-07-24)
+- Root cause: saved branch build11-admin-completion (commit 2598d2ec) had NO package.json at repo ROOT (all real scripts live in vaultpop/), so `pnpm run verify`/audits failed at clone root.
+- Fix: NEW /app/package.json (private, scripts-only) delegating verify/test/typecheck(+backend)/5 audits via `cd vaultpop && pnpm run ...` (real checks, no stubs). Added .pnpm-store/ + /yarn.lock to .gitignore. IMPORTANT: environment auto-ran yarn install on root package.json creating /app/yarn.lock + node_modules — DELETED both (root lockfile can break Metro workspace resolution); preview verified OK after.
+- Verified from /app root: verify PASS (51/51 + all audits), each audit individually PASS. expo-doctor in vaultpop: 19/21 in this container (missing peer expo-asset under pnpm strict linking + registry version check) — SOURCE identical to commit where user's local doctor = 21/21; no package.json changes made.
+- Local commit df650613 (only package.json + .gitignore). NO git remote/credentials here — user must push via Emergent "Save to GitHub" → branch build11-admin-completion.
+- testing_agent iteration_5.json: ALL PASS (scripts real, audits pass, git diff clean, preview unaffected).
