@@ -2,6 +2,7 @@ import { canShowBanner, type AdPlacement } from "@/ads/ad-policy";
 import { ADMOB_IOS } from "@/ads/constants";
 import {
   isAdsInitialized,
+  shouldRequestNonPersonalizedAdsOnly,
   subscribeToAdsInitialization
 } from "@/ads/ad-service";
 import { isAdFree } from "@/monetization/entitlements";
@@ -15,6 +16,7 @@ type AdsModule = typeof import("react-native-google-mobile-ads");
 export function AdBanner({ placement }: { placement: AdPlacement }) {
   const [profile] = useSaveProfile();
   const [adsModule, setAdsModule] = useState<AdsModule | null>(null);
+  const [loaded, setLoaded] = useState(false);
   const adsInitialized = useSyncExternalStore(
     subscribeToAdsInitialization,
     isAdsInitialized,
@@ -62,15 +64,21 @@ export function AdBanner({ placement }: { placement: AdPlacement }) {
     <View
       style={{
         alignItems: "center",
-        backgroundColor: colors.surface,
-        minHeight: 60,
-        paddingVertical: spacing.xs
+        backgroundColor: loaded ? colors.surface : "transparent",
+        minHeight: loaded ? 60 : 0,
+        paddingVertical: loaded ? spacing.xs : 0
       }}
     >
       <Banner
         unitId={ADMOB_IOS.banner}
         size={adsModule.BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
-        requestOptions={{ requestNonPersonalizedAdsOnly: true }}
+        requestOptions={{
+          requestNonPersonalizedAdsOnly: shouldRequestNonPersonalizedAdsOnly()
+        }}
+        onAdLoaded={() => setLoaded(true)}
+        onAdFailedToLoad={(error: Error) => {
+          console.warn(`VaultPop banner failed to load (${placement}).`, error);
+        }}
       />
     </View>
   );

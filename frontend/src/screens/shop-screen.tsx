@@ -98,6 +98,8 @@ export function ShopScreen() {
     profileRef.current = profile;
   }, [profile]);
 
+  const mountedRef = useRef(true);
+
   useEffect(
     () => () => {
       if (forgeTimerRef.current) {
@@ -131,47 +133,56 @@ export function ShopScreen() {
     [setProfile]
   );
 
-  useEffect(() => {
-    let active = true;
-    // Direct init — never gated on InteractionManager (ambient animations
-    // would otherwise delay or block the store session).
-    void createStoreSession({
-      onPurchase: processPurchase,
-      onError: setStatus
-    })
-      .then(async (session) => {
-        if (!active) {
+  const loadCatalog = useCallback(async () => {
+    setCatalogState("loading");
+    setStatus("Connecting to the App Store...");
+    try {
+      let session = sessionRef.current;
+      if (!session) {
+        // Direct init — never gated on InteractionManager (ambient animations
+        // would otherwise delay or block the store session).
+        session = await createStoreSession({
+          onPurchase: processPurchase,
+          onError: setStatus
+        });
+        if (!mountedRef.current) {
           await session.close();
           return;
         }
         sessionRef.current = session;
-        const products = await session.fetchCatalog();
-        if (active) {
-          setStoreProducts(products);
-          setCatalogState(products.length > 0 ? "ready" : "unavailable");
-          setStatus(
-            products.length > 0
-              ? "App Store products loaded."
-              : "Live prices load from the App Store on your device."
-          );
-        }
-      })
-      .catch(() => {
-        if (active) {
-          setCatalogState("unavailable");
-          setStatus("Live prices load from the App Store on your device.");
-        }
-      });
+      }
+      const products = await session.fetchCatalog();
+      if (!mountedRef.current) {
+        return;
+      }
+      setStoreProducts(products);
+      setCatalogState(products.length > 0 ? "ready" : "unavailable");
+      setStatus(
+        products.length > 0
+          ? "App Store products loaded."
+          : "Live prices load from the App Store on your device."
+      );
+    } catch {
+      if (mountedRef.current) {
+        setCatalogState("unavailable");
+        setStatus("Live prices load from the App Store on your device.");
+      }
+    }
+  }, [processPurchase]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    void loadCatalog();
 
     return () => {
-      active = false;
+      mountedRef.current = false;
       const session = sessionRef.current;
       sessionRef.current = null;
       if (session) {
         void session.close();
       }
     };
-  }, [processPurchase]);
+  }, [loadCatalog]);
 
   const buy = async (productId: IapProductId) => {
     const session = sessionRef.current;
@@ -404,18 +415,28 @@ export function ShopScreen() {
             testID={`shop-buy-${VAULTPASS_ID}`}
             onPress={() => void buy(VAULTPASS_ID)}
           />
-          {!vaultPassStore && catalogState === "unavailable" ? (
-            <Text
-              selectable
-              testID="shop-vaultpass-unavailable"
-              style={[
-                typography.caption,
-                { color: colors.textSecondary, fontSize: 12, textAlign: "center" }
-              ]}
-            >
-              VaultPass is unavailable right now. Products load from the App
-              Store on your device.
-            </Text>
+          {!vaultPassStore && catalogState !== "loading" ? (
+            <View style={{ gap: spacing.xs }}>
+              <Text
+                selectable
+                testID="shop-vaultpass-unavailable"
+                style={[
+                  typography.caption,
+                  { color: colors.textSecondary, fontSize: 12, textAlign: "center" }
+                ]}
+              >
+                VaultPass is unavailable right now. Products load from the App
+                Store on your device.
+              </Text>
+              <ActionButton
+                label="Retry Loading Products"
+                tone="quiet"
+                accent={colors.violet}
+                disabled={busyProductId !== null}
+                testID="shop-catalog-retry-button"
+                onPress={() => void loadCatalog()}
+              />
+            </View>
           ) : null}
           <Text
             selectable

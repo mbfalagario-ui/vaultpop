@@ -51,11 +51,32 @@ export async function createStoreSession(
       await iap.endConnection();
     },
     fetchCatalog: async () => {
-      const [products, subscriptions] = await Promise.all([
+      // A failure in either request must not blank the whole catalog: fetch
+      // one-time products and subscriptions independently.
+      const [products, subscriptions] = await Promise.allSettled([
         iap.fetchProducts({ skus: [...ONE_TIME_PRODUCT_IDS], type: "in-app" }),
         iap.fetchProducts({ skus: [...SUBSCRIPTION_PRODUCT_IDS], type: "subs" })
       ]);
-      return [...(products ?? []), ...(subscriptions ?? [])];
+      if (products.status === "rejected") {
+        console.warn("VaultPop one-time product fetch failed.", products.reason);
+      }
+      if (subscriptions.status === "rejected") {
+        console.warn("VaultPop subscription fetch failed.", subscriptions.reason);
+      }
+      const catalog: StoreProduct[] = [
+        ...(products.status === "fulfilled" ? (products.value ?? []) : []),
+        ...(subscriptions.status === "fulfilled" ? (subscriptions.value ?? []) : [])
+      ];
+      const received = new Set(catalog.map((item) => item.id));
+      const missing = [...ONE_TIME_PRODUCT_IDS, ...SUBSCRIPTION_PRODUCT_IDS].filter(
+        (sku) => !received.has(sku)
+      );
+      if (missing.length > 0) {
+        console.warn(
+          `VaultPop store catalog is missing SKUs: ${missing.join(", ")}`
+        );
+      }
+      return catalog;
     },
     purchase: async (productId) => {
       const definition = getProductDefinition(productId);

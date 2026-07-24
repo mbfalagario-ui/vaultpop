@@ -1,0 +1,42 @@
+{
+  "summary": "Build 15 QA regression fully verified end-to-end on the preview mirror. Backend: 5/5 pytest checks green — admin login returns role 'admin', player login returns role 'player', GET /api/v1/account with token preserves role for both users, password-reset returns safe generic message. Frontend UI (Expo web preview, mobile viewport 375x667): (1) POSITIVE admin gating on /account — 'Owner account' label, 'OWNER TOOLS' eyebrow, and testID account-admin-console-button all present exactly once after signing in as qa.owner.b15@vaultpop.test. (2) Admin sees testID settings-admin-console-button on /settings. (3) NEGATIVE gating verified — after sign-out and player sign-in, /account shows 'Player account' with zero account-admin-console-button, and /settings shows zero settings-admin-console-button. (4) Shop VaultPass resilience: hero renders disabled 'Currently Unavailable' button, unavailable caption (testID shop-vaultpass-unavailable), and 'Retry Loading Products' (testID shop-catalog-retry-button); pressing retry gracefully re-runs the load and remains in the unavailable state — no crash, no blank screen, no error boundary. DAILY REWARDS, BOOSTER FORGE, and COIN PACKS & UPGRADES sections all render. (5) Regression: Account Sync as player shows 'Account synced.' status pill; Forgot password returns the safe reset-instructions message; no red-screen errors. AdMob banners and StoreKit unavailability on web preview are expected per constraints and are NOT reported as bugs.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "shop-screen.tsx / theme cards", "issue": "Console warning: 'textShadow*' style props are deprecated. Use 'textShadow'. Non-blocking but should be migrated. Reference: /app/frontend/src/screens/shop-screen.tsx and any style that uses textShadowOffset/textShadowColor/textShadowRadius."},
+      {"component": "Multiple screens (LinearGradient/absolute overlays)", "issue": "Console warning: 'props.pointerEvents is deprecated. Use style.pointerEvents'. Fires on every screen. Non-blocking. Reference examples: /app/frontend/src/screens/shop-screen.tsx:651 (theme card overlay LinearGradient uses pointerEvents in style — OK) but other components still pass pointerEvents as prop; search 'pointerEvents=' across /app/frontend/src to migrate."}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_build15_qa.py",
+    "/app/test_reports/pytest/build15_results.xml"
+  ],
+  "action_items": [
+    "Optional cleanup: migrate legacy `pointerEvents` prop usages to `style.pointerEvents` across React Native components to silence deprecation warnings.",
+    "Optional cleanup: migrate `textShadow*` style props to the shorthand `textShadow` to silence deprecation warnings.",
+    "No functional fixes required — all Build 15 acceptance criteria (admin gating positive & negative, VaultPass 'Currently Unavailable' + retry resilience, sync/forgot-password regressions, backend role response) are green."
+  ],
+  "critical_code_review_comments": [
+    "account-screen.tsx correctly guards Admin Console with profile.account.role === 'admin' and uses Linking.openURL(ADMIN_CONSOLE_URL) — safe.",
+    "settings-screen.tsx mirrors the same role gate under ACCOUNT — consistent.",
+    "shop-screen.tsx loadCatalog() properly handles StoreKit failure via try/catch, sets catalogState='unavailable', and re-runs on retry press without leaking sessions (mountedRef + sessionRef guarded).",
+    "Backend /api/v1/auth/login and /api/v1/account both return the persisted role verbatim; no client-side role forging is possible.",
+    "Minor: shop-screen.tsx is ~1000 lines; consider splitting VaultPass hero and RewardCard into separate modules for maintainability (not blocking)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_build15_qa.py (new pytest suite)",
+    "/app/test_reports/pytest/build15_results.xml (JUnit output)"
+  ],
+  "success_rate": {"backend": "100% (5/5)", "frontend": "100% (all 6 review-request checkpoints)"},
+  "seed_data_creation": "No seed data created. Reused existing qa.owner.b15@vaultpop.test (admin) and qa.player@vaultpop.app (player) accounts documented in /app/memory/test_credentials.md.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Preview mirror lives at https://vaultpop-premium.preview.emergentagent.com. Admin QA account (qa.owner.b15@vaultpop.test / B15OwnerVerify!234) is preview-only (role flipped in Mongo). Refresh endpoint is GET /api/v1/account (not /auth/session or /auth/refresh) — reuse in future tests. StoreKit + AdMob are intentionally inert on web preview: catalogState resolves to 'unavailable', which is the state under test for the retry button. Do NOT click the Admin Console button in UI tests — it uses Linking.openURL to an external URL out of scope.",
+  "rca_of_issue": "N/A — this iteration verified fixes; no new bugs found."
+}

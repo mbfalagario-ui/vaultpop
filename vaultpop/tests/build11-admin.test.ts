@@ -396,3 +396,51 @@ test("admin console page ships operator sections without raw JSON dumps", async 
     response.headers.get("Content-Security-Policy")?.includes("frame-ancestors 'none'")
   );
 });
+
+test("owner account is protected from demotion and disable", async () => {
+  const { handler } = createFixture();
+  const token = await adminToken(handler);
+  const previousOwnerEmail = process.env.VAULTPOP_ADMIN_EMAIL;
+  process.env.VAULTPOP_ADMIN_EMAIL = "Owner@Test.App"; // case-insensitive match
+  try {
+    const me = await call(handler, "GET", "/v1/account", undefined, token);
+    const ownerId = me.body.state.account.id as string;
+
+    const demote = await call(
+      handler,
+      "POST",
+      `/v1/admin/accounts/${ownerId}/role`,
+      { role: "player" },
+      token
+    );
+    assert.equal(demote.status, 400);
+    assert.match(demote.body.error, /owner account role is protected/i);
+
+    const disable = await call(
+      handler,
+      "POST",
+      `/v1/admin/accounts/${ownerId}/disable`,
+      {},
+      token
+    );
+    assert.equal(disable.status, 400);
+    assert.match(disable.body.error, /owner account cannot be disabled/i);
+
+    // Reasserting the admin role stays allowed (idempotent no-op).
+    const keepAdmin = await call(
+      handler,
+      "POST",
+      `/v1/admin/accounts/${ownerId}/role`,
+      { role: "admin" },
+      token
+    );
+    assert.equal(keepAdmin.status, 200);
+    assert.equal(keepAdmin.body.state.account.role, "admin");
+  } finally {
+    if (previousOwnerEmail === undefined) {
+      delete process.env.VAULTPOP_ADMIN_EMAIL;
+    } else {
+      process.env.VAULTPOP_ADMIN_EMAIL = previousOwnerEmail;
+    }
+  }
+});

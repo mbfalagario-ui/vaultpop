@@ -36,6 +36,22 @@ const LEADERBOARD_MODES = new Set(["classic", "dailyVault", "streak", "blitz"]);
 const AD_EVENT_KINDS = new Set(["granted", "failed"]);
 const AD_REWARD_TYPES = new Set(["bonus_life", "vault_coins"]);
 
+/**
+ * The bootstrap owner email (env-configured, case-insensitive). The owner
+ * account can never be demoted or disabled through the admin API, so admin
+ * access cannot regress even by accident.
+ */
+function ownerEmail(): string {
+  return (process.env.VAULTPOP_ADMIN_EMAIL ?? "mbfalagario@gmail.com")
+    .trim()
+    .toLowerCase();
+}
+
+function isProtectedOwnerAccount(accounts: AccountStore, accountId: string): boolean {
+  const state = accounts.getAccountState(accountId);
+  return state?.account.email.trim().toLowerCase() === ownerEmail();
+}
+
 export function createApiHandler(dependencies: {
   verifier: PurchaseVerifier;
   ledger: LedgerStore;
@@ -548,6 +564,9 @@ async function handleAdminRequest(
       });
     }
     if (action === "disable") {
+      if (isProtectedOwnerAccount(accounts, accountId)) {
+        return json({ error: "The owner account cannot be disabled." }, 400);
+      }
       return json({
         state: accounts.disableAccount(actor, accountId, optionalReason(body.reason))
       });
@@ -573,6 +592,9 @@ async function handleAdminRequest(
     if (action === "role") {
       if (!isAccountRole(body.role)) {
         return json({ error: "Invalid role request." }, 400);
+      }
+      if (body.role !== "admin" && isProtectedOwnerAccount(accounts, accountId)) {
+        return json({ error: "The owner account role is protected and stays admin." }, 400);
       }
       return json({
         state: accounts.changeRole(

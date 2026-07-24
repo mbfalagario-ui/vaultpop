@@ -21,28 +21,58 @@ export async function initializeAdsAfterHome(): Promise<boolean> {
 
   initializing = (async () => {
     const ads = await import("react-native-google-mobile-ads");
-    const consent = await ads.AdsConsent.gatherConsent();
-    if (!consent.canRequestAds) {
+    let canRequestAds = false;
+    try {
+      const consent = await ads.AdsConsent.gatherConsent();
+      canRequestAds = consent.canRequestAds;
+    } catch (error: unknown) {
+      // A failed consent flow (offline launch, UMP misconfiguration) must not
+      // permanently disable ads. Consent from a previous session may still
+      // allow ad requests.
+      console.warn("VaultPop ad consent gathering failed.", error);
+      const info = await ads.AdsConsent.getConsentInfo().catch(() => null);
+      canRequestAds = info?.canRequestAds ?? false;
+    }
+    if (!canRequestAds) {
+      console.warn("VaultPop ads paused: consent does not allow ad requests yet.");
       return false;
     }
-    const tracking = await import("expo-tracking-transparency");
-    let permission = await tracking.getTrackingPermissionsAsync();
-    if (permission.status === "undetermined") {
-      permission = await tracking.requestTrackingPermissionsAsync();
+    try {
+      const tracking = await import("expo-tracking-transparency");
+      let permission = await tracking.getTrackingPermissionsAsync();
+      if (permission.status === "undetermined") {
+        permission = await tracking.requestTrackingPermissionsAsync();
+      }
+      requestNonPersonalizedAdsOnly = permission.status !== "granted";
+    } catch {
+      // An ATT failure only limits ads to non-personalized requests.
+      requestNonPersonalizedAdsOnly = true;
     }
-    requestNonPersonalizedAdsOnly = permission.status !== "granted";
     await ads.default().setRequestConfiguration({});
     await ads.default().initialize();
     initialized = true;
     initializationListeners.forEach((listener) => listener());
+    console.log("VaultPop ads initialized.");
     return true;
-  })().catch((error: unknown) => {
-    initializing = null;
-    console.warn("VaultPop ads are unavailable.", error);
-    return false;
-  });
+  })()
+    .catch((error: unknown) => {
+      console.warn("VaultPop ads are unavailable.", error);
+      return false;
+    })
+    .then((result) => {
+      if (!result) {
+        // Reset so later triggers (screen mounts, rewarded CTAs) retry
+        // instead of being stuck on a failed first attempt forever.
+        initializing = null;
+      }
+      return result;
+    });
 
   return initializing;
+}
+
+export function shouldRequestNonPersonalizedAdsOnly(): boolean {
+  return requestNonPersonalizedAdsOnly;
 }
 
 export function isAdsInitialized(): boolean {

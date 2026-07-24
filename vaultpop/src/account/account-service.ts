@@ -25,6 +25,7 @@ export type AccountLoginResponse = {
 
 const API_BASE_URL =
   process.env.EXPO_PUBLIC_VAULTPOP_API_URL ?? "https://vaultpop-api.fly.dev";
+export const ADMIN_CONSOLE_URL = `${API_BASE_URL}/admin`;
 const REQUEST_TIMEOUT_MS = 15_000;
 
 export class SessionExpiredError extends Error {}

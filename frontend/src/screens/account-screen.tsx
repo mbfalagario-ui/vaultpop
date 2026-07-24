@@ -1,4 +1,5 @@
 import {
+  ADMIN_CONSOLE_URL,
   applyAccountLogin,
   applyAccountRefresh,
   clearAccountSession,
@@ -19,7 +20,7 @@ import { useSaveProfile } from "@/storage/use-save-profile";
 import { colors, radius, spacing, typography } from "@/theme";
 import { useLocalSearchParams } from "expo-router";
 import { useState } from "react";
-import { Pressable, Text, TextInput, View } from "react-native";
+import { Linking, Pressable, Text, TextInput, View } from "react-native";
 
 type AuthMode = "signin" | "create";
 
@@ -200,6 +201,20 @@ export function AccountScreen() {
               accent={colors.emerald}
             />
           </View>
+          {profile.account.role === "admin" ? (
+            <View style={{ gap: spacing.sm }}>
+              <Text selectable style={[typography.eyebrow, { color: colors.textMuted }]}>
+                OWNER TOOLS
+              </Text>
+              <ActionButton
+                label="Admin Console"
+                detail="Support inbox, analytics, and user management."
+                accent={colors.gold}
+                testID="account-admin-console-button"
+                onPress={() => void Linking.openURL(ADMIN_CONSOLE_URL)}
+              />
+            </View>
+          ) : null}
           <ActionButton
             label="Account Sync"
             detail="Updates account inventory and access from VaultPop."
@@ -392,5 +407,8 @@ const inputStyle = {
 } as const;
 
 function formatRole(role: "player" | "reviewer" | "admin" | null): string {
-  return role === "admin" ? "Owner account" : "Player account";
+  if (role === "admin") {
+    return "Owner account";
+  }
+  return role === "reviewer" ? "Reviewer account" : "Player account";
 }

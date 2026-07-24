@@ -126,3 +126,37 @@ notes: |
   Production TS backend (fly.dev) and its /admin operator console are OUT OF SCOPE for the testing agent
   (already live-verified via curl + identical local build screenshots + 51/51 node tests). Test ONLY the
   preview app (expo web) + preview FastAPI mirror /api endpoints.
+
+## Build 15 QA Regression Fixes (2026-07-24) — pending testing_agent verification
+user_problem_statement: |
+  Build 15 critical QA regressions: (1) Admin Console missing for owner/admin account; (2) VaultPass Plus
+  shows "Currently Unavailable"; (3) banner ads missing. Fixes: in-app Admin Console entry gated on
+  role==="admin" (account + settings screens, opens backend /admin console); backend owner-protection
+  guard (owner account cannot be demoted/disabled); resilient StoreKit catalog fetch (Promise.allSettled,
+  missing-SKU diagnostics, Retry Loading Products button on VaultPass hero); resilient AdMob init
+  (consent-failure fallback, retry on failed init, banner load/fail diagnostics, ATT-aware NPA flag).
+backend:
+  - task: "TS backend owner guard: demote/disable of owner account returns 400 (verified locally: login case-insensitive, analytics 200, demote 400, disable 400, role stays admin, /admin 200)"
+    file: /app/vaultpop/backend/app.ts
+    status: verified_by_main_agent_locally
+frontend:
+  - task: "Account screen: sign in as ADMIN qa.owner.b15@vaultpop.test / B15OwnerVerify!234 → 'Owner account' label + OWNER TOOLS section + 'Admin Console' button (testID account-admin-console-button)"
+    file: /app/frontend/src/screens/account-screen.tsx
+    status: needs_retesting
+  - task: "Account screen negative: sign in as PLAYER qa.player@vaultpop.app / VaultPopQA2026!x → NO Admin Console button, 'Player account' label"
+    file: /app/frontend/src/screens/account-screen.tsx
+    status: needs_retesting
+  - task: "Settings screen: while signed in as admin → 'Admin Console' button (testID settings-admin-console-button); while signed in as player → hidden"
+    file: /app/frontend/src/screens/settings-screen.tsx
+    status: needs_retesting
+  - task: "Shop: on web preview StoreKit is unavailable → VaultPass hero shows 'Currently Unavailable' + unavailable caption + 'Retry Loading Products' button (testID shop-catalog-retry-button); retry press re-runs load and returns to unavailable state gracefully (no crash)"
+    file: /app/frontend/src/screens/shop-screen.tsx
+    status: needs_retesting
+  - task: "Regression: existing flows still work — sign in/sync/sign out, Forgot password message, shop sections render (DAILY REWARDS, BOOSTER FORGE, coin packs)"
+    file: /app/frontend/src/screens/*
+    status: needs_retesting
+notes: |
+  AdMob banners and StoreKit purchases are NATIVE-iOS-ONLY and intentionally inert on web preview
+  (AdBanner renders null; store session throws in web/Expo Go) — do NOT report these as bugs.
+  Production TS backend (fly.dev) out of scope; owner guard verified locally by main agent.
+  Admin QA account exists only in preview Mongo mirror (role flipped via DB).
