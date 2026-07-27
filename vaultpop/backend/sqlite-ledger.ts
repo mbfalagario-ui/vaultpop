@@ -115,7 +115,7 @@ export class SqliteLedgerStore implements LedgerStore {
             ? 1
             : 0,
           transaction.revokedAt ? 0 : 1,
-          transaction.productId === "app.vaultpop.vaultpass.monthly" ? 1 : 0,
+          transaction.productId === "app.vaultpop.vaultpass.plus.monthly" ? 1 : 0,
           transaction.revokedAt ? null : transaction.expiresAt,
           installId
         );

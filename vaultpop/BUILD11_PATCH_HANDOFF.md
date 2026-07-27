@@ -57,7 +57,7 @@ Production AdMob SSV URL remains: https://vaultpop-api.fly.dev/support
 | 2 | Admin Console layout | Single flat page of bare forms + raw `JSON.stringify` dumps; no VaultPop styling, no card grouping; non-admin sign-in produced only a thrown error string instead of a Restricted Access state. |
 | 3 | Sign-in takes too long | `signInAccount()` used bare `fetch` with no AbortController timeout. Fly machine cold start (~10s) / fly-proxy stalls (15–60s) left the UI on "Signing in..." indefinitely; unguarded `response.json()` surfaced proxy HTML as parse errors. |
 | 4 | Account Sync fails silently | `refreshAccountState()` shared the same untimed fetch + unguarded parse. Stalls left "Syncing account..." stuck forever; 401 (expired session) showed a generic message without clearing the session; no explicit success/failure copy. |
-| 5 | VaultPass Plus unavailable | `app.vaultpop.vaultpass.monthly` IS correctly requested via `fetchProducts({type:"subs"})`, but when StoreKit returned no product the hero silently rendered a disabled "Available on the App Store" button with no explanation. |
+| 5 | VaultPass Plus unavailable | `app.vaultpop.vaultpass.plus.monthly` IS correctly requested via `fetchProducts({type:"subs"})`, but when StoreKit returned no product the hero silently rendered a disabled "Available on the App Store" button with no explanation. |
 | 6 | Rewarded ads give no feedback | `watchRewarded()` was `try/finally` with NO catch — ad init/show rejections escaped the voided promise silently. No immediate "Loading ad..." message, no "Daily reward limit reached." message, and load-failure vs closed-without-reward were indistinguishable. |
 
 ---
@@ -88,7 +88,7 @@ Production AdMob SSV URL remains: https://vaultpop-api.fly.dev/support
 ### 5 — VaultPass Plus handling (`src/screens/shop-screen.tsx`)
 - New `catalogState` (loading / ready / unavailable). While loading the button reads "Connecting to the App Store...".
 - If StoreKit returns no product, the hero shows **"VaultPass is unavailable right now. Products load from the App Store on your device."** with a quiet "Currently Unavailable" button.
-- "Restore Purchases" remains visible at all times. Product ID unchanged (`app.vaultpop.vaultpass.monthly`).
+- "Restore Purchases" remains visible at all times. Product ID unchanged (`app.vaultpop.vaultpass.plus.monthly`).
 
 ### 6 — Rewarded ads feedback (`src/screens/shop-screen.tsx`, `src/ads/ad-service.ts`)
 - Immediate press states: **"Loading ad..."** (cyan, pending) → outcome.

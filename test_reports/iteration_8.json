@@ -1,0 +1,43 @@
+{
+  "summary": "Build 17 VaultPass product ID reconciliation verified on web preview (mobile viewport 375x667, frontend-only per request). Code sweep first: `grep` across /app/frontend/src and /app/backend confirmed every VaultPass SKU reference now reads 'app.vaultpop.vaultpass.plus.monthly' (shop-screen.tsx L59/L226, settings-screen.tsx L40, monetization/catalog.ts L78, monetization/economy.ts L78) with zero remaining occurrences of the old bare 'app.vaultpop.vaultpass.monthly'. Live UI checks: (1) SIGNED-OUT /shop -> 'Currently Unavailable' disabled button, testID shop-vaultpass-unavailable caption 'VaultPass is unavailable right now. Please try again later.', testID shop-catalog-retry-button present, testID shop-vaultpass-diagnostics NOT rendered. (2) ADMIN (qa.owner.b15@vaultpop.test) /shop -> shop-vaultpass-diagnostics text EXACTLY: 'Requested app.vaultpop.vaultpass.plus.monthly — store session unavailable (StoreKit requires a native iOS build).' -> contains new 'app.vaultpop.vaultpass.plus.monthly' = TRUE; after masking the new id, residual substring 'vaultpass.monthly' present = FALSE (confirmed the old bare id does NOT leak through). Retry Loading Products re-runs the catalog load — diagnostics + unavailable caption remain, no crash/blank/loop. (3) PLAYER (qa.player@vaultpop.app) /shop -> shop-vaultpass-diagnostics NOT rendered; unavailable + retry still present as expected for non-admin. (4) Regression: DAILY REWARDS, BOOSTER FORGE, COIN PACKS sections all render on /shop; admin /account still shows OWNER TOOLS + testID account-admin-console-button; tapping it navigates in-app to /admin-console (URL: /admin-console) which renders 'Admin Console' title + testID admin-console-open-button. Sign-out and sign-in as player works. StoreKit inert on web preview is BY DESIGN (native-iOS only). No new bugs introduced by the SKU rename. Deprecated `pointerEvents` and `textShadow*` prop console warnings persist from prior iterations (non-blocking, already reported in iterations 6/7).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "Multiple screens (LinearGradient / absolute overlays)", "issue": "Console warning: 'props.pointerEvents is deprecated. Use style.pointerEvents'. Carry-over from iteration 6/7; non-blocking."},
+      {"component": "Text style props", "issue": "Console warning: '\"textShadow*\" style props are deprecated. Use \"textShadow\".' Non-blocking; caught during shop/account renders."},
+      {"component": "Web preview animations", "issue": "Console warning: 'Animated: useNativeDriver is not supported ... Falling back to JS-based animation.' Expected on web (no RCTAnimation module); native iOS builds unaffected."}
+    ]
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_8.json"
+  ],
+  "action_items": [
+    "No functional fixes required — every acceptance checkpoint for the Build 17 VaultPass SKU rename passed. New SKU 'app.vaultpop.vaultpass.plus.monthly' surfaces in admin-only shop-vaultpass-diagnostics and nowhere in the codebase does the old bare 'app.vaultpop.vaultpass.monthly' remain.",
+    "(Carry-over, non-blocking) Migrate legacy `pointerEvents` prop usages to `style.pointerEvents` and `textShadow*` to unified `textShadow` to silence console warnings.",
+    "Backend tests were intentionally skipped per the review request (this is a frontend-only SKU swap verification; iteration 7's Build 17 backend suite already green)."
+  ],
+  "critical_code_review_comments": [
+    "shop-screen.tsx L59 VAULTPASS_ID constant now typed as IapProductId = 'app.vaultpop.vaultpass.plus.monthly'; L226 restore() filter and L162/L177 catalogDiag string interpolate the same constant, so a single-source-of-truth rename was correctly applied.",
+    "settings-screen.tsx L40 and monetization/economy.ts L78 use the literal 'app.vaultpop.vaultpass.plus.monthly' — could be refactored to import VAULTPASS_ID from a shared constants module to avoid future drift (nit, not a bug).",
+    "monetization/catalog.ts L78 product entry id updated to the ASC ground truth. UI display name still reads 'VaultPass Plus' (verified visually in shop hero card).",
+    "shop-screen.tsx L449 diagnostics gate `profile.account.role === 'admin' && catalogDiag` — verified admin sees it, player + signed-out do not (correct role-scoped exposure)."
+  ],
+  "updated_files": [
+    "/app/test_reports/iteration_8.json (this report)"
+  ],
+  "success_rate": {
+    "backend": "N/A (frontend-only iteration per review request)",
+    "frontend": "100% (all 4 acceptance checkpoints — shop stability + retry, admin diagnostics with new SKU only, player negative gating, DAILY/BOOSTER/COIN sections + in-app /admin-console navigation)"
+  },
+  "seed_data_creation": "No seed data created. Reused qa.owner.b15@vaultpop.test (admin) and qa.player@vaultpop.app (player) from /app/memory/test_credentials.md.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Preview URL: https://vaultpop-premium.preview.emergentagent.com. VaultPass ASC product id is now 'app.vaultpop.vaultpass.plus.monthly' (NOT the bare '.vaultpass.monthly'). UI still labels the product 'VaultPass Plus'. Shop testIDs: shop-vaultpass-unavailable (caption; rendered whenever catalog empty/unavailable), shop-catalog-retry-button (rendered same condition), shop-vaultpass-diagnostics (admin-only, gated by profile.account.role==='admin'). Diagnostics content is 'Requested <id> — store session unavailable (StoreKit requires a native iOS build).' on catch path (which is what web preview always hits since StoreKit is native-only). Account testIDs unchanged from iteration 7. To verify the SKU string mask, use `text.replace('app.vaultpop.vaultpass.plus.monthly','___')` then check the residual for 'vaultpass.monthly' — if residual contains it, the old bare id leaked; iteration 8 confirmed no leak.",
+  "rca_of_issue": "N/A — this iteration verified a targeted string rename (VaultPass SKU: '.vaultpass.monthly' -> '.vaultpass.plus.monthly') across shop-screen.tsx, settings-screen.tsx, catalog.ts, economy.ts. No regressions detected."
+}

@@ -37,7 +37,7 @@ export function SettingsScreen() {
       const restorable = purchases.filter(
         (purchase) =>
           purchase.productId === "app.vaultpop.remove_ads" ||
-          purchase.productId === "app.vaultpop.vaultpass.monthly"
+          purchase.productId === "app.vaultpop.vaultpass.plus.monthly"
       );
       for (const purchase of restorable) {
         const verified = await verifyPurchaseWithServer(

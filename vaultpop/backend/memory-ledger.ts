@@ -57,7 +57,7 @@ export class MemoryLedgerStore implements LedgerStore {
           ? !transaction.revokedAt
           : current.removeAds,
       vaultPassExpiresAt:
-        transaction.productId === "app.vaultpop.vaultpass.monthly"
+        transaction.productId === "app.vaultpop.vaultpass.plus.monthly"
           ? transaction.revokedAt
             ? null
             : transaction.expiresAt

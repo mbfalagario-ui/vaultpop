@@ -25,7 +25,7 @@ test("IAP catalog matches exact IDs, prices, and display order", () => {
       ["app.vaultpop.coins.medium", "US$3.99"],
       ["app.vaultpop.coins.large", "US$8.99"],
       ["app.vaultpop.remove_ads", "US$4.99"],
-      ["app.vaultpop.vaultpass.monthly", "US$2.99/month"]
+      ["app.vaultpop.vaultpass.plus.monthly", "US$2.99/month"]
     ]
   );
   assert.equal(IAP_PRODUCTS[2]?.badge, "Popular");
@@ -58,14 +58,14 @@ test("starter and monthly products apply fixed booster grants once per transacti
   const monthly = applyVerifiedPurchase(starter, {
     verified: true,
     transactionId: "tx-month-one",
-    productId: "app.vaultpop.vaultpass.monthly",
+    productId: "app.vaultpop.vaultpass.plus.monthly",
     grant: { bonusLives: 10, chainBoosts: 10, vaultBursts: 5 },
     expiresAt: "2026-08-01T00:00:00.000Z"
   }, new Date("2026-07-01T00:00:00.000Z"));
   const duplicate = applyVerifiedPurchase(monthly, {
     verified: true,
     transactionId: "tx-month-one",
-    productId: "app.vaultpop.vaultpass.monthly",
+    productId: "app.vaultpop.vaultpass.plus.monthly",
     grant: { bonusLives: 10, chainBoosts: 10, vaultBursts: 5 },
     expiresAt: "2026-08-01T00:00:00.000Z"
   }, new Date("2026-07-01T00:00:00.000Z"));
@@ -163,7 +163,7 @@ test("remove ads restores permanently and VaultPass lapses without deleting inve
   profile = applyVerifiedPurchase(profile, {
     verified: true,
     transactionId: "tx-pass",
-    productId: "app.vaultpop.vaultpass.monthly",
+    productId: "app.vaultpop.vaultpass.plus.monthly",
     grant: { bonusLives: 10 },
     expiresAt: "2026-07-15T00:00:00.000Z"
   }, new Date("2026-07-01T00:00:00.000Z"));

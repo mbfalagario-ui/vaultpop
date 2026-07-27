@@ -194,3 +194,21 @@ notes: |
   WebView renders ONLY on native iOS/Android builds — on web preview the admin-console screen intentionally
   shows the 'Open Admin Console' browser-tab fallback; do NOT report that as a bug. AdMob/StoreKit remain
   native-only and inert on web. Production TS backend out of scope (verified 10/10 locally by main agent).
+
+## Build 17 VaultPass Product ID Reconciliation (2026-07-28) — pending testing_agent verification
+user_problem_statement: |
+  App Store Connect ground truth shows the VaultPass subscription product ID is
+  app.vaultpop.vaultpass.plus.monthly (status Prepare for Submission), NOT app.vaultpop.vaultpass.monthly.
+  All source references updated to the ASC ID (catalog, economy, shop/settings screens, backend ledgers,
+  tests, monetization audit, docs, mirror copies). New test asserts exactly one VaultPass SKU in source
+  matching ASC. UI name stays "VaultPass Plus".
+frontend:
+  - task: "Shop (web preview, StoreKit inert): VaultPass hero still stable — disabled 'Currently Unavailable', caption 'VaultPass is unavailable right now. Please try again later.', Retry button works without crash; ADMIN (qa.owner.b15@vaultpop.test / B15OwnerVerify!234) sees diagnostics line (testID shop-vaultpass-diagnostics) now containing app.vaultpop.vaultpass.plus.monthly (the NEW ID, not the old one); PLAYER (qa.player@vaultpop.app / VaultPopQA2026!x) does not see diagnostics"
+    file: /app/frontend/src/screens/shop-screen.tsx
+    status: needs_retesting
+  - task: "Quick regression: shop sections render (DAILY REWARDS, BOOSTER FORGE, COIN PACKS); settings VaultPass restore row unaffected; admin console entry still works in-app"
+    file: /app/frontend/src/screens/*
+    status: needs_retesting
+notes: |
+  This is a small targeted change (SKU string swap). Frontend-only verification needed; backend mirror has
+  no SKU references. WebView/StoreKit/AdMob remain native-only — not bugs on web preview.

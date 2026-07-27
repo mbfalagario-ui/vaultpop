@@ -75,7 +75,7 @@ export const IAP_PRODUCTS = [
     grant: { removeAds: true }
   },
   {
-    id: "app.vaultpop.vaultpass.monthly",
+    id: "app.vaultpop.vaultpass.plus.monthly",
     displayName: "VaultPass Plus Monthly",
     detail: "Each month: 10 Bonus Lives, 10 Chain Boosts, and 5 Vault Bursts",
     description:

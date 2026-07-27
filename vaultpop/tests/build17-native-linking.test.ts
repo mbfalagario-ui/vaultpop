@@ -205,3 +205,45 @@ test("admin console screens use the in-app WebView flow, not external Linking", 
   // No raw session token in any URL.
   assert.ok(!console.includes("sessionToken}`"));
 });
+
+test("exactly one VaultPass subscription product ID exists in source and matches App Store Connect", () => {
+  const ASC_VAULTPASS_ID = "app.vaultpop.vaultpass.plus.monthly";
+  // The catalog is the single source of truth for SKUs.
+  const catalog = readFileSync("src/monetization/catalog.ts", "utf8");
+  assert.ok(
+    catalog.includes(`"${ASC_VAULTPASS_ID}"`),
+    "catalog must declare the App Store Connect VaultPass product ID"
+  );
+
+  // Every VaultPass SKU reference anywhere in shippable source must match the
+  // App Store Connect product ID exactly — no mixed or stale IDs.
+  const { readdirSync, statSync } = require("node:fs") as typeof import("node:fs");
+  const { join } = require("node:path") as typeof import("node:path");
+  const roots = ["src", "backend", "scripts", "app"];
+  const skuPattern = /app\.vaultpop\.vaultpass[.\w]*/g;
+  const offenders: string[] = [];
+  const walk = (dir: string) => {
+    for (const entry of readdirSync(dir)) {
+      const full = join(dir, entry);
+      if (statSync(full).isDirectory()) {
+        if (entry !== "node_modules" && entry !== "certs") {
+          walk(full);
+        }
+        continue;
+      }
+      if (!/\.(ts|tsx|mjs|json)$/.test(entry)) {
+        continue;
+      }
+      const text = readFileSync(full, "utf8");
+      for (const match of text.match(skuPattern) ?? []) {
+        if (match !== ASC_VAULTPASS_ID) {
+          offenders.push(`${full}: ${match}`);
+        }
+      }
+    }
+  };
+  for (const root of roots) {
+    walk(root);
+  }
+  assert.deepEqual(offenders, [], "stale/mixed VaultPass product IDs found");
+});

@@ -56,7 +56,7 @@ const PRODUCT_ACCENTS: Record<string, string> = {
   "app.vaultpop.remove_ads": colors.cyan
 };
 
-const VAULTPASS_ID: IapProductId = "app.vaultpop.vaultpass.monthly";
+const VAULTPASS_ID: IapProductId = "app.vaultpop.vaultpass.plus.monthly";
 const VAULTPASS = IAP_PRODUCTS.find((product) => product.id === VAULTPASS_ID)!;
 const ONE_TIME_PRODUCTS = IAP_PRODUCTS.filter(
   (product) => product.kind !== "subscription"
@@ -223,7 +223,7 @@ export function ShopScreen() {
       const restorable = purchases.filter(
         (purchase) =>
           purchase.productId === "app.vaultpop.remove_ads" ||
-          purchase.productId === "app.vaultpop.vaultpass.monthly"
+          purchase.productId === "app.vaultpop.vaultpass.plus.monthly"
       );
       for (const purchase of restorable) {
         await processPurchase(purchase);

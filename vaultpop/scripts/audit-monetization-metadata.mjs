@@ -13,7 +13,7 @@ const products = [
   ["app.vaultpop.coins.medium", "US$3.99"],
   ["app.vaultpop.coins.large", "US$8.99"],
   ["app.vaultpop.remove_ads", "US$4.99"],
-  ["app.vaultpop.vaultpass.monthly", "US$2.99/month"]
+  ["app.vaultpop.vaultpass.plus.monthly", "US$2.99/month"]
 ];
 let previousIndex = -1;
 for (const [productId, price] of products) {

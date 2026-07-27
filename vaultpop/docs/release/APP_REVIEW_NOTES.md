@@ -19,7 +19,7 @@ Products:
 - `app.vaultpop.coins.large`: fixed 12,000 Vault Coins for in-game boosters.
 - `app.vaultpop.boosters.starter`: fixed 5 Bonus Lives, 5 Chain Boosts, and 3 Vault Bursts, usable from the gameplay screen.
 - `app.vaultpop.remove_ads`: permanent removal of every ad placement and rewarded prompt.
-- `app.vaultpop.vaultpass.monthly`: monthly ad-free access, premium theme, priority support routing, and a fixed monthly booster grant.
+- `app.vaultpop.vaultpass.plus.monthly`: monthly ad-free access, premium theme, priority support routing, and a fixed monthly booster grant.
 
 Purchases are verified against Apple-signed transaction data before delivery. Consumables use a unique transaction ledger and are not restored. Cancelled, failed, pending, unverified, or revoked transactions grant nothing.
 

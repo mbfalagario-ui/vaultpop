@@ -116,7 +116,7 @@ test("subscription restore on another install does not replay monthly inventory"
     async verify() {
       return {
         transactionId: "subscription-renewal-one",
-        productId: "app.vaultpop.vaultpass.monthly",
+        productId: "app.vaultpop.vaultpass.plus.monthly",
         expiresAt: "2099-07-01T00:00:00.000Z",
         revokedAt: null
       };

@@ -75,7 +75,7 @@ function applyEntitlementState(
     };
   }
 
-  if (purchase.productId !== "app.vaultpop.vaultpass.monthly") {
+  if (purchase.productId !== "app.vaultpop.vaultpass.plus.monthly") {
     return profile;
   }
 
