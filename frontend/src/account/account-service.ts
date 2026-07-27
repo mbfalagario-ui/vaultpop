@@ -132,6 +132,26 @@ export async function requestPasswordReset(email: string): Promise<string> {
     : "If an account exists for this email, a reset request has been received.";
 }
 
+/**
+ * Exchanges the signed-in admin session for a short-lived single-use handoff
+ * code and returns the console URL that consumes it. The backend then sets a
+ * secure HttpOnly cookie session for /admin, so the owner is never asked to
+ * sign in a second time. Raw session tokens never appear in any URL.
+ */
+export async function requestAdminConsoleHandoffUrl(token: string): Promise<string> {
+  const result = await requestJson("/v1/admin/handoff", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json"
+    }
+  });
+  if (!result.ok || typeof result.body?.code !== "string") {
+    throw new Error(errorMessage(result, "Admin Console is unavailable right now."));
+  }
+  return `${API_BASE_URL}/admin/handoff?code=${encodeURIComponent(result.body.code)}`;
+}
+
 export async function signOutAccount(token: string | null): Promise<void> {
   if (!token) {
     return;

@@ -1,5 +1,4 @@
 import {
-  ADMIN_CONSOLE_URL,
   applyAccountLogin,
   applyAccountRefresh,
   clearAccountSession,
@@ -12,6 +11,7 @@ import {
   signOutAccount
 } from "@/account/account-service";
 import { ActionButton } from "@/components/action-button";
+import { ActionLink } from "@/components/action-link";
 import { CoinFace } from "@/components/coin-face";
 import { MetricCard } from "@/components/metric-card";
 import { ScreenShell } from "@/components/screen-shell";
@@ -20,7 +20,7 @@ import { useSaveProfile } from "@/storage/use-save-profile";
 import { colors, radius, spacing, typography } from "@/theme";
 import { useLocalSearchParams } from "expo-router";
 import { useState } from "react";
-import { Linking, Pressable, Text, TextInput, View } from "react-native";
+import { Pressable, Text, TextInput, View } from "react-native";
 
 type AuthMode = "signin" | "create";
 
@@ -206,12 +206,12 @@ export function AccountScreen() {
               <Text selectable style={[typography.eyebrow, { color: colors.textMuted }]}>
                 OWNER TOOLS
               </Text>
-              <ActionButton
+              <ActionLink
+                href="/admin-console"
                 label="Admin Console"
                 detail="Support inbox, analytics, and user management."
                 accent={colors.gold}
                 testID="account-admin-console-button"
-                onPress={() => void Linking.openURL(ADMIN_CONSOLE_URL)}
               />
             </View>
           ) : null}

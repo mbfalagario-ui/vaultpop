@@ -55,6 +55,7 @@ export default function RootLayout() {
         <Stack.Screen name="shop" options={{ title: "Shop" }} />
         <Stack.Screen name="support" options={{ title: "Support" }} />
         <Stack.Screen name="account" options={{ title: "Account" }} />
+        <Stack.Screen name="admin-console" options={{ title: "Admin Console" }} />
         <Stack.Screen name="settings" options={{ title: "Settings" }} />
         <Stack.Screen name="gameplay-settings" options={{ title: "Gameplay Settings" }} />
         <Stack.Screen name="faq" options={{ title: "FAQ" }} />

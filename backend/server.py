@@ -1,5 +1,5 @@
 from fastapi import FastAPI, APIRouter, Header, HTTPException, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -307,6 +307,45 @@ async def get_account(authorization: Optional[str] = Header(default=None)):
     if not doc:
         return JSONResponse(status_code=401, content={"error": "Authentication required."})
     return {"state": await _account_state(doc)}
+
+
+# Preview mirror of the production admin handoff flow: mints a short-lived
+# single-use code for admin accounts. The production TS backend additionally
+# sets a secure cookie session for /admin; the mirror just proves the app-side
+# flow end to end without exposing session tokens in URLs.
+_admin_handoff_codes: dict = {}
+
+
+@api_router.post("/v1/admin/handoff", status_code=201)
+async def admin_handoff(authorization: Optional[str] = Header(default=None)):
+    doc = await _account_from_token(authorization)
+    if not doc or doc.get("role") != "admin":
+        return JSONResponse(status_code=403, content={"error": "Admin authorization required."})
+    now_ts = time.time()
+    for key in [k for k, v in _admin_handoff_codes.items() if v["expiresAt"] <= now_ts]:
+        _admin_handoff_codes.pop(key, None)
+    code = uuid.uuid4().hex + uuid.uuid4().hex
+    _admin_handoff_codes[code] = {"accountId": doc["id"], "expiresAt": now_ts + 60}
+    return {"code": code, "expiresInSeconds": 60}
+
+
+@api_router.get("/admin/handoff")
+async def admin_handoff_consume(code: str = ""):
+    entry = _admin_handoff_codes.pop(code, None)
+    valid = bool(entry and entry["expiresAt"] > time.time())
+    return HTMLResponse(
+        status_code=200 if valid else 403,
+        content=(
+            "<html><body style='background:#060512;color:#F7F5FF;font-family:system-ui;padding:24px'>"
+            + (
+                "<h2>VaultPop Admin Console (preview mirror)</h2><p>Admin session handoff accepted. "
+                "The full operator console runs on the production backend.</p>"
+                if valid
+                else "<h2>Restricted</h2><p>This admin handoff link is invalid or has expired.</p>"
+            )
+            + "</body></html>"
+        ),
+    )
 
 
 class SupportTicket(BaseModel):

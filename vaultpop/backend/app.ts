@@ -1,3 +1,5 @@
+import { randomBytes } from "node:crypto";
+
 import { ADMOB_IOS, REWARDED_DAILY_CAP } from "../src/ads/constants";
 import { getProductDefinition } from "../src/monetization/catalog";
 import { FAQ_CATEGORIES } from "../src/support/faq-data";
@@ -51,6 +53,19 @@ function isProtectedOwnerAccount(accounts: AccountStore, accountId: string): boo
   const state = accounts.getAccountState(accountId);
   return state?.account.email.trim().toLowerCase() === ownerEmail();
 }
+
+/**
+ * Short-lived single-use admin handoff codes. The app exchanges its
+ * authenticated session for a code; the in-app WebView then loads
+ * GET /admin/handoff?code=... which consumes the code and sets a secure
+ * HttpOnly admin session cookie for /admin. Raw session tokens never appear
+ * in URLs, and codes expire after 60 seconds.
+ */
+const ADMIN_HANDOFF_TTL_MS = 60_000;
+const adminHandoffCodes = new Map<string, { token: string; expiresAt: number }>();
+
+const ADMIN_COOKIE_NAME = "vp_admin";
+const ADMIN_COOKIE_CLEAR = `${ADMIN_COOKIE_NAME}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`;
 
 export function createApiHandler(dependencies: {
   verifier: PurchaseVerifier;
@@ -145,6 +160,31 @@ export function createApiHandler(dependencies: {
         }
       });
     }
+    if (request.method === "GET" && url.pathname === "/admin/handoff") {
+      // Consumes a single-use handoff code and starts a cookie-backed admin
+      // session for the /admin console. Fail-closed: invalid, expired, or
+      // reused codes redirect to the normal /admin login with no cookie.
+      const code = url.searchParams.get("code") ?? "";
+      const entry = adminHandoffCodes.get(code);
+      if (entry) {
+        adminHandoffCodes.delete(code);
+      }
+      const account =
+        entry && entry.expiresAt > Date.now()
+          ? dependencies.accounts.authenticate(entry.token)
+          : null;
+      const headers = new Headers({
+        Location: "/admin",
+        "Cache-Control": "no-store"
+      });
+      if (account && account.active && account.role === "admin") {
+        headers.set(
+          "Set-Cookie",
+          `${ADMIN_COOKIE_NAME}=${entry!.token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=86400`
+        );
+      }
+      return new Response(null, { status: 303, headers });
+    }
     if (request.method === "GET" && url.pathname === "/admin") {
       return adminPage();
     }
@@ -210,11 +250,11 @@ export function createApiHandler(dependencies: {
     }
 
     if (request.method === "POST" && url.pathname === "/v1/auth/logout") {
-      const token = bearerToken(request);
+      const token = sessionTokenFromRequest(request);
       if (token) {
         dependencies.accounts.revokeSession(token);
       }
-      return json({ signedOut: true });
+      return json({ signedOut: true }, 200, { "Set-Cookie": ADMIN_COOKIE_CLEAR });
     }
 
     if (request.method === "POST" && url.pathname === "/v1/auth/password-reset") {
@@ -386,6 +426,22 @@ async function handleAdminRequest(
   }
 
   try {
+    if (request.method === "POST" && url.pathname === "/v1/admin/handoff") {
+      const token = sessionTokenFromRequest(request);
+      if (!token) {
+        return json({ error: "Admin authorization required." }, 403);
+      }
+      const now = Date.now();
+      for (const [key, value] of adminHandoffCodes) {
+        if (value.expiresAt <= now) {
+          adminHandoffCodes.delete(key);
+        }
+      }
+      const code = randomBytes(32).toString("base64url");
+      adminHandoffCodes.set(code, { token, expiresAt: now + ADMIN_HANDOFF_TTL_MS });
+      return json({ code, expiresInSeconds: ADMIN_HANDOFF_TTL_MS / 1_000 }, 201);
+    }
+
     if (request.method === "GET" && url.pathname === "/v1/admin/analytics") {
       const now = new Date();
       const purchases = ops.purchaseAnalytics(now);
@@ -640,11 +696,26 @@ function bearerToken(request: Request): string | null {
     : null;
 }
 
+/**
+ * Session token from the Authorization header, or — for the browser-based
+ * /admin console — from the secure HttpOnly admin session cookie set by the
+ * single-use handoff flow. SameSite=Lax protects cookie-authenticated POSTs.
+ */
+function sessionTokenFromRequest(request: Request): string | null {
+  const bearer = bearerToken(request);
+  if (bearer) {
+    return bearer;
+  }
+  const cookies = request.headers.get("cookie") ?? "";
+  const match = cookies.match(/(?:^|;\s*)vp_admin=([^;\s]+)/);
+  return match ? match[1] : null;
+}
+
 function authenticatedAccount(
   request: Request,
   accounts: AccountStore
 ): PublicAccount | null {
-  const token = bearerToken(request);
+  const token = sessionTokenFromRequest(request);
   return token ? accounts.authenticate(token) : null;
 }
 
@@ -736,12 +807,17 @@ function recordLoginFailure(key: string, now = Date.now()): void {
   });
 }
 
-function json(body: object, status = 200): Response {
+function json(
+  body: object,
+  status = 200,
+  extraHeaders: Record<string, string> = {}
+): Response {
   return Response.json(body, {
     status,
     headers: {
       "Cache-Control": "no-store",
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
+      ...extraHeaders
     }
   });
 }
@@ -789,3 +865,4 @@ function estimatedGrossUsd(productCounts: Record<string, number>): number {
   }
   return Math.round(total * 100) / 100;
 }
+

@@ -85,6 +85,7 @@ export function ShopScreen() {
     tone: "pending" | "success" | "error";
   } | null>(null);
   const [busyProductId, setBusyProductId] = useState<string | null>(null);
+  const [catalogDiag, setCatalogDiag] = useState("");
   const [forgeResult, setForgeResult] = useState<{ id: BoosterKind; text: string } | null>(null);
   const [watchingAd, setWatchingAd] = useState<"life" | "coins" | null>(null);
   const dateKey = getLocalDateKey();
@@ -157,6 +158,13 @@ export function ShopScreen() {
       }
       setStoreProducts(products);
       setCatalogState(products.length > 0 ? "ready" : "unavailable");
+      setCatalogDiag(
+        `Requested ${VAULTPASS_ID} — store returned ${
+          products.length === 0
+            ? "no products"
+            : products.map((item) => item.id).join(", ")
+        }.`
+      );
       setStatus(
         products.length > 0
           ? "App Store products loaded."
@@ -165,6 +173,9 @@ export function ShopScreen() {
     } catch {
       if (mountedRef.current) {
         setCatalogState("unavailable");
+        setCatalogDiag(
+          `Requested ${VAULTPASS_ID} — store session unavailable (StoreKit requires a native iOS build).`
+        );
         setStatus("Live prices load from the App Store on your device.");
       }
     }
@@ -425,8 +436,7 @@ export function ShopScreen() {
                   { color: colors.textSecondary, fontSize: 12, textAlign: "center" }
                 ]}
               >
-                VaultPass is unavailable right now. Products load from the App
-                Store on your device.
+                VaultPass is unavailable right now. Please try again later.
               </Text>
               <ActionButton
                 label="Retry Loading Products"
@@ -436,6 +446,18 @@ export function ShopScreen() {
                 testID="shop-catalog-retry-button"
                 onPress={() => void loadCatalog()}
               />
+              {profile.account.role === "admin" && catalogDiag ? (
+                <Text
+                  selectable
+                  testID="shop-vaultpass-diagnostics"
+                  style={[
+                    typography.caption,
+                    { color: colors.textMuted, fontSize: 10.5, textAlign: "center" }
+                  ]}
+                >
+                  {catalogDiag}
+                </Text>
+              ) : null}
             </View>
           ) : null}
           <Text

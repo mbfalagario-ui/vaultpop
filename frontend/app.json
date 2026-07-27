@@ -38,7 +38,16 @@
       ],
       "expo-sqlite",
       "expo-tracking-transparency",
-      "expo-audio"
+      "expo-audio",
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-6035003811280283~7349136854",
+          "iosAppId": "ca-app-pub-6035003811280283~7349136854",
+          "delayAppMeasurementInit": true
+        }
+      ],
+      "react-native-iap"
     ],
     "experiments": {
       "typedRoutes": true

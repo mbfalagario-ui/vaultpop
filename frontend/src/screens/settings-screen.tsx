@@ -1,7 +1,7 @@
 import { ActionButton } from "@/components/action-button";
 import { ActionLink } from "@/components/action-link";
 import { ScreenShell } from "@/components/screen-shell";
-import { ADMIN_CONSOLE_URL, isAccountSignedIn } from "@/account/account-service";
+import { isAccountSignedIn } from "@/account/account-service";
 import { applyVerifiedPurchase } from "@/monetization/economy";
 import {
   createStoreSession,
@@ -11,7 +11,7 @@ import { resetLocalProgress } from "@/storage";
 import { useSaveProfile } from "@/storage/use-save-profile";
 import { colors, radius, spacing, typography } from "@/theme";
 import { useState } from "react";
-import { Linking, Text, View } from "react-native";
+import { Text, View } from "react-native";
 
 export function SettingsScreen() {
   const [profile, setProfile] = useSaveProfile();
@@ -105,12 +105,12 @@ export function SettingsScreen() {
               testID="settings-account-link"
             />
             {profile.account.role === "admin" ? (
-              <ActionButton
+              <ActionLink
+                href="/admin-console"
                 label="Admin Console"
                 detail="Owner tools: support inbox, analytics, user management."
                 accent={colors.gold}
                 testID="settings-admin-console-button"
-                onPress={() => void Linking.openURL(ADMIN_CONSOLE_URL)}
               />
             ) : null}
           </>

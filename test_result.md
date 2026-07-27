@@ -160,3 +160,37 @@ notes: |
   (AdBanner renders null; store session throws in web/Expo Go) — do NOT report these as bugs.
   Production TS backend (fly.dev) out of scope; owner guard verified locally by main agent.
   Admin QA account exists only in preview Mongo mirror (role flipped via DB).
+
+## Build 17 Native Linking + Admin WebView Fix (2026-07-27) — pending testing_agent verification
+user_problem_statement: |
+  Build 16 failed on-device QA: native modules (AdMob/StoreKit) were not linked because frontend/app.json
+  (the config the Emergent EAS build reads) lacked the react-native-google-mobile-ads and react-native-iap
+  config plugins. Also the Admin Console used Linking.openURL (external Safari, forced second sign-in).
+  Fixes: both app.json files now declare the mobile-ads plugin (prod app ID ca-app-pub-6035003811280283~7349136854,
+  iOS+Android) + react-native-iap; new in-app /admin-console screen (WebView on native, browser-tab fallback on
+  web preview) using a short-lived single-use handoff code -> secure HttpOnly cookie session (no token in URLs,
+  no second sign-in); shop VaultPass owner-only diagnostics line + fallback copy.
+backend:
+  - task: "TS backend handoff endpoints (POST /v1/admin/handoff bearer-admin-only 201, GET /admin/handoff single-use 303 + Set-Cookie vp_admin HttpOnly/Secure/Lax, cookie auth on admin APIs, logout clears+revokes) — VERIFIED locally 10/10 by main agent, OUT OF SCOPE for testing agent"
+    file: /app/vaultpop/backend/app.ts
+    status: verified_by_main_agent_locally
+  - task: "Preview mirror handoff: POST /api/v1/admin/handoff (201 admin / 403 player+anon), GET /api/admin/handoff?code= (200 once, 403 replay)"
+    file: /app/backend/server.py
+    status: needs_retesting
+frontend:
+  - task: "Admin entry now navigates in-app: account screen OWNER TOOLS 'Admin Console' link (testID account-admin-console-button) -> /admin-console route; settings has settings-admin-console-button; NO external Linking.openURL"
+    file: /app/frontend/src/screens/account-screen.tsx, /app/frontend/src/screens/settings-screen.tsx
+    status: needs_retesting
+  - task: "/admin-console screen (admin qa.owner.b15@vaultpop.test / B15OwnerVerify!234): shows OWNER TOOLS header + 'Open Admin Console' button (testID admin-console-open-button) on web preview after session handoff; player/signed-out users see RESTRICTED view with testID admin-console-restricted-account-link"
+    file: /app/frontend/src/screens/admin-console-screen.tsx
+    status: needs_retesting
+  - task: "Shop VaultPass: caption now 'VaultPass is unavailable right now. Please try again later.'; Retry button (shop-catalog-retry-button) still works; ADMIN user additionally sees diagnostics line (testID shop-vaultpass-diagnostics) naming requested SKU app.vaultpop.vaultpass.monthly; player does NOT see diagnostics"
+    file: /app/frontend/src/screens/shop-screen.tsx
+    status: needs_retesting
+  - task: "Regression: player sign-in/sync/sign-out, forgot password, shop sections (DAILY REWARDS/BOOSTER FORGE/coin packs), no admin buttons for player"
+    file: /app/frontend/src/screens/*
+    status: needs_retesting
+notes: |
+  WebView renders ONLY on native iOS/Android builds — on web preview the admin-console screen intentionally
+  shows the 'Open Admin Console' browser-tab fallback; do NOT report that as a bug. AdMob/StoreKit remain
+  native-only and inert on web. Production TS backend out of scope (verified 10/10 locally by main agent).

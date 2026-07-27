@@ -46,7 +46,8 @@
     "react-native-nitro-modules": "^0.35.10",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.2",
-    "react-native-view-shot": "5.1.0"
+    "react-native-view-shot": "5.1.0",
+    "react-native-webview": "13.16.1"
   },
   "devDependencies": {
     "@types/node": "^26.0.1",

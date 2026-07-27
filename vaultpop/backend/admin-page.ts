@@ -595,6 +595,18 @@ async function refreshAll(){
     runChecks().catch(()=>{})
   ]);
 }
+// Cookie-session boot: if the in-app WebView handoff already set a secure
+// admin session cookie, skip the login form entirely (no second sign-in).
+(async()=>{
+  try{
+    const me=await api("/v1/account");
+    if(me.state&&me.state.account&&me.state.account.role==="admin"){
+      $("owner-email").textContent=me.state.account.email;
+      showView("dashboard");status("Signed in.");
+      await refreshAll();
+    }
+  }catch{}
+})();
 $("login-form").onsubmit=async event=>{
   event.preventDefault();
   const button=$("login-button");
