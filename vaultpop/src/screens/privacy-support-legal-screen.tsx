@@ -56,6 +56,13 @@ export function PrivacySupportLegalScreen() {
             void Linking.openURL("https://vaultpop-api.fly.dev/privacy");
           }}
         />
+        <ActionButton
+          label="Terms of Use"
+          detail="Opens the terms URL."
+          onPress={() => {
+            void Linking.openURL("https://vaultpop-api.fly.dev/terms");
+          }}
+        />
       </View>
     </ScreenShell>
   );

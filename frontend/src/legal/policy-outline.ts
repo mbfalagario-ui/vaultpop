@@ -11,6 +11,7 @@ export const legalOutline = {
   support: [
     "Support email: support@vaultpop.app.",
     "Privacy policy: https://vaultpop-api.fly.dev/privacy.",
+    "Terms of use: https://vaultpop-api.fly.dev/terms.",
     "Support and privacy requests can be sent from the in-app Support screen."
   ],
   gameRules: [

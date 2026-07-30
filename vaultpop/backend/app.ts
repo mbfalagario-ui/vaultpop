@@ -7,6 +7,7 @@ import { getProductDefinition } from "../src/monetization/catalog";
 import { FAQ_CATEGORIES } from "../src/support/faq-data";
 import { adminPage } from "./admin-page";
 import { grantForTransaction } from "./grants";
+import { renderPrivacyPage, renderTermsPage } from "./legal-pages";
 import type { LeaderboardStore } from "./leaderboard-store";
 import type { OpsStore } from "./ops-store";
 import {
@@ -115,10 +116,10 @@ export function createApiHandler(dependencies: {
       return json(dependencies.leaderboard.top(mode, limit, installId));
     }
     if (request.method === "GET" && url.pathname === "/privacy") {
-      return html(
-        "VaultPop Privacy",
-        "VaultPop stores core game progress on your device. Optional account login links an email address, role, session, install ID, and account inventory to the VaultPop service. Apple processes purchases. Google AdMob may process device identifiers, coarse location, product interaction, advertising, performance, crash, and diagnostic data under its SDK disclosures for ad delivery, consent, measurement, and fraud prevention. VaultPop asks for consent and App Tracking Transparency permission when advertising initialization requires it. Private support requests may include a category, message, optional email, install ID, app and build version, device model, and priority-routing status."
-      );
+      return htmlPage(renderPrivacyPage());
+    }
+    if (request.method === "GET" && url.pathname === "/terms") {
+      return htmlPage(renderTermsPage());
     }
     if (
       (request.method === "GET" || request.method === "HEAD") &&
@@ -849,16 +850,13 @@ function json(
   });
 }
 
-function html(title: string, body: string): Response {
-  return new Response(
-    `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><style>body{background:#070A12;color:#F8FBFF;font:17px/1.6 system-ui;max-width:720px;margin:auto;padding:48px 24px}h1{color:#F6C65B}p{color:#AAB6CE}</style><h1>${title}</h1><p>${body}</p>`,
-    {
-      headers: {
-        "Content-Type": "text/html; charset=utf-8",
-        "Cache-Control": "public, max-age=300"
-      }
+function htmlPage(markup: string): Response {
+  return new Response(markup, {
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "public, max-age=300"
     }
-  );
+  });
 }
 
 function resetBlocked(key: string, now = Date.now()): boolean {

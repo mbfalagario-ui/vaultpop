@@ -151,11 +151,11 @@ footer a{color:var(--cyan);text-decoration:none}
   </div>
 
   <div class="privacy">
-    <strong>Privacy &amp; safety.</strong> Your game progress lives on your device. Optional accounts link only an email address and in-game inventory. We never sell personal data, and support messages are used solely to resolve your request. Read the full <a href="/privacy" style="color:var(--cyan)">privacy policy</a>.
+    <strong>Privacy &amp; safety.</strong> Your game progress lives on your device. Optional accounts link only an email address and in-game inventory. We never sell personal data, and support messages are used solely to resolve your request. Read the full <a href="/privacy" style="color:var(--cyan)">privacy policy</a> and <a href="/terms" style="color:var(--cyan)">terms of use</a>.
   </div>
 
   <footer>
-    VaultPop &middot; <a href="/privacy">Privacy Policy</a> &middot; <a href="mailto:support@vaultpop.app">support@vaultpop.app</a>
+    VaultPop &middot; <a href="/privacy">Privacy Policy</a> &middot; <a href="/terms">Terms of Use</a> &middot; <a href="mailto:support@vaultpop.app">support@vaultpop.app</a>
   </footer>
 </div>
 </body>

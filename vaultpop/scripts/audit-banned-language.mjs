@@ -6,6 +6,12 @@ const skippedDirectories = new Set([".git", "node_modules", ".expo", "dist", "co
 const allowedLegalPaths = [
   "src/legal/policy-outline.ts",
   "src/screens/privacy-support-legal-screen.tsx",
+  "backend/legal-pages.ts",
+  "docs/legal/DATA_PRACTICES_AUDIT.md",
+  "docs/legal/PRIVACY_POLICY.md",
+  "docs/legal/TERMS_OF_USE.md",
+  "docs/legal/APP_PRIVACY_COMPLETION_GUIDE.md",
+  "docs/legal/ADMOB_PRIVACY_AND_GDPR_GUIDE.md",
   "docs/release/COMPLIANCE_RULEBOOK.md",
   "docs/release/PRODUCT_CONTRACT.md",
   "docs/release/APP_REVIEW_NOTES.md",

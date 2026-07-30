@@ -179,3 +179,16 @@ No build/upload/submission; bundle ID, signing, IAP IDs, AdMob IDs unchanged; no
 - Verified from /app root: verify PASS (51/51 + all audits), each audit individually PASS. expo-doctor in vaultpop: 19/21 in this container (missing peer expo-asset under pnpm strict linking + registry version check) — SOURCE identical to commit where user's local doctor = 21/21; no package.json changes made.
 - Local commit df650613 (only package.json + .gitignore). NO git remote/credentials here — user must push via Emergent "Save to GitHub" → branch build11-admin-completion.
 - testing_agent iteration_5.json: ALL PASS (scripts real, audits pass, git diff clean, preview unaffected).
+
+## Build 18 Legal / App Privacy / AdMob GDPR Compliance — COMPLETE (2026-07-30, forked session)
+- Strictly-scoped compliance task (no ads/IAP/admin/gameplay/UI changes). Source of truth: docs/legal/DATA_PRACTICES_AUDIT.md (from previous fork).
+- NEW docs (vaultpop/docs/legal/): PRIVACY_POLICY.md, TERMS_OF_USE.md (both audit-derived, neutral operator wording, fictional-items language, OWNER CONFIRMATION REQUIRED notes for entity/jurisdiction/mailbox/5.1.1(v) account deletion), APP_PRIVACY_COMPLETION_GUIDE.md (exact ASC questionnaire answers incl. Google SDK matrix marked UNVERIFIED — OWNER CONFIRMATION REQUIRED), ADMOB_PRIVACY_AND_GDPR_GUIDE.md (GDPR message publish steps, IDFA explainer, US states, app-ads.txt, child-directed owner decisions).
+- Backend: NEW backend/legal-pages.ts (renderPrivacyPage/renderTermsPage — full mobile-responsive HTML, support-page visual language). app.ts: /privacy now serves full policy (replaced old one-paragraph blurb + removed old html() helper → htmlPage()), NEW GET /terms. support-page.ts: footer + privacy card now link /privacy AND /terms. No other route touched; /admin auth untouched.
+- App: privacy-support-legal-screen.tsx adds "Terms of Use" ActionButton (Linking.openURL https://vaultpop-api.fly.dev/terms); policy-outline.ts support section lists terms URL. Both files synced to /app/frontend mirror.
+- audit-banned-language.mjs: new legal files added to allowedLegalPaths (script's intended mechanism; terms like "cryptocurrency/gambling" appear ONLY in prohibition context).
+- DEPLOY BLOCKER FIXED: node:24 image corepack pulled newest pnpm whose minimumReleaseAge default rejected expo@56.0.18 (published <24h before build). Fix: package.json "packageManager": "pnpm@10.34.5" (matches local). 2nd deploy SUCCESS.
+- Fly token WORKS from ~/.fly/config.yml (multi-word "FlyV1 fm2_..." — must read full line, not awk $2; export FLY_ACCESS_TOKEN).
+- Node 20 in shell lacks node:sqlite → tests need PATH=/opt/node22/bin:$PATH. verify PASS 60/60 + all 5 audits; expo-doctor 21/21.
+- LIVE VERIFIED: /health /privacy /terms /support /admin all 200; /v1/admin/analytics no-auth 403; support footer has 2 /terms links; privacy page "Last updated: July 30, 2026".
+- Git: committed on main; local branch build15-qa-regression-fix points at it. NO git remote — user pushes via Emergent "Save to GitHub".
+- NOT done (per hard rules): App Review submission, EAS, publishing Apple App Privacy answers, publishing AdMob GDPR message — owner does these via the two guides.

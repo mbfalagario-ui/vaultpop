@@ -2,6 +2,7 @@
   "name": "vaultpop-ios",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@10.34.5",
   "description": "VaultPop iOS arcade puzzle game.",
   "main": "expo-router/entry",
   "scripts": {
