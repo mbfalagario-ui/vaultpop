@@ -22,6 +22,13 @@ export interface LeaderboardStore {
     score: number;
   }): { bestScore: number; rank: number };
   top(mode: string, limit: number, installId: string): LeaderboardSnapshot;
+  /**
+   * Account-deletion support: removes the install's leaderboard identity
+   * (handle + scores) and de-identifies retained rewarded-ad verification
+   * records (transaction IDs are kept for SSV idempotency/fraud prevention;
+   * the install reference is cleared).
+   */
+  deleteInstallData(installId: string): void;
 }
 
 /** Persistent leaderboard + rewarded-ad event storage (survives restarts). */
@@ -164,6 +171,15 @@ export class SqliteLeaderboardStore implements LeaderboardStore, RewardEventStor
       .get(userId, sinceIso) as { total: number };
     return Number(row.total);
   }
+
+  deleteInstallData(installId: string): void {
+    this.database
+      .prepare("DELETE FROM leaderboard_scores WHERE install_id = ?")
+      .run(installId);
+    this.database
+      .prepare("UPDATE rewarded_ad_events SET user_id = NULL WHERE user_id = ?")
+      .run(installId);
+  }
 }
 
 /** In-memory implementation for tests. */
@@ -233,6 +249,19 @@ export class MemoryLeaderboardStore implements LeaderboardStore, RewardEventStor
     return this.rewardEvents.filter(
       (event) => event.userId === userId && event.createdAt >= sinceIso
     ).length;
+  }
+
+  deleteInstallData(installId: string): void {
+    for (const [key, row] of this.rows) {
+      if (row.installId === installId) {
+        this.rows.delete(key);
+      }
+    }
+    for (const event of this.rewardEvents) {
+      if (event.userId === installId) {
+        event.userId = null;
+      }
+    }
   }
 
   private rewardEvents: { userId: string | null; createdAt: string }[] = [];

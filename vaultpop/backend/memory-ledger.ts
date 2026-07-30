@@ -73,6 +73,15 @@ export class MemoryLedgerStore implements LedgerStore {
     return { ...(this.balances.get(installId) ?? EMPTY_BALANCE) };
   }
 
+  deleteInstallData(installId: string): void {
+    this.balances.delete(installId);
+    for (const [transactionId, owner] of this.transactions) {
+      if (owner === installId) {
+        this.transactions.set(transactionId, "deleted-account");
+      }
+    }
+  }
+
   createSupportTicket(input: {
     installId: string;
     category: string;

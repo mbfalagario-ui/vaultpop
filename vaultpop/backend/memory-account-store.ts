@@ -147,6 +147,33 @@ export class MemoryAccountStore implements AccountStore {
     this.sessions.delete(hashSessionToken(token));
   }
 
+  verifyAccountPassword(accountId: string, password: string): boolean {
+    const account = this.accounts.get(accountId);
+    return Boolean(
+      account && verifyPassword(password, account.passwordHash, account.passwordSalt)
+    );
+  }
+
+  deleteAccount(accountId: string): { linkedInstallId: string | null } {
+    const account = this.requireInternalAccount(accountId);
+    const linkedInstallId = account.linkedInstallId;
+    for (const [tokenHash, session] of this.sessions) {
+      if (session.accountId === accountId) {
+        this.sessions.delete(tokenHash);
+      }
+    }
+    for (const entry of this.audit) {
+      if (entry.targetAccountId === accountId) {
+        entry.before = null;
+        entry.after = null;
+        entry.delta = null;
+      }
+    }
+    this.accounts.delete(accountId);
+    this.balances.delete(accountId);
+    return { linkedInstallId };
+  }
+
   getAccountState(accountId: string): AccountState | null {
     const account = this.accounts.get(accountId);
     if (!account) {

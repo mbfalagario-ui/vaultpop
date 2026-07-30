@@ -36,6 +36,7 @@ export type SupportTicketSummary = {
   message: string;
   email: string | null;
   priority: boolean;
+  tier: "premium" | "standard";
   createdAt: string;
 };
 
@@ -86,6 +87,13 @@ export interface LedgerStore {
     deviceInfo: string;
     priority: boolean;
   }): string;
+  /**
+   * Account-deletion support: removes the install's balance row and detaches
+   * retained purchase records from the install. Purchase records are kept
+   * (de-identified) for duplicate-grant fraud prevention and financial
+   * history.
+   */
+  deleteInstallData(installId: string): void;
 }
 
 export interface AccountStore {
@@ -114,6 +122,14 @@ export interface AccountStore {
   }): AuthSession;
   authenticate(token: string, now?: Date): PublicAccount | null;
   revokeSession(token: string): void;
+  /** Reauthentication check for destructive self-service actions. */
+  verifyAccountPassword(accountId: string, password: string): boolean;
+  /**
+   * Permanent self-service deletion. Removes the account, credentials, all
+   * sessions, the install link, and the account balance. Returns the install
+   * ID that was linked so callers can purge install-keyed data.
+   */
+  deleteAccount(accountId: string): { linkedInstallId: string | null };
   getAccountState(accountId: string): AccountState | null;
   getAccountStateByInstallId(installId: string): AccountState | null;
   listAccounts(input?: {

@@ -154,6 +154,26 @@ export class SqliteLedgerStore implements LedgerStore {
     };
   }
 
+  /**
+   * Account-deletion support: deletes the install's balance row and detaches
+   * retained purchase records from the install. Records keep the Apple
+   * transaction ID for duplicate-grant fraud prevention and financial
+   * history, but no longer reference the deleted install.
+   */
+  deleteInstallData(installId: string): void {
+    this.database.exec("BEGIN IMMEDIATE");
+    try {
+      this.database.prepare("DELETE FROM balances WHERE install_id = ?").run(installId);
+      this.database
+        .prepare("UPDATE transactions SET install_id = 'deleted-account' WHERE install_id = ?")
+        .run(installId);
+      this.database.exec("COMMIT");
+    } catch (error) {
+      this.database.exec("ROLLBACK");
+      throw error;
+    }
+  }
+
   createSupportTicket(input: {
     installId: string;
     category: string;

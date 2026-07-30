@@ -229,6 +229,13 @@ export function AccountScreen() {
             testID="account-signout-button"
             onPress={() => void signOut()}
           />
+          <ActionLink
+            href="/delete-account"
+            label="Delete Account"
+            detail="Permanently removes your account and synced data."
+            accent={colors.ruby}
+            testID="account-delete-link"
+          />
         </>
       ) : (
         <View

@@ -309,6 +309,36 @@ async def get_account(authorization: Optional[str] = Header(default=None)):
     return {"state": await _account_state(doc)}
 
 
+@api_router.post("/v1/account/delete")
+async def delete_account(payload: dict, authorization: Optional[str] = Header(default=None)):
+    """Preview mirror of the production self-service account deletion.
+
+    Mirrors backend/app.ts POST /v1/account/delete: valid session + typed
+    DELETE confirmation + password reauthentication; deletes the account,
+    all sessions, and install-linked data. No target parameter exists, so
+    horizontal deletion is impossible by construction.
+    """
+    doc = await _account_from_token(authorization)
+    if not doc:
+        return JSONResponse(status_code=401, content={"error": "Authentication required."})
+    if payload.get("confirm") != "DELETE":
+        return JSONResponse(status_code=400, content={"error": "Type DELETE to confirm account deletion."})
+    password = str(payload.get("password", ""))
+    if not password or len(password) > 200:
+        return JSONResponse(status_code=400, content={"error": "Enter your password to confirm deletion."})
+    if not _verify_password(password, doc["passwordHash"], doc["passwordSalt"]):
+        return JSONResponse(status_code=403, content={"error": "Password is incorrect."})
+    install_id = doc.get("linkedInstallId")
+    await db.vaultpop_sessions.delete_many({"accountId": doc["id"]})
+    await db.vaultpop_password_resets.delete_many({"email": doc["email"]})
+    if install_id:
+        await db.vaultpop_support_tickets.delete_many({"installId": install_id})
+        await db.vaultpop_ad_events.delete_many({"installId": install_id})
+        await db.leaderboard_scores.delete_many({"installId": install_id})
+    await db.vaultpop_accounts.delete_one({"id": doc["id"]})
+    return {"deleted": True}
+
+
 # Preview mirror of the production admin handoff flow: mints a short-lived
 # single-use code for admin accounts. The production TS backend additionally
 # sets a secure cookie session for /admin; the mirror just proves the app-side

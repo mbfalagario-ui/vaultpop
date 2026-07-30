@@ -293,6 +293,45 @@ export function createApiHandler(dependencies: {
       return json({ state: dependencies.accounts.getAccountState(account.id) });
     }
 
+    if (request.method === "POST" && url.pathname === "/v1/account/delete") {
+      // Self-service permanent account deletion (Apple Guideline 5.1.1(v)).
+      // Requires a valid session PLUS fresh reauthentication (the account
+      // password) and an explicit typed confirmation. There is no target
+      // parameter: users can only ever delete the account their session
+      // belongs to, so horizontal deletion is impossible by construction.
+      const account = authenticatedAccount(request, dependencies.accounts);
+      if (!account) {
+        return json({ error: "Authentication required." }, 401);
+      }
+      const body = await readJson(request);
+      if (body.confirm !== "DELETE") {
+        return json({ error: "Type DELETE to confirm account deletion." }, 400);
+      }
+      if (!isShortString(body.password, 200)) {
+        return json({ error: "Enter your password to confirm deletion." }, 400);
+      }
+      if (isProtectedOwnerAccount(dependencies.accounts, account.id)) {
+        return json({ error: "The owner account cannot be deleted from the app." }, 400);
+      }
+      // Reauthentication failures share the sign-in brute-force limiter.
+      const attemptKey = loginAttemptKey(request, account.email);
+      if (loginBlocked(attemptKey)) {
+        return json({ error: "Too many attempts. Try again later." }, 429);
+      }
+      if (!dependencies.accounts.verifyAccountPassword(account.id, body.password)) {
+        recordLoginFailure(attemptKey);
+        return json({ error: "Password is incorrect." }, 403);
+      }
+      loginAttempts.delete(attemptKey);
+      const { linkedInstallId } = dependencies.accounts.deleteAccount(account.id);
+      dependencies.ops.purgeAccountData(linkedInstallId, account.email);
+      if (linkedInstallId) {
+        dependencies.ledger.deleteInstallData(linkedInstallId);
+        dependencies.leaderboard.deleteInstallData(linkedInstallId);
+      }
+      return json({ deleted: true }, 200, { "Set-Cookie": ADMIN_COOKIE_CLEAR });
+    }
+
     if (url.pathname.startsWith("/v1/admin/")) {
       return handleAdminRequest(request, url, dependencies.accounts, dependencies.ops);
     }
@@ -503,7 +542,11 @@ async function handleAdminRequest(
     if (request.method === "GET" && url.pathname === "/v1/admin/support/tickets") {
       const filterValue = url.searchParams.get("status");
       const filter =
-        filterValue === "open" || filterValue === "closed" || filterValue === "escalated"
+        filterValue === "open" ||
+        filterValue === "closed" ||
+        filterValue === "escalated" ||
+        filterValue === "premium" ||
+        filterValue === "standard"
           ? filterValue
           : undefined;
       return json({ tickets: ops.listTickets(filter) });

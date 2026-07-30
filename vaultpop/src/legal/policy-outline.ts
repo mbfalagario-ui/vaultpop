@@ -2,6 +2,7 @@ export const legalOutline = {
   privacy: [
     "Scores, settings, fictional currency balances, boosters, and entitlement state are saved locally.",
     "Optional account sign-in links an email address, account role, install ID, session, and account inventory to the VaultPop service. Core gameplay does not require sign-in.",
+    "You can permanently delete your account in-app: Settings → Account → Delete Account. Deleting your account does not cancel an Apple subscription — manage subscriptions in your Apple account settings.",
     "Google AdMob may process device identifiers, coarse location, product interaction, advertising, performance, crash, and diagnostic data under its SDK disclosures.",
     "Advertising initializes only after the first screen. VaultPop requests consent and App Tracking Transparency permission when advertising requires it.",
     "Apple processes in-app purchases. The verification service receives App Store signed transaction data and an anonymous install ID.",

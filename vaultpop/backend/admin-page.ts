@@ -186,7 +186,7 @@ export function adminPage(): Response {
       <div class="card wide">
         <div class="card-head">
           <span class="dot" style="background:${PALETTE.emerald};box-shadow:0 0 8px ${PALETTE.emerald}"></span><h2>Support Tickets</h2>
-          <select id="ticket-filter" style="margin-left:auto"><option value="">All</option><option value="open">Open</option><option value="closed">Closed</option><option value="escalated">Escalated</option></select>
+          <select id="ticket-filter" style="margin-left:auto"><option value="">All</option><option value="open">Open</option><option value="closed">Closed</option><option value="escalated">Escalated</option><option value="premium">Premium</option><option value="standard">Standard</option></select>
           <button id="ticket-refresh" class="quiet small">Refresh</button>
         </div>
         <div class="tablewrap"><table>
@@ -199,7 +199,7 @@ export function adminPage(): Response {
             <strong id="td-id"></strong>
             <span class="pill" id="td-status"></span>
             <span class="pill bad" id="td-escalated" hidden>ESCALATED</span>
-            <span class="pill gold" id="td-priority" hidden>PRIORITY</span>
+            <span class="pill gold" id="td-priority" hidden>PREMIUM SUPPORT</span>
             <button id="td-toggle" class="quiet small" style="margin-left:auto"></button>
           </div>
           <div>
@@ -396,7 +396,7 @@ async function loadTickets(){
     const row=document.createElement("tr");
     cell(row,t.id);
     pillCell(row,t.status.toUpperCase(),t.status==="open"?"ok":"mut");
-    cell(row,t.category+(t.escalated?" (escalated)":""));
+    cell(row,(t.tier==="premium"?"[PREMIUM] ":"")+t.category+(t.escalated?" (escalated)":""));
     cell(row,t.email||t.installId);
     cell(row,t.message.slice(0,70)).className="preview";
     cell(row,when(t.updatedAt));
@@ -415,7 +415,7 @@ function renderTicket(t){
   $("td-id").textContent=t.id;
   const st=$("td-status");st.textContent=t.status.toUpperCase();st.className="pill "+(t.status==="open"?"ok":"mut");
   $("td-escalated").hidden=!t.escalated;
-  $("td-priority").hidden=!t.priority;
+  $("td-priority").hidden=!(t.tier==="premium"||t.priority);
   $("td-toggle").textContent=t.status==="open"?"Close Ticket":"Reopen Ticket";
   $("td-category").textContent=t.category;
   $("td-from").textContent=(t.email||"No email")+" \\u00B7 "+t.installId;

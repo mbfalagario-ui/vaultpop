@@ -43,6 +43,13 @@ password confidential, and accept responsibility for activity under your
 account. We may suspend or disable accounts that violate these Terms, abuse
 the service, or attempt to defraud reward or purchase systems.
 
+You can permanently delete your account at any time inside the app
+(Settings → Account → Delete Account). Deletion is permanent: your synced
+progress, inventory, and fictional virtual items are removed and cannot be
+restored, and your leaderboard identity is deleted. Deleting your VaultPop
+account does **not** cancel an Apple subscription — cancel VaultPass Plus
+separately in your Apple account settings.
+
 ## 5. Purchases and subscriptions
 
 - All purchases are processed by Apple through the App Store under Apple's
@@ -96,6 +103,8 @@ control, as permitted by the App Store terms.
 VaultPop is provided "as is" and "as available", without warranties of any
 kind to the maximum extent permitted by law. We do not guarantee uninterrupted
 availability of the service, leaderboards, ads, or any particular feature.
+Support requests are answered on a best-effort basis; we do not guarantee
+response times, including for Premium Support routing.
 
 ## 11. Limitation of liability
 

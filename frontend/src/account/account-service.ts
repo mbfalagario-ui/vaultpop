@@ -180,6 +180,34 @@ export async function refreshAccountState(
   return result.body.state as AccountStateResponse;
 }
 
+/**
+ * Permanent self-service account deletion. Requires the current session
+ * token PLUS the account password (fresh reauthentication) and sends the
+ * explicit typed confirmation. The backend deletes the account, revokes all
+ * sessions, and purges/de-identifies linked server-side data.
+ */
+export async function deleteAccountPermanently(
+  token: string,
+  password: string
+): Promise<void> {
+  const result = await requestJson("/v1/account/delete", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ password, confirm: "DELETE" })
+  });
+  if (result.status === 401) {
+    throw new SessionExpiredError(
+      "Your session expired. Sign in again, then retry deletion."
+    );
+  }
+  if (!result.ok || result.body?.deleted !== true) {
+    throw new Error(errorMessage(result, "Account deletion failed. Please try again."));
+  }
+}
+
 export function applyAccountLogin(
   profile: SaveProfile,
   login: AccountLoginResponse,

@@ -26,6 +26,14 @@ const FAQ_ITEMS: { q: string; a: string }[] = [
     a: "VaultPass Plus is a monthly auto-renewing subscription managed by Apple. It includes ad-free play, premium themes, priority support routing, and a monthly booster refill. Manage or cancel it anytime in your Apple account settings."
   },
   {
+    q: "What is Premium Support vs Standard Support?",
+    a: "Everyone receives support — free. Tickets from players with an active VaultPass Plus subscription are routed as Premium Support and sorted first in our queue; all other tickets are Standard Support. Both tiers are answered on a best-effort basis; no response time is guaranteed for either tier."
+  },
+  {
+    q: "How do I delete my account?",
+    a: "Open VaultPop and go to Settings → Account → Delete Account. Deletion is permanent: it removes your email, sign-in access, server-side inventory, leaderboard entries, and support history. Deleting your VaultPop account does not cancel an Apple subscription — manage VaultPass Plus separately in your Apple account settings."
+  },
+  {
     q: "How do rewarded ads work?",
     a: "Watching an optional rewarded ad grants a small fictional in-game reward such as 1 Bonus Life or 10 Vault Coins. Rewarded ads are limited to 30 per day in total and are never required to play."
   },
@@ -42,7 +50,7 @@ const FAQ_ITEMS: { q: string; a: string }[] = [
 const CATEGORIES: { title: string; body: string }[] = [
   {
     title: "Account help",
-    body: "Creating an account, signing in, syncing inventory, or signing out. Accounts are optional and free."
+    body: "Creating an account, signing in, syncing inventory, or signing out. Accounts are optional and free, and can be permanently deleted in-app."
   },
   {
     title: "Purchases & IAP",
@@ -141,7 +149,7 @@ footer a{color:var(--cyan);text-decoration:none}
     <ol class="steps">
       <li>Open VaultPop and go to <strong>Settings &rarr; Support</strong>.</li>
       <li>Choose a category, describe the issue, and optionally add an email for a reply.</li>
-      <li>Submit — VaultPass Plus members receive priority routing.</li>
+      <li>Submit — active VaultPass Plus members receive Premium Support routing; all other requests are Standard Support. Everyone receives support, and no response time is guaranteed for either tier.</li>
     </ol>
     <p style="margin-top:10px">Prefer email? Write to <a href="mailto:support@vaultpop.app" style="color:var(--gold)">support@vaultpop.app</a> and we'll get back to you.</p>
   </div>

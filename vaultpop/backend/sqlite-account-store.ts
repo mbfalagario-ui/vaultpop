@@ -298,6 +298,42 @@ export class SqliteAccountStore implements AccountStore {
       .run(hashSessionToken(token));
   }
 
+  verifyAccountPassword(accountId: string, password: string): boolean {
+    const row = this.findAccountById(accountId);
+    return Boolean(
+      row && verifyPassword(password, row.password_hash, row.password_salt)
+    );
+  }
+
+  /**
+   * Permanent self-service deletion. Deleting the account row cascades to
+   * sessions, the account-install link, and the account balance (foreign
+   * keys). Retained admin-audit entries are detached from personal identity:
+   * their serialized state snapshots (which may include the email) are
+   * cleared while action, IDs, and timestamps remain for security auditing.
+   */
+  deleteAccount(accountId: string): { linkedInstallId: string | null } {
+    const link = this.database
+      .prepare("SELECT install_id FROM account_install_links WHERE account_id = ?")
+      .get(accountId) as { install_id: string } | undefined;
+    this.database.exec("BEGIN IMMEDIATE");
+    try {
+      this.database
+        .prepare(`
+          UPDATE admin_audit_log
+          SET before_json = NULL, after_json = NULL, delta_json = NULL
+          WHERE target_account_id = ?
+        `)
+        .run(accountId);
+      this.database.prepare("DELETE FROM accounts WHERE id = ?").run(accountId);
+      this.database.exec("COMMIT");
+    } catch (error) {
+      this.database.exec("ROLLBACK");
+      throw error;
+    }
+    return { linkedInstallId: link?.install_id ?? null };
+  }
+
   getAccountState(accountId: string): AccountState | null {
     const row = this.findAccountById(accountId);
     if (!row) {
@@ -648,6 +684,7 @@ export class SqliteAccountStore implements AccountStore {
         message: row.message,
         email: row.email,
         priority: row.priority === 1,
+        tier: row.priority === 1 ? ("premium" as const) : ("standard" as const),
         createdAt: row.created_at
       }));
     } catch {

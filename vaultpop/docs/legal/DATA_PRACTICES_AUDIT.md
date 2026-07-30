@@ -36,12 +36,14 @@ Categories:
 | AdMob consent state (UMP) | [LOCAL] (stored on device by Google UMP SDK) | `AdsConsent.gatherConsent()` in `ad-service.ts` | Regional consent compliance | n/a | NO | Google SDK local storage | Managed by Google UMP |
 | Analytics SDKs | [NONE] — no analytics SDK is included | `package.json` | — | — | — | — | — |
 | Third-party data processors | Apple (payments, App Store), Google AdMob (advertising), Fly.io (hosting) | config + source | — | — | — | — | — |
-| Retention & deletion behaviour | Sessions auto-expire (24h). No other automated retention schedule is implemented. Deletion is handled on request via support@vaultpop.app / in-app support; admin tools can disable accounts and remove data. **No in-app self-service account deletion exists.** | source-wide | — | — | — | — | — |
+| Retention & deletion behaviour | Sessions auto-expire (24h). No other automated retention schedule is implemented. **Build 18: in-app self-service account deletion exists (Settings → Account → Delete Account; `POST /v1/account/delete`)** — deletes account/sessions/install link/balances/leaderboard/tickets/reset requests; de-identifies retained purchase + SSV records (see `ACCOUNT_DELETION_IMPLEMENTATION.md`). Deletion also remains available on request via support@vaultpop.app / in-app support; admin tools can disable accounts and remove data. | source-wide | — | — | — | — | — |
 
 ## UNVERIFIED — OWNER CONFIRMATION REQUIRED
 1. **Legal entity & governing jurisdiction** — no business entity name or address exists in source. The Terms use neutral operator wording; confirm your jurisdiction and entity.
 2. **Google ad-serving specifics** (exact data elements Google collects per app configuration) — the guides link Google's authoritative disclosures; confirm your AdMob account settings match.
-3. **Apple App Review account-deletion rule (Guideline 5.1.1(v))** — because VaultPop offers account creation, Apple generally requires that account deletion can be **initiated in-app**. Today deletion is via support request. OWNER DECISION REQUIRED: rely on the support path (review risk) or request an in-app deletion flow in a future build.
+3. ~~Apple App Review account-deletion rule (Guideline 5.1.1(v))~~ **RESOLVED
+   (Build 18)**: account deletion can now be initiated in-app (Settings →
+   Account → Delete Account). See `ACCOUNT_DELETION_IMPLEMENTATION.md`.
 
 ## Summary for Apple disclosure purposes
 - VaultPop first-party: email (optional), user/install IDs, purchase records, support content, leaderboard handle+score. None used for tracking.

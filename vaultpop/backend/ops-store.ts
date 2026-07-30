@@ -3,7 +3,10 @@ import { DatabaseSync } from "node:sqlite";
 import type { AccountStore, PublicAccount } from "./types";
 
 export type TicketStatus = "open" | "closed";
-export type TicketFilter = "open" | "closed" | "escalated";
+export type TicketFilter = "open" | "closed" | "escalated" | "premium" | "standard";
+export type SupportTier = "premium" | "standard";
+export type TicketSource = "in-app" | "email" | "admin";
+export type EmailDeliveryResult = "queued" | "sent" | "failed" | "not_configured";
 export type AdEventKind = "granted" | "failed";
 export type AdRewardType = "bonus_life" | "vault_coins";
 
@@ -12,6 +15,11 @@ export type SupportTicketRecord = {
   status: TicketStatus;
   escalated: boolean;
   priority: boolean;
+  /** Premium = active VaultPass entitlement at submission; Standard otherwise. */
+  tier: SupportTier;
+  source: TicketSource;
+  /** No email provider is configured for VaultPop: always "not_configured" today. */
+  emailDelivery: EmailDeliveryResult;
   category: string;
   message: string;
   email: string | null;
@@ -102,6 +110,12 @@ export interface OpsStore {
   listPasswordResetRequests(): PasswordResetRequest[];
   markPasswordResetHandled(id: string, adminEmail: string): PasswordResetRequest;
   countPendingPasswordResets(): number;
+  /**
+   * Account-deletion support: removes the install's support tickets and
+   * replies, its ad analytics events, and any pending password-reset
+   * requests for the deleted email.
+   */
+  purgeAccountData(installId: string | null, email: string | null): void;
   logAdminAction(
     actor: PublicAccount,
     action: string,
@@ -175,6 +189,16 @@ export class SqliteOpsStore implements OpsStore {
       "escalated",
       "escalated INTEGER NOT NULL DEFAULT 0"
     );
+    this.ensureColumn(
+      "support_tickets",
+      "source",
+      "source TEXT NOT NULL DEFAULT 'in-app'"
+    );
+    this.ensureColumn(
+      "support_tickets",
+      "email_delivery",
+      "email_delivery TEXT NOT NULL DEFAULT 'not_configured'"
+    );
   }
 
   createTicket(input: CreateTicketInput): string {
@@ -183,8 +207,9 @@ export class SqliteOpsStore implements OpsStore {
       .prepare(`
         INSERT INTO support_tickets (
           install_id, category, message, email, app_version, build_number,
-          device_info, priority, created_at, status, updated_at, escalated
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?)
+          device_info, priority, created_at, status, updated_at, escalated,
+          source, email_delivery
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, 'in-app', 'not_configured')
       `)
       .run(
         input.installId,
@@ -210,7 +235,11 @@ export class SqliteOpsStore implements OpsStore {
           ? "WHERE t.status = 'closed'"
           : filter === "escalated"
             ? "WHERE t.escalated = 1"
-            : "";
+            : filter === "premium"
+              ? "WHERE t.priority = 1"
+              : filter === "standard"
+                ? "WHERE t.priority = 0"
+                : "";
     const rows = this.database
       .prepare(`
         SELECT t.*, (
@@ -467,6 +496,29 @@ export class SqliteOpsStore implements OpsStore {
     return Number(row.total);
   }
 
+  purgeAccountData(installId: string | null, email: string | null): void {
+    if (installId) {
+      this.database
+        .prepare(`
+          DELETE FROM support_ticket_replies WHERE ticket_id IN (
+            SELECT id FROM support_tickets WHERE install_id = ?
+          )
+        `)
+        .run(installId);
+      this.database
+        .prepare("DELETE FROM support_tickets WHERE install_id = ?")
+        .run(installId);
+      this.database
+        .prepare("DELETE FROM ad_events WHERE install_id = ?")
+        .run(installId);
+    }
+    if (email) {
+      this.database
+        .prepare("DELETE FROM password_reset_requests WHERE email = ?")
+        .run(email.trim().toLowerCase());
+    }
+  }
+
   logAdminAction(
     actor: PublicAccount,
     action: string,
@@ -541,6 +593,8 @@ type TicketRow = {
   status: TicketStatus | null;
   updated_at: string | null;
   escalated: number | null;
+  source: string | null;
+  email_delivery: string | null;
   reply_count: number;
 };
 
@@ -559,6 +613,14 @@ function toTicketRecord(row: TicketRow): SupportTicketRecord {
     status: row.status === "closed" ? "closed" : "open",
     escalated: row.escalated === 1,
     priority: row.priority === 1,
+    tier: row.priority === 1 ? "premium" : "standard",
+    source: row.source === "email" || row.source === "admin" ? row.source : "in-app",
+    emailDelivery:
+      row.email_delivery === "queued" ||
+      row.email_delivery === "sent" ||
+      row.email_delivery === "failed"
+        ? row.email_delivery
+        : "not_configured",
     category: row.category,
     message: row.message,
     email: row.email,
@@ -609,6 +671,9 @@ export class MemoryOpsStore implements OpsStore {
       status: "open",
       escalated: input.escalated,
       priority: input.priority,
+      tier: input.priority ? "premium" : "standard",
+      source: "in-app",
+      emailDelivery: "not_configured",
       category: input.category,
       message: input.message,
       email: input.email ?? null,
@@ -632,7 +697,11 @@ export class MemoryOpsStore implements OpsStore {
             ? ticket.status === "closed"
             : filter === "escalated"
               ? ticket.escalated
-              : true
+              : filter === "premium"
+                ? ticket.priority
+                : filter === "standard"
+                  ? !ticket.priority
+                  : true
       )
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
       .slice(0, 100)
@@ -786,6 +855,17 @@ export class MemoryOpsStore implements OpsStore {
 
   countPendingPasswordResets(): number {
     return this.resets.filter((item) => item.status === "pending").length;
+  }
+
+  purgeAccountData(installId: string | null, email: string | null): void {
+    if (installId) {
+      this.tickets = this.tickets.filter((ticket) => ticket.installId !== installId);
+      this.adEvents = this.adEvents.filter((event) => event.installId !== installId);
+    }
+    if (email) {
+      const normalized = email.trim().toLowerCase();
+      this.resets = this.resets.filter((item) => item.email !== normalized);
+    }
   }
 
   logAdminAction(_actor: PublicAccount, action: string, target: string): void {

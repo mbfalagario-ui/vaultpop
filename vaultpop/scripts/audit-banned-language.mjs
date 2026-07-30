@@ -10,6 +10,8 @@ const allowedLegalPaths = [
   "docs/legal/DATA_PRACTICES_AUDIT.md",
   "docs/legal/PRIVACY_POLICY.md",
   "docs/legal/TERMS_OF_USE.md",
+  "docs/legal/ACCOUNT_DELETION_IMPLEMENTATION.md",
+  "docs/support/VAULTPOP_SUPPORT_PIPELINE.md",
   "docs/legal/APP_PRIVACY_COMPLETION_GUIDE.md",
   "docs/legal/ADMOB_PRIVACY_AND_GDPR_GUIDE.md",
   "docs/release/COMPLIANCE_RULEBOOK.md",

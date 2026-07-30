@@ -129,13 +129,15 @@ export function renderPrivacyPage(): string {
 <ul>
   <li>Sessions expire automatically after 24 hours.</li>
   <li>Account, purchase, leaderboard, reward, and support records are kept while the account or record remains relevant; no other automated retention schedule currently runs.</li>
-  <li>You can request access to, or deletion of, your data at any time through the in-app Support screen (choose &ldquo;Privacy request&rdquo;) or by emailing <a href="mailto:support@vaultpop.app">support@vaultpop.app</a>. Purchase records may be retained where required for financial record-keeping permitted by law.</li>
-  <li>Account deletion is currently fulfilled on request through support; there is no self-service deletion button in the app today.</li>
+  <li><strong>You can permanently delete your account inside the app</strong>: Settings &rarr; Account &rarr; Delete Account. Deletion removes your email address, sign-in credentials, all sessions, the account-to-install link, server-side inventory grants, leaderboard entries (handle and scores), your support tickets, and pending password-reset requests. Verified purchase records are retained in de-identified form (detached from your install) for duplicate-grant fraud prevention and financial record-keeping; rewarded-ad verification records are de-identified the same way.</li>
+  <li>Deleting your VaultPop account does <strong>not</strong> cancel an Apple subscription. Manage or cancel VaultPass Plus in your Apple account settings (Settings &rarr; Apple ID &rarr; Subscriptions).</li>
+  <li>You can also request access to, or deletion of, your data through the in-app Support screen (choose &ldquo;Privacy request&rdquo;) or by emailing <a href="mailto:support@vaultpop.app">support@vaultpop.app</a>.</li>
 </ul>
 
 <h2>9. Your choices</h2>
 <ul>
   <li>Play without an account &mdash; sign-in is optional.</li>
+  <li>Permanently delete your account at any time from inside the app.</li>
   <li>Decline App Tracking Transparency &mdash; you still get ads, just non-personalized.</li>
   <li>Change or withdraw regional ad consent via the ad consent flow.</li>
   <li>Submit a privacy request in-app or by email at any time.</li>
@@ -184,6 +186,7 @@ export function renderTermsPage(): string {
 
 <h2>4. Accounts</h2>
 <p>An account is optional and free; core gameplay works without one. If you create an account you agree to provide a valid email address, keep your password confidential, and accept responsibility for activity under your account. We may suspend or disable accounts that violate these Terms, abuse the service, or attempt to defraud reward or purchase systems.</p>
+<p>You can permanently delete your account at any time inside the app (Settings &rarr; Account &rarr; Delete Account). Deletion is permanent: your synced progress, inventory, and fictional virtual items are removed and cannot be restored, and your leaderboard identity is deleted. Deleting your VaultPop account does <strong>not</strong> cancel an Apple subscription &mdash; cancel VaultPass Plus separately in your Apple account settings.</p>
 
 <h2>5. Purchases and subscriptions</h2>
 <ul>
@@ -213,7 +216,7 @@ export function renderTermsPage(): string {
 <p>VaultPop, its artwork, names, game design, and software are protected by intellectual-property law. You receive a personal, non-exclusive, non-transferable license to play the game on Apple-branded devices you own or control, as permitted by the App Store terms.</p>
 
 <h2>10. Disclaimers</h2>
-<p>VaultPop is provided &ldquo;as is&rdquo; and &ldquo;as available&rdquo;, without warranties of any kind to the maximum extent permitted by law. We do not guarantee uninterrupted availability of the service, leaderboards, ads, or any particular feature.</p>
+<p>VaultPop is provided &ldquo;as is&rdquo; and &ldquo;as available&rdquo;, without warranties of any kind to the maximum extent permitted by law. We do not guarantee uninterrupted availability of the service, leaderboards, ads, or any particular feature. Support requests are answered on a best-effort basis; we do not guarantee response times, including for Premium Support routing.</p>
 
 <h2>11. Limitation of liability</h2>
 <p>To the maximum extent permitted by applicable law, we are not liable for indirect, incidental, special, or consequential damages, or for loss of fictional in-game items, arising from your use of VaultPop. Nothing in these Terms limits liability that cannot be limited by law, and mandatory consumer-protection rights in your country of residence remain unaffected.</p>

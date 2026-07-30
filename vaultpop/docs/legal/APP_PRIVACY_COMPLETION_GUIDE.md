@@ -101,11 +101,11 @@ App Store listing. **This guide does not publish anything for you.**
 
 ## Known review-risk items (decide before submitting for review)
 
-1. **Account deletion (Guideline 5.1.1(v))** — VaultPop offers account
-   creation but has no in-app self-service deletion; deletion is via support
-   request. Apple may require in-app initiated deletion.
-   **OWNER CONFIRMATION REQUIRED**: accept the risk or request an in-app
-   deletion flow in a future build.
+1. ~~Account deletion (Guideline 5.1.1(v))~~ **RESOLVED (Build 18)**: VaultPop
+   now includes in-app self-service account deletion (Settings → Account →
+   Delete Account) with reauthentication and typed confirmation. No App
+   Privacy answer changes are required for this feature — it collects no new
+   data types (the password check reuses existing credentials).
 2. **ATT prompt** — the app requests ATT only when advertising initialization
    requires it. This is compliant; do not also claim "no tracking" in the
    questionnaire (Device ID/Advertising Data must stay "Yes" for tracking).

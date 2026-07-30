@@ -144,16 +144,25 @@ routing and security as our hosting provider.
 - Account, purchase, leaderboard, reward, and support records are kept while
   the account or record remains relevant; no other automated retention
   schedule currently runs.
-- You can request access to, or deletion of, your data at any time through the
-  in-app Support screen (choose the "Privacy request" category) or by emailing
-  support@vaultpop.app. Purchase records may be retained where required for
-  financial record-keeping permitted by law.
-- Account deletion is currently fulfilled on request through support; there is
-  no self-service deletion button in the app today.
+- **You can permanently delete your account inside the app**: Settings →
+  Account → Delete Account. Deletion removes your email address, sign-in
+  credentials, all sessions, the account-to-install link, server-side
+  inventory grants, leaderboard entries (handle and scores), your support
+  tickets, and pending password-reset requests. Verified purchase records are
+  retained in de-identified form (detached from your install) for
+  duplicate-grant fraud prevention and financial record-keeping; rewarded-ad
+  verification records are de-identified the same way.
+- Deleting your VaultPop account does **not** cancel an Apple subscription.
+  Manage or cancel VaultPass Plus in your Apple account settings
+  (Settings → Apple ID → Subscriptions).
+- You can also request access to, or deletion of, your data through the
+  in-app Support screen (choose the "Privacy request" category) or by
+  emailing support@vaultpop.app.
 
 ## 9. Your choices
 
 - Play without an account — sign-in is optional.
+- Permanently delete your account at any time from inside the app.
 - Decline App Tracking Transparency — you still get ads, just
   non-personalized.
 - Change or withdraw regional ad consent via the ad consent flow.
@@ -191,7 +200,7 @@ https://vaultpop-api.fly.dev/privacy with a new "Last updated" date.
    operator of VaultPop"). Add your entity/address once confirmed.
 2. **support@vaultpop.app mailbox** — confirm this mailbox is live and
    monitored; it is referenced throughout the app and site.
-3. **Apple Guideline 5.1.1(v)** — Apple generally requires in-app initiated
-   account deletion when account creation exists. Today deletion is via
-   support request only. Decide: accept review risk or request an in-app
-   deletion flow in a future build.
+3. ~~Apple Guideline 5.1.1(v)~~ **RESOLVED (Build 18)**: in-app self-service
+   account deletion now exists (Settings → Account → Delete Account,
+   `POST /v1/account/delete`). See
+   `docs/legal/ACCOUNT_DELETION_IMPLEMENTATION.md`.

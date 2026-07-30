@@ -49,7 +49,7 @@ export function SupportScreen() {
     };
     const result = await submitSupportTicket(ticket);
     if (result.delivered) {
-      setStatus(`Ticket ${result.ticketId} submitted${priority ? " with priority routing" : ""}.`);
+      setStatus(`Ticket ${result.ticketId} submitted${priority ? " with Premium Support routing" : ""}.`);
       setMessage("");
       setSubmitting(false);
       return;
@@ -93,7 +93,7 @@ export function SupportScreen() {
           />
         </View>
       </View>
-      {priority ? <StatusPill label="VaultPass priority routing" tone="gold" /> : null}
+      {priority ? <StatusPill label="Premium Support · VaultPass routing" tone="gold" /> : null}
       <View style={{ gap: spacing.sm }}>
         <Text selectable style={typography.sectionTitle}>
           Category

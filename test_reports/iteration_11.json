@@ -1,0 +1,43 @@
+{
+  "summary": "Build 18 — Account deletion + support routing PREVIEW verification. Backend (pytest against preview FastAPI mirror /api): 7/7 PASS in 1.58s. Verified POST /api/v1/account/delete parity with production TS backend: (a) no Bearer -> 401, (b) missing/incorrect confirm -> 400, (c) wrong password -> 403 'Password is incorrect.', (d) correct password + confirm=DELETE with fresh registered account -> 200 {deleted:true}, (e) subsequent GET /api/v1/account with old token -> 401 (session revoked), (f) login with deleted credentials -> 401 (account NOT auto-recreated), (g) reusing revoked token for second delete -> 401. Plus support ticket regression: POST /api/v1/support/tickets -> 200 with VP- ticketId. Frontend E2E on preview URL (375x667): registered fresh account b18.ui.1785440579@vaultpop.test / UiDeleteTest!234, sign-in state established, account-delete-link visible on /account. Tapped it -> /delete-account renders warning card ('What will be removed'), Apple subscription card with delete-account-manage-subscriptions button, delete-account-password-input, delete-account-confirm-input, delete-account-confirm-button. Confirm button was aria-disabled=true initially and became enabled (aria-disabled=null) once password AND confirmText=DELETE were filled. Wrong password + DELETE -> 403 from mirror -> 'Password is incorrect.' status pill shown, account NOT deleted. Correct password + DELETE -> success screen 'All Done / Your account has been permanently deleted' rendered; delete-account-done-button tapped -> navigated to home (/). Post-delete /account showed the signed-out registration/sign-in view (delete-link gone, no crash, no loops). Re-signing in with the deleted credentials returned a friendly 401 error in the UI, confirming no auto-recreation. Regression smoke: /legal shows Privacy Policy + Terms of Use, /support ticket form submits successfully (Ticket VP-000010 submitted), home screen loads with 0 console errors. React Native deprecation warnings emitted (props.pointerEvents, textShadow*, useNativeDriver) are pre-existing framework/lib warnings — see react_native_issues.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "React Native Web (pre-existing)", "issue": "Console warning: 'props.pointerEvents is deprecated. Use style.pointerEvents' emitted on /account and post-delete home. Likely from a third-party RN component (react-native-svg or similar) — not from Build 18 delta. Reference: browser console during /account load."},
+      {"component": "React Native Web (pre-existing)", "issue": "Console warning: '\"textShadow*\" style props are deprecated. Use \"textShadow\"' during navigation transitions. Not introduced by delete-account screen. Reference: browser console after delete success -> /."},
+      {"component": "Animated (RN web)", "issue": "Warning: 'useNativeDriver is not supported because the native animated module is missing' — expected on web preview; harmless. Reference: pre-existing across all routes."}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_build18_delete_account.py",
+    "/app/test_reports/pytest/build18_delete_results.xml",
+    "/app/test_reports/iteration_11.json"
+  ],
+  "action_items": [
+    "No fixes required for Build 18 account deletion / support routing delta — all acceptance checks pass on preview mirror + preview frontend.",
+    "(Optional, not blocking Build 18) The three React Native deprecation warnings above are pre-existing library-level noise; consider addressing on a future maintenance pass once RN web upgrades stabilize."
+  ],
+  "critical_code_review_comments": [
+    "backend/server.py L312-339 POST /api/v1/account/delete: correct 401/400/403/200 branches, revokes ALL sessions for the account (not just current token), cascades deletion of password resets and, if linked, support tickets / ad events / leaderboard scores keyed by installId. No target parameter — horizontal deletion impossible by construction. Matches production TS backend contract described in /app/memory/test_credentials.md Build 18 section.",
+    "frontend/src/screens/delete-account-screen.tsx: canDelete gate (password.length>0 && confirmText.trim()==='DELETE' && !busy) enforces the disabled-until-valid rule; verified via aria-disabled in browser. On success, createDefaultSaveProfile() replaces the entire local profile — clean local wipe. SessionExpiredError branch also clears the session properly.",
+    "frontend/src/screens/account-screen.tsx L232-238: account-delete-link ActionLink to /delete-account with accent=ruby and correct testID. Signed-out branch has no delete link, matching the not-signed-in delete-screen fallback.",
+    "frontend/src/account/account-service.ts L189-209 deleteAccountPermanently: sends {password, confirm:'DELETE'} + Bearer token; maps 401 to SessionExpiredError and other non-ok to friendly Error; explicitly requires body.deleted===true before resolving. Clean."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_build18_delete_account.py (new pytest suite for preview mirror /v1/account/delete + support ticket regression)",
+    "/app/test_reports/pytest/build18_delete_results.xml (JUnit)",
+    "/app/test_reports/iteration_11.json (this report)"
+  ],
+  "success_rate": {
+    "backend": "100% (7/7 pytest: unauth 401, missing/wrong confirm 400, wrong pwd 403, full delete lifecycle, revoked-token replay 401, support ticket 200)",
+    "frontend": "100% (12/12 UI steps: register, delete-link visible, /delete-account renders all testIDs, disabled-until-valid, wrong-password error pill, success screen, Done -> home, /account signed-out, deleted creds cannot sign back in; +regression /legal /support VP-000010 submitted, home 0 console errors)"
+  },
+  "seed_data_creation": "Created and deleted disposable account b18.ui.1785440579@vaultpop.test on preview mirror (Mongo vaultpop_accounts). Pytest suite creates 6 further disposable accounts (fresh timestamped emails + varied x-forwarded-for to bypass 5/hr per-IP register rate limit) and deletes them within the tests. Also created support ticket VP-000010 (UI smoke) and 1 pytest-side support ticket — retained (support tickets are not the target of Build 18 deletion tests).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Build 18 delete-account preview E2E + preview mirror /v1/account/delete PARITY are green. Live Fly backend deletion lifecycle already verified 17/17 by main agent this session — do NOT re-test. Test IDs to reuse: account-delete-link, delete-account-password-input, delete-account-confirm-input, delete-account-confirm-button, delete-account-done-button, delete-account-cancel-button, delete-account-manage-subscriptions. When re-registering rapidly, vary x-forwarded-for (register rate limit 5/hr per IP on preview mirror). Preserved accounts qa.player@vaultpop.app and qa.owner.b15@vaultpop.test were NOT touched. Support screen submit button testID is action-submit-support-request-button; message textarea has no testID — use placeholder 'Tell us what happened.' if needed.",
+  "rca_of_issue": "N/A — no bugs found in Build 18 delta."
+}
