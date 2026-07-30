@@ -1,4 +1,6 @@
 import { randomBytes } from "node:crypto";
+import { accessSync, constants as fsConstants } from "node:fs";
+import { dirname } from "node:path";
 
 import { ADMOB_IOS, REWARDED_DAILY_CAP } from "../src/ads/constants";
 import { getProductDefinition } from "../src/monetization/catalog";
@@ -440,6 +442,31 @@ async function handleAdminRequest(
       const code = randomBytes(32).toString("base64url");
       adminHandoffCodes.set(code, { token, expiresAt: now + ADMIN_HANDOFF_TTL_MS });
       return json({ code, expiresInSeconds: ADMIN_HANDOFF_TTL_MS / 1_000 }, 201);
+    }
+
+    if (request.method === "GET" && url.pathname === "/v1/admin/diagnostics") {
+      let database: "ok" | "error" = "ok";
+      try {
+        // Exercises a real store read; returns null harmlessly when healthy.
+        accounts.authenticate("vp-diagnostics-probe");
+      } catch {
+        database = "error";
+      }
+      let storage: "ok" | "error" = "ok";
+      try {
+        const dbPath = process.env.VAULTPOP_DATABASE_PATH;
+        accessSync(dbPath ? dirname(dbPath) : ".", fsConstants.W_OK);
+      } catch {
+        storage = "error";
+      }
+      return json({
+        api: "ok",
+        adminApi: "ok",
+        database,
+        storage,
+        uptimeSeconds: Math.round(process.uptime()),
+        timestamp: new Date().toISOString()
+      });
     }
 
     if (request.method === "GET" && url.pathname === "/v1/admin/analytics") {

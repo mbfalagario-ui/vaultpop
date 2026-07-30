@@ -11,6 +11,17 @@ import type { Product, ProductSubscription, Purchase, PurchaseError } from "reac
 
 export type StoreProduct = Product | ProductSubscription;
 
+/**
+ * Owner-visible StoreKit diagnostics: requested/returned/missing SKUs and the
+ * most recent StoreKit, configuration, or network error. Never contains
+ * receipts or tokens.
+ */
+let storeDiagnostics: string[] = ["Store session not started yet."];
+
+export function getStoreDiagnostics(): string[] {
+  return storeDiagnostics;
+}
+
 export type StoreSession = {
   close: () => Promise<void>;
   fetchCatalog: () => Promise<StoreProduct[]>;
@@ -57,17 +68,30 @@ export async function createStoreSession(
         iap.fetchProducts({ skus: [...ONE_TIME_PRODUCT_IDS], type: "in-app" }),
         iap.fetchProducts({ skus: [...SUBSCRIPTION_PRODUCT_IDS], type: "subs" })
       ]);
+      const lines: string[] = [
+        `Requested subs: ${SUBSCRIPTION_PRODUCT_IDS.join(", ")}`,
+        `Requested in-app: ${ONE_TIME_PRODUCT_IDS.join(", ")}`
+      ];
       if (products.status === "rejected") {
         console.warn("VaultPop one-time product fetch failed.", products.reason);
+        lines.push(
+          `In-app fetch error: ${products.reason instanceof Error ? products.reason.message : String(products.reason)}`
+        );
       }
       if (subscriptions.status === "rejected") {
         console.warn("VaultPop subscription fetch failed.", subscriptions.reason);
+        lines.push(
+          `Subscription fetch error: ${subscriptions.reason instanceof Error ? subscriptions.reason.message : String(subscriptions.reason)}`
+        );
       }
       const catalog: StoreProduct[] = [
         ...(products.status === "fulfilled" ? (products.value ?? []) : []),
         ...(subscriptions.status === "fulfilled" ? (subscriptions.value ?? []) : [])
       ];
       const received = new Set(catalog.map((item) => item.id));
+      lines.push(
+        `Store returned: ${catalog.length === 0 ? "no products" : [...received].join(", ")}`
+      );
       const missing = [...ONE_TIME_PRODUCT_IDS, ...SUBSCRIPTION_PRODUCT_IDS].filter(
         (sku) => !received.has(sku)
       );
@@ -75,7 +99,9 @@ export async function createStoreSession(
         console.warn(
           `VaultPop store catalog is missing SKUs: ${missing.join(", ")}`
         );
+        lines.push(`Missing SKUs: ${missing.join(", ")}`);
       }
+      storeDiagnostics = lines;
       return catalog;
     },
     purchase: async (productId) => {

@@ -170,11 +170,15 @@ export function ShopScreen() {
           ? "App Store products loaded."
           : "Live prices load from the App Store on your device."
       );
-    } catch {
+    } catch (loadError) {
       if (mountedRef.current) {
         setCatalogState("unavailable");
         setCatalogDiag(
-          `Requested ${VAULTPASS_ID} — store session unavailable (StoreKit requires a native iOS build).`
+          `Requested ${VAULTPASS_ID} — ${
+            loadError instanceof Error
+              ? loadError.message
+              : "store session unavailable (StoreKit requires a native iOS build)."
+          }`
         );
         setStatus("Live prices load from the App Store on your device.");
       }
@@ -363,26 +367,33 @@ export function ShopScreen() {
       <View
         testID={`shop-product-${VAULTPASS_ID}`}
         style={{
-          borderColor: `${colors.violet}88`,
+          borderColor: `${colors.cyan}5C`,
           borderCurve: "continuous",
           borderRadius: radius.lg,
           borderWidth: 1.5,
-          boxShadow: `0 14px 32px #00000077, 0 0 26px ${colors.violet}2E`,
+          boxShadow: `0 14px 32px #00000077, 0 0 32px ${colors.ruby}38, 0 0 22px ${colors.cyan}2E`,
           overflow: "hidden"
         }}
       >
         <LinearGradient
-          colors={["#241548", "#120B26"]}
+          colors={["#22103F", "#0B1030"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 0.9, y: 1 }}
           style={{ gap: spacing.sm, padding: spacing.md }}
         >
+          {/* Magenta-to-cyan aspirational sheen */}
+          <LinearGradient
+            colors={[`${colors.ruby}2E`, "rgba(0,0,0,0)", `${colors.cyan}24`]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0.9 }}
+            style={{ bottom: 0, left: 0, pointerEvents: "none", position: "absolute", right: 0, top: 0 }}
+          />
           <View style={{ alignItems: "center", flexDirection: "row", gap: spacing.sm }}>
             <CoinFace type="violet" size={40} glow />
             <View style={{ flex: 1 }}>
               <Text
                 selectable={false}
-                style={[typography.eyebrow, { color: colors.violet, fontSize: 9 }]}
+                style={[typography.eyebrow, { color: colors.ruby, fontSize: 9 }]}
               >
                 MEMBER PICK
               </Text>

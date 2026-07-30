@@ -1,0 +1,36 @@
+{
+  "summary": "Build 18 pre-review frontend-only regression on preview (mobile viewport 375x667). Verified: (1) Full palette visual regression sweep across Home, /modes, /shop, /support, /settings, /account — no blank screens, no invisible/unreadable text, no overlapping layouts; new deep-navy base with gold PLAY, cyan/emerald/ruby chain-ball accents renders cleanly. (2) Owner diagnostics: signed in as ADMIN qa.owner.b15@vaultpop.test → /settings shows testID owner-diagnostics-card BELOW Admin Console button, containing exact lines 'Ads platform: unsupported (web/Android preview)', 'Ads initialized: NO', 'Consent status: not gathered yet', 'Can request ads: unknown', 'ATT status: not requested yet', 'Last ads error: none', 'Banner placements: no attempts yet', a STOREKIT header, and 'Store session not started yet.' — all owner-scoped, no PII. (3) Player negative: qa.player@vaultpop.app → /settings has NEITHER owner-diagnostics-card NOR settings-admin-console-button (correct gating). (4) Shop unchanged: hero shows MEMBER PICK + 'VaultPass Plus' + 'US$2.99 per month', disabled 'Currently Unavailable' button, caption 'VaultPass is unavailable right now. Please try again later.', functional testID shop-catalog-retry-button. Admin sees shop-vaultpass-diagnostics: 'Requested app.vaultpop.vaultpass.plus.monthly — The App Store is unavailable in Expo Go.' (new SKU string intact). (5) Core flows: player sign-in → status-pill SYNCED + account-signout-button; sign-out returns to sign-in form. Admin /account OWNER TOOLS → account-admin-console-button navigates in-app to /admin-console (URL updates, title 'Admin Console' present). Home home-play-button navigates to /gameplay?mode=classic (Vault Reactor board renders). Deprecated pointerEvents / textShadow* / useNativeDriver console warnings persist from iterations 6-8 (web-only, non-blocking).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "Multiple (LinearGradient/overlays)", "issue": "Console warning: 'props.pointerEvents is deprecated. Use style.pointerEvents' — carry-over from iterations 6-8, non-blocking on web."},
+      {"component": "Text style props", "issue": "Console warning: '\"textShadow*\" style props are deprecated. Use \"textShadow\".' — non-blocking, RN 0.76+ deprecation."},
+      {"component": "Web preview animations", "issue": "Console warning: 'Animated: useNativeDriver is not supported ... Falling back to JS-based animation.' — expected on web preview (no RCTAnimation module), native iOS build unaffected."}
+    ]
+  },
+  "test_report_links": ["/app/test_reports/iteration_9.json"],
+  "action_items": [
+    "No functional fixes needed for Build 18 pre-review — every acceptance checkpoint (visual regression, owner diagnostics card + STOREKIT section, player negative gating, shop VaultPass hero + admin diagnostics with new SKU, admin console navigation, PLAY navigation) passed on preview.",
+    "(Carry-over, non-blocking) Migrate legacy `pointerEvents` prop → `style.pointerEvents`, and `textShadow*` props → unified `textShadow` shorthand to silence RN 0.76+ deprecation warnings across the app.",
+    "Backend testing intentionally skipped per review request (production TS backend Run Checks/diagnostics already deployed + verified by main agent; preview FastAPI mirror correctly does not implement /v1/admin/diagnostics)."
+  ],
+  "critical_code_review_comments": [
+    "owner-diagnostics-card.tsx: pure presentational component reading getAdsDiagnostics() + getStoreDiagnostics(); no tokens, receipts, or user PII surfaced — safe for owner-only display. useSyncExternalStore for ads is correct pattern for the diagnostics store.",
+    "settings-screen.tsx L108-119: role gate `profile.account.role === 'admin'` renders both Admin Console link and OwnerDiagnosticsCard together in the ACCOUNT section; card correctly appears BELOW the Admin Console ActionLink as required.",
+    "theme/colors.ts palette rewritten: background #050510 / surface #0A0F22 / gold #FFC93E / cyan #00E5FF / emerald #00F58C / violet #7C5CFF / ruby #FF2E86 — all high-contrast against F4F8FF text; verified readable across all 6 tested screens.",
+    "Preview session persistence: localStorage key 'vaultpop.saveProfile.v1' retains role between reloads; verified admin & player role gating consistent after cross-screen navigation."
+  ],
+  "updated_files": ["/app/test_reports/iteration_9.json (this report)"],
+  "success_rate": {
+    "backend": "N/A (frontend-only per review request)",
+    "frontend": "100% (5/5 acceptance groups — visual regression, owner diag card + STOREKIT lines, player negative, shop unchanged incl. admin diagnostics SKU, core flows incl. Admin Console + PLAY navigation)"
+  },
+  "seed_data_creation": "None. Reused qa.owner.b15@vaultpop.test (admin) and qa.player@vaultpop.app (player) from /app/memory/test_credentials.md.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Preview URL: https://vaultpop-premium.preview.emergentagent.com. Build 18 palette is now baked in — deep-navy #050510 base with gold PLAY, cyan/emerald/violet/ruby accents. New owner-diagnostics-card testID is 'owner-diagnostics-card' and lives on /settings BELOW the Admin Console link, gated by profile.account.role==='admin'. Card contains an ads section + a STOREKIT section reading 'Store session not started yet.' on web preview (native-only surfaces). Shop testIDs unchanged (shop-vaultpass-unavailable, shop-catalog-retry-button, shop-vaultpass-diagnostics). VaultPass SKU is 'app.vaultpop.vaultpass.plus.monthly'. Admin Console navigation via account-admin-console-button or settings-admin-console-button lands on /admin-console. Home PLAY (home-play-button) → /gameplay?mode=classic. Ads/StoreKit/WebView are native-iOS-only; inert on web preview is BY DESIGN (do not report as bugs).",
+  "rca_of_issue": "N/A — this iteration verified visual regression + new owner diagnostics card gating after a theme palette swap. No functional regressions detected."
+}

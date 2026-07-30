@@ -2,6 +2,7 @@ import { canShowBanner, type AdPlacement } from "@/ads/ad-policy";
 import { ADMOB_IOS } from "@/ads/constants";
 import {
   isAdsInitialized,
+  reportBannerEvent,
   shouldRequestNonPersonalizedAdsOnly,
   subscribeToAdsInitialization
 } from "@/ads/ad-service";
@@ -75,9 +76,13 @@ export function AdBanner({ placement }: { placement: AdPlacement }) {
         requestOptions={{
           requestNonPersonalizedAdsOnly: shouldRequestNonPersonalizedAdsOnly()
         }}
-        onAdLoaded={() => setLoaded(true)}
+        onAdLoaded={() => {
+          setLoaded(true);
+          reportBannerEvent(placement, "loaded");
+        }}
         onAdFailedToLoad={(error: Error) => {
           console.warn(`VaultPop banner failed to load (${placement}).`, error);
+          reportBannerEvent(placement, `failed: ${error?.message ?? String(error)}`);
         }}
       />
     </View>

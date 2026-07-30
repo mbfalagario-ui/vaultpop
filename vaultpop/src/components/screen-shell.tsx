@@ -99,7 +99,7 @@ export function ScreenShell({
   return (
     <View style={{ backgroundColor: colors.backgroundDeep, flex: 1, overflow: "hidden" }}>
       <LinearGradient
-        colors={["#151038", "#0B0820", colors.backgroundDeep]}
+        colors={["#0C1533", "#070B22", colors.backgroundDeep]}
         locations={[0, 0.5, 1]}
         style={{ bottom: 0, left: 0, pointerEvents: "none", position: "absolute", right: 0, top: 0 }}
       />
@@ -123,9 +123,9 @@ export function ScreenShell({
           style={{ borderRadius: 999, flex: 1, transform: [{ rotate: "-18deg" }] }}
         />
       </Animated.View>
-      {/* Nebula sweep 2 — violet counter-tone, lower left */}
+      {/* Nebula sweep 2 — magenta counter-tone, lower left */}
       <LinearGradient
-        colors={["rgba(125,63,255,0.34)", "rgba(125,63,255,0.10)", "rgba(125,63,255,0)"]}
+        colors={["rgba(214,51,255,0.28)", "rgba(214,51,255,0.09)", "rgba(214,51,255,0)"]}
         locations={[0, 0.5, 1]}
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 1 }}
@@ -157,7 +157,7 @@ export function ScreenShell({
       />
       {/* Cool counter-glow mid-left */}
       <LinearGradient
-        colors={["rgba(20,150,230,0.22)", "rgba(20,150,230,0)"]}
+        colors={["rgba(0,140,255,0.24)", "rgba(0,140,255,0)"]}
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 1 }}
         style={{
@@ -281,7 +281,7 @@ export function ScreenShell({
         ))}
       </View>
       <LinearGradient
-        colors={["rgba(94,43,212,0.13)", "rgba(94,43,212,0)"]}
+        colors={["rgba(214,51,255,0.10)", "rgba(214,51,255,0)"]}
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 1 }}
         style={{

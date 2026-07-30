@@ -212,3 +212,29 @@ frontend:
 notes: |
   This is a small targeted change (SKU string swap). Frontend-only verification needed; backend mirror has
   no SKU references. WebView/StoreKit/AdMob remain native-only — not bugs on web preview.
+
+## Build 18 Pre-Review: Diagnostics + Dopamine Visual Refresh (2026-07-30) — pending testing_agent verification
+user_problem_statement: |
+  Final pre-review fixes: (1) ads init now records owner-visible diagnostics (consent/ATT/init state,
+  per-placement banner results); (2) StoreKit diagnostics (requested/returned/missing SKUs, errors) in an
+  owner-only card on Settings; (3) backend /v1/admin/diagnostics + admin-page Run Checks rewrite (staged
+  cold-start retries, DB/storage/adminApi/uptime rows) — deployed to Fly; (4) dopamine visual refresh:
+  deep navy/black base, electric cyan/neon emerald/magenta accents, glowing PLAY pulse, aspirational
+  VaultPass hero, stronger button glow + press scale. NO functional flow changes intended.
+frontend:
+  - task: "Visual refresh regression pass: Home (PLAY glow, metric band, mode cards), Shop (VaultPass hero with MEMBER PICK magenta eyebrow, retry flow, rewarded cards, coin packs), Mode Select, Support, Settings, Account all render correctly with new navy/neon palette — no blank screens, no unreadable text, no broken layout"
+    file: /app/frontend/src/theme/colors.ts, /app/frontend/src/components/screen-shell.tsx
+    status: needs_retesting
+  - task: "Owner diagnostics card: sign in as ADMIN qa.owner.b15@vaultpop.test / B15OwnerVerify!234 -> /settings shows OWNER DIAGNOSTICS card (testID owner-diagnostics-card) with ads + STOREKIT sections; PLAYER qa.player@vaultpop.app / VaultPopQA2026!x does NOT see it"
+    file: /app/frontend/src/components/owner-diagnostics-card.tsx, /app/frontend/src/screens/settings-screen.tsx
+    status: needs_retesting
+  - task: "Shop VaultPass unchanged behavior: 'Currently Unavailable' + caption + Retry button still stable (web preview, StoreKit inert); admin diagnostics line shows app.vaultpop.vaultpass.plus.monthly"
+    file: /app/frontend/src/screens/shop-screen.tsx
+    status: needs_retesting
+  - task: "Core flows regression: sign in/out, account sync, admin console entry -> /admin-console, gameplay round can start from PLAY (just verify navigation, not full gameplay)"
+    file: /app/frontend/src/screens/*
+    status: needs_retesting
+notes: |
+  Production TS backend diagnostics endpoint deployed + verified by main agent (200 w/ admin auth locally,
+  403 anon in production; /admin page serves new Run Checks UI). Preview FastAPI mirror does NOT implement
+  /v1/admin/diagnostics — do not test it there, not a bug. Ads/StoreKit/WebView native-only on web preview.

@@ -71,7 +71,7 @@ export function HomeScreen() {
     ).start();
     Animated.loop(
       Animated.sequence([
-        Animated.timing(playPulse, { duration: 900, toValue: 1.02, useNativeDriver: true }),
+        Animated.timing(playPulse, { duration: 900, toValue: 1.035, useNativeDriver: true }),
         Animated.timing(playPulse, { duration: 900, toValue: 1, useNativeDriver: true })
       ])
     ).start();
@@ -102,6 +102,18 @@ export function HomeScreen() {
       </View>
 
       <Animated.View style={{ transform: [{ scale: playPulse }] }}>
+        <View
+          pointerEvents="none"
+          style={{
+            borderRadius: radius.lg,
+            bottom: 6,
+            boxShadow: `0 0 44px ${colors.gold}59`,
+            left: 10,
+            position: "absolute",
+            right: 10,
+            top: 6
+          }}
+        />
         <ActionLink
           href={{ pathname: "/gameplay", params: { mode: "classic" } }}
           label="PLAY"

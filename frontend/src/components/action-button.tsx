@@ -37,7 +37,7 @@ export function ActionButton({
       onPress={onPress}
       style={({ pressed }) => ({
         opacity: disabled ? 0.45 : 1,
-        transform: [{ scale: pressed && !disabled ? 0.975 : 1 }],
+        transform: [{ scale: pressed && !disabled ? 0.95 : 1 }],
         width: "100%"
       })}
     >
@@ -49,7 +49,7 @@ export function ActionButton({
           style={{
             alignItems: "center",
             borderRadius: radius.md,
-            boxShadow: `0 10px 26px ${color}3D`,
+            boxShadow: `0 0 26px ${color}66, 0 10px 26px ${color}3D`,
             justifyContent: "center",
             minHeight: 54,
             paddingHorizontal: spacing.md,
@@ -87,9 +87,9 @@ export function ActionButton({
             borderCurve: "continuous",
             borderRadius: radius.md,
             borderWidth: 1,
-            boxShadow: `0 10px 22px #00000059, 0 0 14px ${
+            boxShadow: `0 10px 22px #00000059, 0 0 18px ${
               tone === "danger" ? colors.ruby : color
-            }14`,
+            }1F`,
             justifyContent: "center",
             minHeight: 54,
             overflow: "hidden",

@@ -247,3 +247,20 @@ test("exactly one VaultPass subscription product ID exists in source and matches
   }
   assert.deepEqual(offenders, [], "stale/mixed VaultPass product IDs found");
 });
+
+test("admin diagnostics endpoint reports subsystem health", async () => {
+  const { handler } = createFixture();
+  const token = await login(handler, "owner@test.app", "OwnerPassword!234");
+  const diag = await call(handler, "GET", "/v1/admin/diagnostics", undefined, {
+    Authorization: `Bearer ${token}`
+  });
+  assert.equal(diag.status, 200);
+  assert.equal(diag.body.api, "ok");
+  assert.equal(diag.body.adminApi, "ok");
+  assert.equal(diag.body.database, "ok");
+  assert.equal(diag.body.storage, "ok");
+  assert.equal(typeof diag.body.uptimeSeconds, "number");
+
+  const anonymous = await call(handler, "GET", "/v1/admin/diagnostics");
+  assert.equal(anonymous.status, 403);
+});

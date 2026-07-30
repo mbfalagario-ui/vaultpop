@@ -37,7 +37,12 @@
         }
       ],
       "expo-sqlite",
-      "expo-tracking-transparency",
+      [
+        "expo-tracking-transparency",
+        {
+          "userTrackingPermission": "VaultPop uses permission to measure and improve advertising. You can continue playing if you decline."
+        }
+      ],
       "expo-audio",
       [
         "react-native-google-mobile-ads",

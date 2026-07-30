@@ -8,6 +8,63 @@ let lastAppOpenAt = 0;
 let requestNonPersonalizedAdsOnly = true;
 const initializationListeners = new Set<() => void>();
 
+/**
+ * Owner-visible ads diagnostics: initialization, consent, ATT, and
+ * per-placement banner results. Never contains tokens or personal data.
+ */
+export type AdsDiagnostics = {
+  supported: boolean;
+  devBuild: boolean;
+  initialized: boolean;
+  consentStatus: string | null;
+  canRequestAds: boolean | null;
+  attStatus: string | null;
+  lastError: string | null;
+  placements: Record<string, string>;
+  updatedAt: number;
+};
+
+const diagnostics: AdsDiagnostics = {
+  supported: process.env.EXPO_OS === "ios",
+  devBuild: __DEV__,
+  initialized: false,
+  consentStatus: null,
+  canRequestAds: null,
+  attStatus: null,
+  lastError: null,
+  placements: {},
+  updatedAt: Date.now()
+};
+let diagnosticsSnapshot: AdsDiagnostics = {
+  ...diagnostics,
+  placements: { ...diagnostics.placements }
+};
+const diagnosticsListeners = new Set<() => void>();
+
+function touchDiagnostics(patch: Partial<AdsDiagnostics>): void {
+  Object.assign(diagnostics, patch, { updatedAt: Date.now() });
+  diagnosticsSnapshot = { ...diagnostics, placements: { ...diagnostics.placements } };
+  diagnosticsListeners.forEach((listener) => listener());
+}
+
+export function getAdsDiagnostics(): AdsDiagnostics {
+  return diagnosticsSnapshot;
+}
+
+export function subscribeToAdsDiagnostics(listener: () => void): () => void {
+  diagnosticsListeners.add(listener);
+  return () => diagnosticsListeners.delete(listener);
+}
+
+export function reportBannerEvent(placement: string, event: string): void {
+  diagnostics.placements[placement] = event;
+  touchDiagnostics({});
+}
+
+function errorText(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 export async function initializeAdsAfterHome(): Promise<boolean> {
   if (__DEV__ || process.env.EXPO_OS !== "ios") {
     return false;
@@ -25,6 +82,10 @@ export async function initializeAdsAfterHome(): Promise<boolean> {
     try {
       const consent = await ads.AdsConsent.gatherConsent();
       canRequestAds = consent.canRequestAds;
+      touchDiagnostics({
+        canRequestAds,
+        consentStatus: String(consent.status ?? "unknown")
+      });
     } catch (error: unknown) {
       // A failed consent flow (offline launch, UMP misconfiguration) must not
       // permanently disable ads. Consent from a previous session may still
@@ -32,9 +93,18 @@ export async function initializeAdsAfterHome(): Promise<boolean> {
       console.warn("VaultPop ad consent gathering failed.", error);
       const info = await ads.AdsConsent.getConsentInfo().catch(() => null);
       canRequestAds = info?.canRequestAds ?? false;
+      touchDiagnostics({
+        canRequestAds,
+        consentStatus: info ? String(info.status ?? "unknown") : null,
+        lastError: `Consent: ${errorText(error)}`
+      });
     }
     if (!canRequestAds) {
       console.warn("VaultPop ads paused: consent does not allow ad requests yet.");
+      touchDiagnostics({
+        lastError:
+          "Consent state does not allow ad requests yet (check the AdMob console consent message for your region)."
+      });
       return false;
     }
     try {
@@ -44,19 +114,23 @@ export async function initializeAdsAfterHome(): Promise<boolean> {
         permission = await tracking.requestTrackingPermissionsAsync();
       }
       requestNonPersonalizedAdsOnly = permission.status !== "granted";
+      touchDiagnostics({ attStatus: permission.status });
     } catch {
       // An ATT failure only limits ads to non-personalized requests.
       requestNonPersonalizedAdsOnly = true;
+      touchDiagnostics({ attStatus: "unavailable" });
     }
     await ads.default().setRequestConfiguration({});
     await ads.default().initialize();
     initialized = true;
     initializationListeners.forEach((listener) => listener());
+    touchDiagnostics({ initialized: true, lastError: null });
     console.log("VaultPop ads initialized.");
     return true;
   })()
     .catch((error: unknown) => {
       console.warn("VaultPop ads are unavailable.", error);
+      touchDiagnostics({ lastError: errorText(error) });
       return false;
     })
     .then((result) => {

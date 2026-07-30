@@ -152,6 +152,10 @@ export function adminPage(): Response {
         <div>
           <div class="kv"><span class="k">API health</span><span class="v" id="health-state">Checking&hellip;</span></div>
           <div class="kv"><span class="k">Latency</span><span class="v" id="health-latency">&mdash;</span></div>
+          <div class="kv"><span class="k">Database</span><span class="v" id="db-state">&mdash;</span></div>
+          <div class="kv"><span class="k">Storage</span><span class="v" id="storage-state">&mdash;</span></div>
+          <div class="kv"><span class="k">Admin API</span><span class="v" id="adminapi-state">&mdash;</span></div>
+          <div class="kv"><span class="k">Uptime</span><span class="v" id="uptime-state">&mdash;</span></div>
           <div class="kv"><span class="k">Production SSV URL</span><span class="v" id="ops-ssv-url">&mdash;</span></div>
           <div class="kv"><span class="k">Signed in as</span><span class="v" id="owner-email">&mdash;</span></div>
         </div>
@@ -571,15 +575,36 @@ async function loadAudit(){
 $("audit-refresh").onclick=()=>loadAudit().then(()=>status("Audit log refreshed.")).catch(handleError);
 
 // ---- Operations checks ----
-async function runChecks(){
-  const startedAt=Date.now();
+async function probeHealth(timeoutMs){
   const controller=new AbortController();
-  const timer=setTimeout(()=>controller.abort(),10000);
-  let ok=false;
-  try{const response=await fetch("/health",{signal:controller.signal});await response.text().catch(()=> "");ok=response.status===200}catch{ok=false}
+  const timer=setTimeout(()=>controller.abort(),timeoutMs);
+  const startedAt=Date.now();
+  try{const response=await fetch("/health",{cache:"no-store",signal:controller.signal});await response.text().catch(()=>"");return response.status===200?Date.now()-startedAt:null}
+  catch{return null}
   finally{clearTimeout(timer)}
+}
+async function runChecks(){
+  $("health-state").textContent="Checking\\u2026";
+  // Cold-start friendly: warm the API with staged retries, then measure.
+  let latency=null;
+  for(const timeoutMs of [8000,12000,20000]){
+    latency=await probeHealth(timeoutMs);
+    if(latency!==null)break;
+  }
+  const ok=latency!==null;
   $("health-state").innerHTML='<span class="pill '+(ok?"ok":"bad")+'">'+(ok?"ONLINE":"UNREACHABLE")+"</span>";
-  $("health-latency").textContent=ok?(Date.now()-startedAt)+" ms":"\\u2014";
+  $("health-latency").textContent=ok?latency+" ms":"\\u2014";
+  const setPill=(id,value)=>{$(id).innerHTML='<span class="pill '+(value==="ok"?"ok":"bad")+'">'+(value==="ok"?"ONLINE":"ERROR")+"</span>"};
+  try{
+    const diag=await api("/v1/admin/diagnostics");
+    setPill("db-state",diag.database);
+    setPill("storage-state",diag.storage);
+    setPill("adminapi-state",diag.adminApi);
+    $("uptime-state").textContent=Math.floor(diag.uptimeSeconds/3600)+"h "+Math.floor((diag.uptimeSeconds%3600)/60)+"m";
+  }catch{
+    setPill("db-state","error");setPill("storage-state","error");setPill("adminapi-state","error");
+    $("uptime-state").textContent="\\u2014";
+  }
 }
 $("run-checks").onclick=()=>{status("Running checks...");Promise.all([runChecks(),loadAnalytics()]).then(()=>status("Checks complete.")).catch(handleError)};
 

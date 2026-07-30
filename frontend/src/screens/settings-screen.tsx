@@ -1,5 +1,6 @@
 import { ActionButton } from "@/components/action-button";
 import { ActionLink } from "@/components/action-link";
+import { OwnerDiagnosticsCard } from "@/components/owner-diagnostics-card";
 import { ScreenShell } from "@/components/screen-shell";
 import { isAccountSignedIn } from "@/account/account-service";
 import { applyVerifiedPurchase } from "@/monetization/economy";
@@ -105,13 +106,16 @@ export function SettingsScreen() {
               testID="settings-account-link"
             />
             {profile.account.role === "admin" ? (
-              <ActionLink
-                href="/admin-console"
-                label="Admin Console"
-                detail="Owner tools: support inbox, analytics, user management."
-                accent={colors.gold}
-                testID="settings-admin-console-button"
-              />
+              <>
+                <ActionLink
+                  href="/admin-console"
+                  label="Admin Console"
+                  detail="Owner tools: support inbox, analytics, user management."
+                  accent={colors.gold}
+                  testID="settings-admin-console-button"
+                />
+                <OwnerDiagnosticsCard />
+              </>
             ) : null}
           </>
         ) : (
