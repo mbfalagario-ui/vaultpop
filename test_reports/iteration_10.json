@@ -1,0 +1,37 @@
+{
+  "summary": "Build 18 targeted compliance sweep — legal pages on LIVE Fly.dev backend + preview frontend smoke. Backend (Python requests against https://vaultpop-api.fly.dev): 13/13 pytest tests PASS in 1.31s. Verified: (1) GET /privacy returns 200 text/html, no-auth, contains 'Privacy Policy', 'Last updated: July 30, 2026', Google AdMob, Apple, fictional in-game items, support@vaultpop.app, footer links href=\"/terms\" and href=\"/support\". (2) GET /terms returns 200 text/html, no-auth, contains 'Terms of Use', 'Last updated: July 30, 2026', fictional/no real-world value language, 'VaultPass Plus' section, Apple-specific terms, footer links href=\"/privacy\" and href=\"/support\". (3) GET /support returns 200 with both href=\"/privacy\" AND href=\"/terms\" plus 'Privacy Policy' + 'Terms of Use' labels in the page. (4) Regressions: /health -> 200 {status:ok}, /admin -> 200 HTML login page, /v1/admin/analytics without auth -> 403 (still protected), random path /v1/does-not-exist-... -> 404 JSON. (5) POST /v1/auth/login with live QA creds (build8.verify.1783611957@vaultpop.test / installId verify-build8-live) -> 200 with session token (no cold-start retry needed). Frontend (preview 375x667): /legal renders 'Privacy & Legal' with all 4 action buttons (In-App Support, Email Support, Privacy Policy, Terms of Use), 'Opens the terms URL.' detail present, support outline lists 'Terms of use: https://vaultpop-api.fly.dev/terms.', Terms of Use tap does not crash. Regression smoke: /, /settings, /support all load with no red-screen and ZERO console errors. No deprecated Expo packages introduced by this change (legal screen uses View/Text/Linking only). No new react-native issues.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_build18_legal.py",
+    "/app/test_reports/pytest/build18_results.xml",
+    "/app/test_reports/iteration_10.json"
+  ],
+  "action_items": [
+    "No fixes required — all Build 18 legal compliance acceptance checks pass on both live Fly.dev backend and preview frontend. Ready to ship."
+  ],
+  "critical_code_review_comments": [
+    "privacy-support-legal-screen.tsx L59-65: new 'Terms of Use' ActionButton uses Linking.openURL('https://vaultpop-api.fly.dev/terms') exactly as spec'd; sibling of existing 'Privacy Policy' button; detail 'Opens the terms URL.' matches the acceptance criteria.",
+    "policy-outline.ts L14: support outline now lists 'Terms of use: https://vaultpop-api.fly.dev/terms.' with the same shape as the pre-existing Privacy line — clean addition, no drift.",
+    "Backend legal pages served from Fly TS backend (docs/legal/*.md source of truth) and are publicly reachable with correct Content-Type and cross-links — meets store submission requirements."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_build18_legal.py (new pytest suite for live Fly backend legal pages + regression)",
+    "/app/test_reports/pytest/build18_results.xml (JUnit)",
+    "/app/test_reports/iteration_10.json (this report)"
+  ],
+  "success_rate": {
+    "backend": "100% (13/13 pytest: privacy 3/3, terms 3/3, support 2/2, regression 4/4, auth login 1/1)",
+    "frontend": "100% (legal screen presence/tap + home/settings/support smoke, 0 console errors)"
+  },
+  "seed_data_creation": "None. Reused live QA player build8.verify.1783611957@vaultpop.test from /app/memory/test_credentials.md.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Build 18 legal delta VERIFIED. Live prod TS backend at https://vaultpop-api.fly.dev now serves /privacy and /terms with 'Last updated: July 30, 2026' and mutual footer cross-links (/privacy <-> /terms <-> /support). Preview URL: https://vaultpop-premium.preview.emergentagent.com. In-app legal screen route is /legal; buttons open external URLs via Linking.openURL (on web preview tap is safe/no-crash but does not follow the external navigation — this is expected). Fly login had no cold-start delay in this run but /app/memory/test_credentials.md notes machine may sleep — keep the retry-on-timeout pattern in test_build18_legal.py if re-running after idle periods. Do NOT retest ads/StoreKit/admin flows — out of scope per review request.",
+  "rca_of_issue": "N/A — no bugs found."
+}
