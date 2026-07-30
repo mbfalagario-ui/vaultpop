@@ -1,142 +1,156 @@
 {
-  "app_name": "VaultPop",
-  "personality": "6 Glass / Luxe structure with 7 Dark-First Utility arcade/neon accents",
-  "personality_one_liner": "A mature, cinematic neon arcade experience driven by deep contrast, tactile solid surfaces, and glowing electric accents that demand one more round.",
+  "app_name": "VAULTPOP",
+  "personality": "6 Glass / Luxe DARK fused with 7 Dark-First Utility neon accents",
+  "personality_one_liner": "A high-energy, Apple-quality premium game economy that drives instant excitement and dopamine through deep contrast, layered glassmorphism, and neon reward cues.",
   "color": {
-    "surface": "#08070D",
+    "surface": "#050510",
     "onSurface": "#FFFFFF",
-    "surfaceSecondary": "#141120",
-    "onSurfaceSecondary": "#D4D0DF",
-    "surfaceTertiary": "#1F1A33",
-    "onSurfaceTertiary": "#A59CBE",
+    "surfaceSecondary": "#0F1225",
+    "onSurfaceSecondary": "#E2E8F0",
+    "surfaceTertiary": "#1A1D36",
+    "onSurfaceTertiary": "#94A3B8",
     "surfaceInverse": "#FFFFFF",
-    "onSurfaceInverse": "#08070D",
-    "brand": "#FFD700",
-    "brandPrimary": "#FFD700",
-    "onBrandPrimary": "#141000",
+    "onSurfaceInverse": "#050510",
+    "brand": "#00F0FF",
+    "brandPrimary": "#00FF7F",
+    "onBrandPrimary": "#050510",
     "brandSecondary": "#00F0FF",
-    "onBrandSecondary": "#001B1D",
+    "onBrandSecondary": "#050510",
     "brandTertiary": "#FF00FF",
     "onBrandTertiary": "#FFFFFF",
-    "success": "#00FF66",
-    "onSuccess": "#00240E",
-    "warning": "#FFD700",
-    "onWarning": "#141000",
-    "error": "#FF0055",
+    "success": "#00FF7F",
+    "onSuccess": "#050510",
+    "warning": "#FFB800",
+    "onWarning": "#050510",
+    "error": "#FF2A55",
     "onError": "#FFFFFF",
     "info": "#00F0FF",
-    "onInfo": "#001B1D",
-    "border": "#282342",
-    "borderStrong": "#433A70",
-    "divider": "#191529"
+    "onInfo": "#050510",
+    "border": "#1A1D36",
+    "borderStrong": "#00F0FF",
+    "divider": "#1A1D36"
   },
   "typography": {
-    "displayFontFamily": "System",
-    "textFontFamily": "System",
-    "scale": { "sm": 12, "base": 14, "lg": 16, "xl": 20, "2xl": 24 }
+    "displayFontFamily": "Space Grotesk",
+    "textFontFamily": "Outfit",
+    "scale": {
+      "sm": 12,
+      "base": 14,
+      "lg": 16,
+      "xl": 20,
+      "2xl": 24
+    }
   },
-  "spacing": { 
-    "rule": "Generous safe-area padding for immersion. Maintain tight grouping for HUD elements and spacious margins for primary actions. Use 16pt (lg) for screen edges.", 
-    "xs": 4, 
-    "sm": 8, 
-    "md": 12, 
-    "lg": 16, 
-    "xl": 24, 
-    "2xl": 32, 
-    "3xl": 48 
+  "spacing": {
+    "rule": "Generous Apple-style margins (16-24pt) around the screen edges. Content within cards is tightly grouped (8-12pt) to maintain a solid, substantial feel.",
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "2xl": 32,
+    "3xl": 48
   },
-  "radius_tokens": { "sm": 6, "md": 12, "lg": 20, "pill": 999 },
-  "shadow_tier": 2,
-  "navigation": "stack_only",
-  "icon_set": "custom (View-drawn glyphs only, NO @expo/vector-icons)",
+  "radius_tokens": {
+    "sm": 6,
+    "md": 12,
+    "lg": 20,
+    "pill": 999
+  },
+  "shadow_tier": "2",
+  "navigation": "bottom_tabs",
+  "icon_set": "Ionicons",
   "glassmorphism": {
-    "enabled": true,
+    "enabled": "true",
     "do's": [
-      "Simulate glass using RGBA variants of surfaceSecondary (e.g., rgba(20, 17, 32, 0.85)) combined with expo-linear-gradient since expo-blur is restricted.",
-      "Ensure a gradient-to-dark scrim is placed under text when floating over game board or hero image."
+      "Use heavily on top header summaries and bottom navigation bars.",
+      "Use on highlighted premium cards (e.g., VaultPass).",
+      "Ensure a translucent tinted base (≥75% opacity) beneath the blur to guarantee text readability in dark mode."
     ],
     "dont's": [
-      "No blur/opacity on the actual gameplay tiles (they must remain sharp and tactile).",
-      "No blur on interactive booster buttons (they need solid contrast)."
+      "Do not use on every single game mode card; reserve for premium/featured elements to maintain contrast.",
+      "Do not use on body text regions or form fields."
     ]
   },
   "platform_libraries": {
     "glass": {
-      "ios": "simulated via solid surfaceSecondary + expo-linear-gradient overlay",
-      "android": "simulated via solid surfaceSecondary + expo-linear-gradient overlay",
+      "ios": "expo-glass-effect",
+      "android": "expo-blur",
       "low_end_android_fallback": "solid surfaceSecondary"
     },
     "image": "expo-image",
-    "animation": "react-native (Animated)",
+    "blur": "expo-blur",
+    "bottom_sheet": "@gorhom/bottom-sheet",
+    "animation": "react-native-reanimated",
     "gesture": "react-native-gesture-handler"
   },
   "screens": [
-    { 
-      "name": "Home", 
-      "purpose": "Instantly sell the premium game identity and funnel players into gameplay via a high-impact CTA.", 
-      "states": { 
-        "loading": "Centered brandPrimary pulse against surface.", 
-        "empty": "N/A", 
-        "error": "Centered neon magenta text message with retry CTA." 
+    {
+      "name": "Home",
+      "purpose": "Drive momentum and immediate action to play, showcasing current wealth and global status.",
+      "states": {
+        "loading": "Centered premium glowing spinner.",
+        "empty": "Should not be empty, but if offline, show 'Offline Mode' subtle state.",
+        "error": "Glowing red retry button with clear text."
       },
-      "layout": "Hero image (hero_background) fills screen under a top-to-bottom expo-linear-gradient scrim (transparent to surface). VaultPop title uses System font with letterSpacing: 4, size 3xl, and textShadow (brandPrimary glow). Massive 'Play' button sticky at thumb zone using solid brandPrimary."
+      "layout": "Hero-first layout. Top: translucent header with player wealth (coins/gems). Middle: Huge, glowing 'PLAY' CTA as a central focal point, surrounded by subtle animated neon radial blobs in the background. Bottom edge: Edge-anchored mode picker cards (Classic/Daily) and a global leaderboard preview. Safe area at the bottom for banner ads."
     },
-    { 
-      "name": "Mode Select", 
-      "purpose": "Present the 3 game modes as premium, distinct experiences.", 
-      "states": { "loading": "Skeleton cards.", "empty": "N/A", "error": "Retry connection." },
-      "layout": "Vertical list of 3 massive cards (Classic, Daily Vault, Streak). Cards use surfaceSecondary with borderStrong outlines, subtle internal linear gradients matching their theme (Gold, Cyan, Emerald), and large touch targets."
+    {
+      "name": "Mode Select",
+      "purpose": "Present game variations with distinct visual identities and rewards.",
+      "states": {
+        "loading": "Skeleton cards with subtle shimmer.",
+        "empty": "No modes available.",
+        "error": "Error loading modes."
+      },
+      "layout": "Vertical scrollable list of cards. Each card uses a dark surfaceSecondary base but features distinct neon border glows (Cyan for Daily, Emerald for Streak). Top-aligned titles with prominent coin/reward icons in the layout."
     },
-    { 
-      "name": "Gameplay", 
-      "purpose": "The core 8x8 puzzle board experience. Must be immersive, highly tactile, and distraction-free.", 
-      "states": { "loading": "Board grid skeleton.", "empty": "N/A", "error": "Board load failed prompt." },
-      "layout": "Top HUD: Cinematic stats (Score, Timer, Combo) in Cyan/Magenta. Center: 8x8 grid. Tiles are View components with borderStrong glow for selected states and RN Animated scale logic. Bottom: Vault meter (progress bar) and 3 tactile Booster buttons (Bonus Life, Chain Boost, Vault Burst) grouped like an arcade panel."
+    {
+      "name": "Shop",
+      "purpose": "An aspirational, premium game store to drive VaultPass subscriptions and coin purchases.",
+      "states": {
+        "loading": "Premium skeleton UI.",
+        "empty": "No offers.",
+        "error": "Store unavailable."
+      },
+      "layout": "Top: A massive, glass-morphic VaultPass Plus hero card with a subtle magenta to cyan gradient overlay and full-bleed artwork. Middle: Grid of coin packs (2-column layout). Bottom: Booster forge section."
     },
-    { 
-      "name": "Results", 
-      "purpose": "Reward the player visually and encourage immediate replay.", 
-      "states": { "loading": "Calculating score pulse.", "empty": "N/A", "error": "N/A" },
-      "layout": "Cinematic dark arcade summary. High contrast neon typography over a darkened grid_bg image. Score breakdown, Best Score indicator, and a sticky primary 'Play Again' button."
-    },
-    { 
-      "name": "Shop", 
-      "purpose": "Present the in-game economy (Vault Coins, VaultPass, Boosters) with premium visual weighting.", 
-      "states": { "loading": "Fetching products.", "empty": "No products available.", "error": "Store unavailable." },
-      "layout": "Premium product cards using simulated glass panels. Visual hierarchy highlights the 'VaultPass' and 'Booster Forge' over simple text lists. 'Restore Purchases' as a subtle but accessible secondary link."
+    {
+      "name": "Round Results",
+      "purpose": "Deliver a massive dopamine hit with score reveals and reward count-ups.",
+      "states": {
+        "loading": "Calculating score...",
+        "empty": "N/A",
+        "error": "Failed to sync score."
+      },
+      "layout": "Centralized, oversized typography for the score reveal. Sequential animations for coins earned and streak multipliers. Large, bottom-sticky 'PLAY AGAIN' CTA."
     }
   ],
   "images": {
-    "hero_background": { 
-      "url": "https://images.unsplash.com/photo-1511512578047-dfb367046420?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MjJ8MHwxfHNlYXJjaHwxfHxuZW9uJTIwYXJjYWRlJTIwZGFyayUyMGJhY2tncm91bmR8ZW58MHx8fHwxNzgzMjE0ODUyfDA&ixlib=rb-4.1.0&q=85", 
-      "alt": "Dark neon arcade room background" 
+    "vault_hero": {
+      "url": "https://images.unsplash.com/photo-1773694697060-8f9f3c25418e?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDF8MHwxfHNlYXJjaHwxfHxhYnN0cmFjdCUyMGdsb3dpbmclMjBuZW9uJTIwYmx1ZSUyMG1hZ2VudGElMjBiYWNrZ3JvdW5kfGVufDB8fHx8MTc4NTQzMTgyNnww&ixlib=rb-4.1.0&q=85",
+      "dark": "https://images.unsplash.com/photo-1773694697060-8f9f3c25418e?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDF8MHwxfHNlYXJjaHwxfHxhYnN0cmFjdCUyMGdsb3dpbmclMjBuZW9uJTIwYmx1ZSUyMG1hZ2VudGElMjBiYWNrZ3JvdW5kfGVufDB8fHx8MTc4NTQzMTgyNnww&ixlib=rb-4.1.0&q=85",
+      "alt": "Abstract glowing neon blue and magenta background"
     },
-    "vault_coin": { 
-      "url": "https://images.unsplash.com/photo-1760902419069-466f6f82c8b2?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2Mzl8MHwxfHNlYXJjaHwxfHx2YXVsdCUyMGdvbGQlMjBjcnlwdG8lMjBkYXJrfGVufDB8fHx8MTc4MzIxNDg1Mnww&ixlib=rb-4.1.0&q=85", 
-      "alt": "Geometric gold crypto vault starburst" 
-    },
-    "grid_bg": { 
-      "url": "https://images.unsplash.com/photo-1672872476232-da16b45c9001?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAxODF8MHwxfHNlYXJjaHwzfHxjeWJlcnB1bmslMjBuZW9uJTIwZ3JpZCUyMGRhcmt8ZW58MHx8fHwxNzgzMjE0ODUyfDA&ixlib=rb-4.1.0&q=85", 
-      "alt": "Cyberpunk neon dark grid background" 
+    "reward_chest": {
+      "url": "https://images.unsplash.com/photo-1740625948252-a96c3cc5fb3c?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDF8MHwxfHNlYXJjaHwxfHx0cmVhc3VyZSUyMGNoZXN0JTIwM2QlMjBnbG93aW5nfGVufDB8fHx8MTc4NTQzMTgyNnww&ixlib=rb-4.1.0&q=85",
+      "alt": "Glowing 3d treasure chest"
     }
   },
-  "instructions_to_main_agent": [
-    "CRITICAL: User explicitly requested a deep black / navy / violet base (Theme: surface #08070D, surfaceSecondary #141120). This is a permitted exception to the standard 'No Navy' rule due to the explicit user prompt.",
-    "CRITICAL: System font ONLY. Use fontWeight (max 500) and letterSpacing to establish typographic hierarchy. E.g., Title: fontSize 24, fontWeight '500', letterSpacing 2.",
-    "CRITICAL: NO @expo/vector-icons allowed per constraints. All icons (chevrons, close buttons, stars) MUST be custom View-drawn glyphs or composed using stylized text elements.",
-    "CRITICAL: NO lottie, NO skia, NO reanimated. Use React Native's built-in Animated API for tile pops, button scales, and board interactions.",
-    "CRITICAL: Simulate glass using RGBA hexes matching surfaceSecondary with expo-linear-gradient overlays, as expo-blur is restricted.",
-    "Use expo-haptics extensively for the 'tap-to-clear' core mechanic, booster activations, and menu interactions to provide tactile feedback.",
-    "Tiles in the 8x8 grid must avoid text/letters entirely. Rely strictly on pure shapes, colors, and border highlights to differentiate objects."
-  ],
   "haptics": {
-    "Home.PlayCTA": "impactMedium",
-    "ModeSelect.CardPress": "impactLight",
-    "Gameplay.TileSelect": "selection",
-    "Gameplay.TileClear": "impactMedium",
-    "Gameplay.ComboClear": "impactHeavy",
-    "Gameplay.BoosterActivate": "notificationSuccess",
-    "Results.ScoreReveal": "impactLight (repeating)",
-    "Shop.PurchaseIntent": "impactMedium"
-  }
+    "PLAY_BUTTON_PRESS": "impactHeavy",
+    "COIN_COUNT_UP": "selection",
+    "MODE_SELECT": "impactLight",
+    "PURCHASE_SUCCESS": "notificationSuccess"
+  },
+  "instructions_to_main_agent": [
+    "Update src/theme.ts with the exact hex values provided in the color object above.",
+    "Implement an animated background in the ScreenShell component using react-native-reanimated. Use 2-3 slow-moving radial glow blobs (using absolute positioning, blurred views, or SVG gradients if performant) with the brand, brandSecondary, and brandTertiary colors.",
+    "Ensure all primary ActionButtons use a glowing effect. You can achieve this by adding a shadow with the button's background color (e.g., emerald green or cyan) with a high blur radius and low offset.",
+    "For the VaultPass card on the Shop screen, use the 'vault_hero' image as a background with an expo-linear-gradient scrim (top to bottom, transparent to heavily tinted surfaceInverse) to ensure text readability.",
+    "Do NOT break the Gameplay screen. It must remain functional as a 60-second coin-popping chain arcade round.",
+    "Add micro-animations: press scales on ActionButtons (scale down to 0.95), progress bar energy shimmers using reanimated, and sequential fade/slide-ins on the Round Results screen.",
+    "Use Space Grotesk for metrics and numbers to give it a premium tech/gaming feel, and Outfit for body text to maintain Apple-like legibility.",
+    "Ensure banner ads at the bottom of the screens are not obstructed by sticky CTAs or safe area insets."
+  ]
 }
