@@ -1,4 +1,8 @@
 import {
+  createCatalogLoader,
+  type CatalogLoader
+} from "@/monetization/catalog-loader";
+import {
   getProductDefinition,
   isConsumableProduct,
   ONE_TIME_PRODUCT_IDS,
@@ -35,6 +39,78 @@ type StoreSessionHandlers = {
   onError: (message: string) => void;
 };
 
+/* ------------------------------------------------------------------ *
+ * StoreKit connection (app-lifetime singleton)
+ * ------------------------------------------------------------------ */
+
+type IapModule = typeof import("react-native-iap");
+
+let iapConnectionPromise: Promise<IapModule> | null = null;
+let sharedCatalogLoader: CatalogLoader<StoreProduct> | null = null;
+
+/**
+ * Initializes the StoreKit connection exactly once for the app's lifetime.
+ * Screens must never end the connection: the Build 18 per-mount
+ * initConnection/endConnection churn is what produced transient
+ * "store returned no products" responses.
+ */
+async function connectToStore(): Promise<IapModule> {
+  if (!iapConnectionPromise) {
+    iapConnectionPromise = (async () => {
+      const iap = await import("react-native-iap");
+      await iap.initConnection();
+      return iap;
+    })();
+    iapConnectionPromise.catch(() => {
+      // Allow a later retry if the initial connection attempt failed.
+      iapConnectionPromise = null;
+    });
+  }
+  return iapConnectionPromise;
+}
+
+async function fetchCatalogOnce(iap: IapModule): Promise<StoreProduct[]> {
+  // A failure in either request must not blank the whole catalog: fetch
+  // one-time products and subscriptions independently.
+  const [products, subscriptions] = await Promise.allSettled([
+    iap.fetchProducts({ skus: [...ONE_TIME_PRODUCT_IDS], type: "in-app" }),
+    iap.fetchProducts({ skus: [...SUBSCRIPTION_PRODUCT_IDS], type: "subs" })
+  ]);
+  const lines: string[] = [
+    `Requested subs: ${SUBSCRIPTION_PRODUCT_IDS.join(", ")}`,
+    `Requested in-app: ${ONE_TIME_PRODUCT_IDS.join(", ")}`
+  ];
+  if (products.status === "rejected") {
+    console.warn("VaultPop one-time product fetch failed.", products.reason);
+    lines.push(
+      `In-app fetch error: ${products.reason instanceof Error ? products.reason.message : String(products.reason)}`
+    );
+  }
+  if (subscriptions.status === "rejected") {
+    console.warn("VaultPop subscription fetch failed.", subscriptions.reason);
+    lines.push(
+      `Subscription fetch error: ${subscriptions.reason instanceof Error ? subscriptions.reason.message : String(subscriptions.reason)}`
+    );
+  }
+  const catalog: StoreProduct[] = [
+    ...(products.status === "fulfilled" ? (products.value ?? []) : []),
+    ...(subscriptions.status === "fulfilled" ? (subscriptions.value ?? []) : [])
+  ];
+  const received = new Set(catalog.map((item) => item.id));
+  lines.push(
+    `Store returned: ${catalog.length === 0 ? "no products" : [...received].join(", ")}`
+  );
+  const missing = [...ONE_TIME_PRODUCT_IDS, ...SUBSCRIPTION_PRODUCT_IDS].filter(
+    (sku) => !received.has(sku)
+  );
+  if (missing.length > 0) {
+    console.warn(`VaultPop store catalog is missing SKUs: ${missing.join(", ")}`);
+    lines.push(`Missing SKUs: ${missing.join(", ")}`);
+  }
+  storeDiagnostics = lines;
+  return catalog;
+}
+
 export async function createStoreSession(
   handlers: StoreSessionHandlers
 ): Promise<StoreSession> {
@@ -46,8 +122,13 @@ export async function createStoreSession(
     throw new Error("The App Store is unavailable in Expo Go.");
   }
 
-  const iap = await import("react-native-iap");
-  await iap.initConnection();
+  const iap = await connectToStore();
+  if (!sharedCatalogLoader) {
+    sharedCatalogLoader = createCatalogLoader({
+      fetchOnce: () => fetchCatalogOnce(iap)
+    });
+  }
+  const loader = sharedCatalogLoader;
   const purchaseSubscription = iap.purchaseUpdatedListener((purchase) => {
     void handlers.onPurchase(purchase);
   });
@@ -59,51 +140,10 @@ export async function createStoreSession(
     close: async () => {
       purchaseSubscription.remove();
       errorSubscription.remove();
-      await iap.endConnection();
+      // The StoreKit connection and the catalog cache intentionally stay
+      // alive for the app's lifetime (see connectToStore).
     },
-    fetchCatalog: async () => {
-      // A failure in either request must not blank the whole catalog: fetch
-      // one-time products and subscriptions independently.
-      const [products, subscriptions] = await Promise.allSettled([
-        iap.fetchProducts({ skus: [...ONE_TIME_PRODUCT_IDS], type: "in-app" }),
-        iap.fetchProducts({ skus: [...SUBSCRIPTION_PRODUCT_IDS], type: "subs" })
-      ]);
-      const lines: string[] = [
-        `Requested subs: ${SUBSCRIPTION_PRODUCT_IDS.join(", ")}`,
-        `Requested in-app: ${ONE_TIME_PRODUCT_IDS.join(", ")}`
-      ];
-      if (products.status === "rejected") {
-        console.warn("VaultPop one-time product fetch failed.", products.reason);
-        lines.push(
-          `In-app fetch error: ${products.reason instanceof Error ? products.reason.message : String(products.reason)}`
-        );
-      }
-      if (subscriptions.status === "rejected") {
-        console.warn("VaultPop subscription fetch failed.", subscriptions.reason);
-        lines.push(
-          `Subscription fetch error: ${subscriptions.reason instanceof Error ? subscriptions.reason.message : String(subscriptions.reason)}`
-        );
-      }
-      const catalog: StoreProduct[] = [
-        ...(products.status === "fulfilled" ? (products.value ?? []) : []),
-        ...(subscriptions.status === "fulfilled" ? (subscriptions.value ?? []) : [])
-      ];
-      const received = new Set(catalog.map((item) => item.id));
-      lines.push(
-        `Store returned: ${catalog.length === 0 ? "no products" : [...received].join(", ")}`
-      );
-      const missing = [...ONE_TIME_PRODUCT_IDS, ...SUBSCRIPTION_PRODUCT_IDS].filter(
-        (sku) => !received.has(sku)
-      );
-      if (missing.length > 0) {
-        console.warn(
-          `VaultPop store catalog is missing SKUs: ${missing.join(", ")}`
-        );
-        lines.push(`Missing SKUs: ${missing.join(", ")}`);
-      }
-      storeDiagnostics = lines;
-      return catalog;
-    },
+    fetchCatalog: () => loader.load(),
     purchase: async (productId) => {
       const definition = getProductDefinition(productId);
       if (!definition) {

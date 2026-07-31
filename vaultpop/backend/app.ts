@@ -926,7 +926,10 @@ function estimatedGrossUsd(productCounts: Record<string, number>): number {
   let total = 0;
   for (const [productId, count] of Object.entries(productCounts)) {
     const definition = getProductDefinition(productId);
-    const price = definition
+    // Note: the VaultPass subscription intentionally has no hardcoded price
+    // (its customer price comes from StoreKit), so it contributes 0 to this
+    // rough owner-facing gross estimate.
+    const price = definition?.basePriceUsd
       ? Number(/([0-9]+\.[0-9]{2})/.exec(definition.basePriceUsd)?.[1] ?? 0)
       : 0;
     total += price * count;

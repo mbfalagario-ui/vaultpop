@@ -26,7 +26,7 @@ import {
   type BoosterKind
 } from "@/monetization/economy";
 import { BOOSTER_GUIDE } from "@/monetization/booster-guide";
-import { hasPremiumThemeAccess, isAdFree } from "@/monetization/entitlements";
+import { hasActiveVaultPass, hasPremiumThemeAccess, isAdFree } from "@/monetization/entitlements";
 import {
   createStoreSession,
   verifyPurchaseWithServer,
@@ -38,7 +38,8 @@ import { useSaveProfile } from "@/storage/use-save-profile";
 import { colors, radius, spacing, typography, visualThemes } from "@/theme";
 import { LinearGradient } from "expo-linear-gradient";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Pressable, Text, View } from "react-native";import type { Purchase } from "react-native-iap";
+import { Linking, Pressable, Text, View } from "react-native";
+import type { Purchase } from "react-native-iap";
 
 const PRODUCT_COINS: Record<string, TileType> = {
   "app.vaultpop.boosters.starter": "emerald",
@@ -57,7 +58,7 @@ const PRODUCT_ACCENTS: Record<string, string> = {
 };
 
 const VAULTPASS_ID: IapProductId = "app.vaultpop.vaultpass.plus.monthly";
-const VAULTPASS = IAP_PRODUCTS.find((product) => product.id === VAULTPASS_ID)!;
+const APPLE_SUBSCRIPTIONS_URL = "https://apps.apple.com/account/subscriptions";
 const ONE_TIME_PRODUCTS = IAP_PRODUCTS.filter(
   (product) => product.kind !== "subscription"
 );
@@ -93,6 +94,7 @@ export function ShopScreen() {
   const capped = rewardedCount >= REWARDED_DAILY_CAP;
   const adFree = isAdFree(profile);
   const premiumAccess = hasPremiumThemeAccess(profile);
+  const vaultPassActive = hasActiveVaultPass(profile);
   const vaultPassStore = storeProducts.find((item) => item.id === VAULTPASS_ID);
 
   useEffect(() => {
@@ -402,16 +404,30 @@ export function ShopScreen() {
               </Text>
             </View>
             <View style={{ alignItems: "flex-end" }}>
-              <Text
-                numberOfLines={1}
-                selectable
-                style={[typography.numeral, { color: colors.textPrimary, fontSize: 16 }]}
-              >
-                {(vaultPassStore?.displayPrice ?? VAULTPASS.basePriceUsd).replace(/\/month$/, "")}
-              </Text>
-              <Text selectable={false} style={[typography.caption, { color: colors.textMuted, fontSize: 10 }]}>
-                per month
-              </Text>
+              {vaultPassActive ? (
+                <Text
+                  selectable={false}
+                  testID="shop-vaultpass-active-badge"
+                  style={[typography.eyebrow, { color: colors.emerald, fontSize: 11 }]}
+                >
+                  ACTIVE
+                </Text>
+              ) : (
+                <>
+                  <Text
+                    numberOfLines={1}
+                    selectable
+                    testID="shop-vaultpass-price"
+                    style={[typography.numeral, { color: colors.textPrimary, fontSize: 16 }]}
+                  >
+                    {/* Localized StoreKit price only — never a hardcoded fallback. */}
+                    {vaultPassStore?.displayPrice ?? "—"}
+                  </Text>
+                  <Text selectable={false} style={[typography.caption, { color: colors.textMuted, fontSize: 10 }]}>
+                    per month
+                  </Text>
+                </>
+              )}
             </View>
           </View>
           <Text selectable style={[typography.caption, { color: colors.textSecondary, fontSize: 12.5 }]}>
@@ -423,60 +439,99 @@ export function ShopScreen() {
             <BenefitChip label="PREMIUM STYLES" accent={colors.violet} />
             <BenefitChip label="MONTHLY BOOSTERS" accent={colors.emerald} />
           </View>
-          <ActionButton
-            label={
-              vaultPassStore
-                ? "Get VaultPass Plus"
-                : catalogState === "loading"
-                  ? "Connecting to the App Store..."
-                  : "Currently Unavailable"
-            }
-            disabled={!vaultPassStore || busyProductId !== null}
-            accent={colors.violet}
-            tone={vaultPassStore ? "primary" : "quiet"}
-            testID={`shop-buy-${VAULTPASS_ID}`}
-            onPress={() => void buy(VAULTPASS_ID)}
-          />
-          {!vaultPassStore && catalogState !== "loading" ? (
-            <View style={{ gap: spacing.xs }}>
+          {vaultPassActive ? (
+            <View style={{ gap: spacing.xs }} testID="shop-vaultpass-active">
               <Text
                 selectable
-                testID="shop-vaultpass-unavailable"
                 style={[
-                  typography.caption,
-                  { color: colors.textSecondary, fontSize: 12, textAlign: "center" }
+                  typography.sectionTitle,
+                  { color: colors.emerald, fontSize: 15, textAlign: "center" }
                 ]}
               >
-                VaultPass is unavailable right now. Please try again later.
+                ✓ VaultPass Plus Active
               </Text>
-              <ActionButton
-                label="Retry Loading Products"
-                tone="quiet"
-                accent={colors.violet}
-                disabled={busyProductId !== null}
-                testID="shop-catalog-retry-button"
-                onPress={() => void loadCatalog()}
-              />
-              {profile.account.role === "admin" && catalogDiag ? (
+              {profile.entitlements.vaultPassExpiresAt ? (
                 <Text
                   selectable
-                  testID="shop-vaultpass-diagnostics"
                   style={[
                     typography.caption,
-                    { color: colors.textMuted, fontSize: 10.5, textAlign: "center" }
+                    { color: colors.textMuted, fontSize: 11, textAlign: "center" }
                   ]}
                 >
-                  {catalogDiag}
+                  Active through{" "}
+                  {new Date(profile.entitlements.vaultPassExpiresAt).toLocaleDateString()} —
+                  renews automatically via Apple.
                 </Text>
               ) : null}
+              <ActionButton
+                label="Manage Subscription"
+                detail="Opens your Apple subscription settings."
+                tone="quiet"
+                accent={colors.emerald}
+                testID="shop-vaultpass-manage"
+                onPress={() => {
+                  void Linking.openURL(APPLE_SUBSCRIPTIONS_URL);
+                }}
+              />
             </View>
-          ) : null}
-          <Text
-            selectable
-            style={[typography.caption, { color: colors.textMuted, fontSize: 10.5, textAlign: "center" }]}
-          >
-            Renews monthly. Manage or cancel in your Apple account settings.
-          </Text>
+          ) : (
+            <>
+              <ActionButton
+                label={
+                  vaultPassStore
+                    ? "Get VaultPass Plus"
+                    : catalogState === "loading"
+                      ? "Connecting to the App Store..."
+                      : "Currently Unavailable"
+                }
+                disabled={!vaultPassStore || busyProductId !== null}
+                accent={colors.violet}
+                tone={vaultPassStore ? "primary" : "quiet"}
+                testID={`shop-buy-${VAULTPASS_ID}`}
+                onPress={() => void buy(VAULTPASS_ID)}
+              />
+              {!vaultPassStore && catalogState !== "loading" ? (
+                <View style={{ gap: spacing.xs }}>
+                  <Text
+                    selectable
+                    testID="shop-vaultpass-unavailable"
+                    style={[
+                      typography.caption,
+                      { color: colors.textSecondary, fontSize: 12, textAlign: "center" }
+                    ]}
+                  >
+                    VaultPass is unavailable right now. Please try again later.
+                  </Text>
+                  <ActionButton
+                    label="Retry Loading Products"
+                    tone="quiet"
+                    accent={colors.violet}
+                    disabled={busyProductId !== null}
+                    testID="shop-catalog-retry-button"
+                    onPress={() => void loadCatalog()}
+                  />
+                  {profile.account.role === "admin" && catalogDiag ? (
+                    <Text
+                      selectable
+                      testID="shop-vaultpass-diagnostics"
+                      style={[
+                        typography.caption,
+                        { color: colors.textMuted, fontSize: 10.5, textAlign: "center" }
+                      ]}
+                    >
+                      {catalogDiag}
+                    </Text>
+                  ) : null}
+                </View>
+              ) : null}
+              <Text
+                selectable
+                style={[typography.caption, { color: colors.textMuted, fontSize: 10.5, textAlign: "center" }]}
+              >
+                Renews monthly. Manage or cancel in your Apple account settings.
+              </Text>
+            </>
+          )}
         </LinearGradient>
       </View>
 
@@ -819,7 +874,8 @@ export function ShopScreen() {
                   selectable
                   style={[typography.numeral, { color: colors.textPrimary, flexShrink: 0, fontSize: 16 }]}
                 >
-                  {storeProduct?.displayPrice ?? product.basePriceUsd}
+                  {storeProduct?.displayPrice ??
+                    ("basePriceUsd" in product ? product.basePriceUsd : "")}
                 </Text>
               </View>
               <Text selectable style={[typography.caption, { color: colors.textSecondary, fontSize: 12 }]}>

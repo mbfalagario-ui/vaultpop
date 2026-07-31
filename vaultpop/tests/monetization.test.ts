@@ -16,16 +16,21 @@ import { hasActiveVaultPass, isAdFree } from "../src/monetization/entitlements";
 import { createDefaultSaveProfile, normalizeSaveProfile } from "../src/storage/save-model";
 import { validateSupportTicket } from "../src/support/support-model";
 
-test("IAP catalog matches exact IDs, prices, and display order", () => {
+test("IAP catalog matches exact IDs and order; VaultPass has no hardcoded price", () => {
   assert.deepEqual(
-    IAP_PRODUCTS.map((product) => [product.id, product.basePriceUsd]),
+    IAP_PRODUCTS.map((product) => [
+      product.id,
+      "basePriceUsd" in product ? product.basePriceUsd : null
+    ]),
     [
       ["app.vaultpop.boosters.starter", "US$2.99"],
       ["app.vaultpop.coins.small", "US$0.99"],
       ["app.vaultpop.coins.medium", "US$3.99"],
       ["app.vaultpop.coins.large", "US$8.99"],
       ["app.vaultpop.remove_ads", "US$4.99"],
-      ["app.vaultpop.vaultpass.plus.monthly", "US$2.99/month"]
+      // Build 18 regression fix: the subscription price must come only from
+      // the localized StoreKit product — never from a hardcoded string.
+      ["app.vaultpop.vaultpass.plus.monthly", null]
     ]
   );
   assert.equal(IAP_PRODUCTS[2]?.badge, "Popular");

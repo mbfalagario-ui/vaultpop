@@ -16,7 +16,13 @@ export type IapProductDefinition = {
   detail: string;
   description: string;
   kind: ProductKind;
-  basePriceUsd: string;
+  /**
+   * Reference price used only for one-time products as offline fallback
+   * copy. The VaultPass subscription intentionally has NO hardcoded price:
+   * its customer-facing price must come exclusively from the localized
+   * StoreKit product (Build 18 regression fix).
+   */
+  basePriceUsd?: string;
   badge?: "Popular" | "Best Value";
   grant: ProductGrant;
 };
@@ -81,7 +87,6 @@ export const IAP_PRODUCTS = [
     description:
       "Includes ad-free play, premium themes, priority support routing, and a monthly booster refill for extra time, stronger combos, and instant vault openings.",
     kind: "subscription",
-    basePriceUsd: "US$2.99/month",
     grant: {
       bonusLives: 10,
       chainBoosts: 10,

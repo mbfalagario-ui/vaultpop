@@ -13,7 +13,7 @@ const products = [
   ["app.vaultpop.coins.medium", "US$3.99"],
   ["app.vaultpop.coins.large", "US$8.99"],
   ["app.vaultpop.remove_ads", "US$4.99"],
-  ["app.vaultpop.vaultpass.plus.monthly", "US$2.99/month"]
+  ["app.vaultpop.vaultpass.plus.monthly", null]
 ];
 let previousIndex = -1;
 for (const [productId, price] of products) {
@@ -21,13 +21,34 @@ for (const [productId, price] of products) {
   if (index < 0) {
     failures.push(`Missing product ID: ${productId}`);
   }
-  if (!catalog.includes(price)) {
+  if (price && !catalog.includes(price)) {
     failures.push(`Missing price: ${price}`);
   }
   if (index <= previousIndex) {
     failures.push(`Incorrect Shop order at: ${productId}`);
   }
   previousIndex = index;
+}
+
+// Build 18 StoreKit regression guards: the VaultPass subscription price must
+// come exclusively from the localized StoreKit product, and active
+// subscribers must get a dedicated card state.
+if (/US\$\d+(\.\d+)?\s*\/\s*month/i.test(catalog)) {
+  failures.push("Hardcoded subscription price found in catalog.ts.");
+}
+const shopScreen = readFileSync("src/screens/shop-screen.tsx", "utf8");
+if (shopScreen.includes("VAULTPASS.basePriceUsd")) {
+  failures.push("Shop falls back to a hardcoded VaultPass price.");
+}
+for (const marker of [
+  "VaultPass Plus Active",
+  "Manage Subscription",
+  "apps.apple.com/account/subscriptions",
+  "hasActiveVaultPass"
+]) {
+  if (!shopScreen.includes(marker)) {
+    failures.push(`Shop missing active-subscriber UI marker: ${marker}`);
+  }
 }
 
 const adIds = [
