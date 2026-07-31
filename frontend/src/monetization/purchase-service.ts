@@ -26,6 +26,24 @@ export function getStoreDiagnostics(): string[] {
   return storeDiagnostics;
 }
 
+/**
+ * Rolling owner-visible purchase-outcome log distinguishing initial
+ * purchases, renewals, restores, duplicates ignored, and no-grant cases.
+ * Never contains receipts or tokens.
+ */
+let purchaseDiagnostics: string[] = [];
+
+export function getPurchaseDiagnostics(): string[] {
+  return purchaseDiagnostics;
+}
+
+export function recordPurchaseDiagnostic(line: string): void {
+  purchaseDiagnostics = [
+    ...purchaseDiagnostics.slice(-11),
+    `${new Date().toISOString().slice(11, 19)}Z ${line}`
+  ];
+}
+
 export type StoreSession = {
   close: () => Promise<void>;
   fetchCatalog: () => Promise<StoreProduct[]>;

@@ -36,8 +36,8 @@ const APPROVED_REWARDED_AD_UNITS = new Set([
   "ca-app-pub-6035003811280283/9333822278"
 ]);
 
-/** Shared daily rewarded cap across both rewarded units (mirrors client). */
-const SHARED_REWARDED_DAILY_CAP = 30;
+/** Default per-user daily rewarded cap (admin-configurable via OpsStore). */
+const DEFAULT_REWARDED_DAILY_CAP = 30;
 
 /** Reward amounts above this are never grantable for VaultPop units. */
 const MAX_REWARD_AMOUNT = 10;
@@ -168,7 +168,8 @@ export async function handleSsvCallback(
   url: URL,
   keyProvider: SsvKeyProvider,
   rewards: RewardEventStore,
-  rawWireQuery?: string
+  rawWireQuery?: string,
+  getEffectiveCap?: (userId: string) => number
 ): Promise<Response> {
   const diag: string[] = [];
   const finish = (response: Response, branch: string): Response => {
@@ -320,12 +321,22 @@ export async function handleSsvCallback(
     );
   }
 
-  // Shared daily cap across both rewarded units for this user.
+  // Per-user daily cap (account/install + UTC day). NEVER global: the count
+  // is scoped to this callback's user_id, and the cap value may carry a
+  // per-user admin override. Failed/cancelled ads never reach this point,
+  // so they can never consume quota.
+  let effectiveCap = DEFAULT_REWARDED_DAILY_CAP;
+  if (getEffectiveCap) {
+    try {
+      effectiveCap = Math.max(0, Math.floor(getEffectiveCap(userId)));
+    } catch {
+      effectiveCap = DEFAULT_REWARDED_DAILY_CAP;
+    }
+  }
   const utcDayStart = new Date();
   utcDayStart.setUTCHours(0, 0, 0, 0);
   if (
-    rewards.countRecentForUser(userId, utcDayStart.toISOString()) >=
-    SHARED_REWARDED_DAILY_CAP
+    rewards.countRecentForUser(userId, utcDayStart.toISOString()) >= effectiveCap
   ) {
     return finish(
       plain("Verified SSV callback received. No reward granted.", 200),

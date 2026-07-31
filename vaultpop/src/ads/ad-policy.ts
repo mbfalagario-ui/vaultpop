@@ -19,6 +19,8 @@ export type AdPolicyState = {
   rewardedJustShown: boolean;
   firstColdLaunch: boolean;
   gameplayActive: boolean;
+  /** Effective per-user daily cap (admin override); defaults to 30. */
+  rewardedDailyCap?: number;
 };
 
 const BANNER_PLACEMENTS = new Set<AdPlacement>([
@@ -57,7 +59,7 @@ export function canShowRewarded(state: AdPolicyState): boolean {
     !state.adFree &&
     !state.gameplayActive &&
     !state.fullScreenAdShowing &&
-    state.rewardedCountToday < REWARDED_DAILY_CAP
+    state.rewardedCountToday < (state.rewardedDailyCap ?? REWARDED_DAILY_CAP)
   );
 }
 

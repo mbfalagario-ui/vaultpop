@@ -1,0 +1,39 @@
+{
+  "summary": "Build 20 FINAL regression PASS (backend 5/5 + frontend 100% smoke). Preview mirror /api/v1/ads/quota: valid userId (install-qa-1) -> 200 {userId,cap:30,ssvConfirmedToday:0,remaining:30,utcDay:YYYY-MM-DD}; short userId (ab) -> 400; missing userId -> 400. Preview player login (qa.player@vaultpop.app) still 200. Frontend gameplay countdown gating verified end-to-end: PLAY -> gameplay-countdown overlay visible immediately, HUD timer stayed at 60s at t~0.5s AND t~1.9s (proved no tick during countdown), gameplay-finish-button aria-disabled=true during countdown, overlay dismissed after ~2.8s, timer then decremented to 58s (ticking after GO), Finish -> /results shows result-summary with BOTH stat rows: 'BEST/CHAIN/VAULTS' and 'BEST GROUP/POPS/HIDDEN BOOSTERS'. Shop 'Styles & Customization' section: all 5 style cards render with testIDs cosmetic-theme-{midnight-vault, cyan-circuit, emerald-pulse, violet-neon, vaultpass-prism} each with 5-coin preview row (per-style palettes visible; Cyan Circuit=squares, Violet Neon + VaultPass Prism=gem cut confirmed in screenshots). Rewarded section copy verified: 'Daily limit per player: 30' and 'X / 30 rewarded ads used today (your account)' visible. Shop buy buttons on web preview correctly show 'Available on the App Store' label with aria-disabled=true (StoreKit inert on web is EXPECTED, no busy state ever gets stuck — button state does not persist as busy after taps; multiple sequential taps did not lock UI). Auth regression: player login shows 'Player account' + NO admin-console button; admin login (qa.owner.b15@vaultpop.test) shows 'Owner account' label + OWNER TOOLS section + account-admin-console-button. Settings + Support screens render cleanly. Zero console errors, zero pageerrors across all screens.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_build20_quota.py",
+    "/app/test_reports/pytest/build20_results.xml",
+    "/app/test_reports/iteration_13.json"
+  ],
+  "action_items": [
+    "No fixes required. Build 20 FINAL is passing all preview-testable criteria: /v1/ads/quota shape+400 gate, countdown blocks input+timer until GO, customization renderer preview rows per style with correct shapes (coin/square/gem), rewarded copy shows 30-cap-per-account language, round summary shows both stat rows, and no shop busy-state stickiness on web (StoreKit inert path is graceful)."
+  ],
+  "critical_code_review_comments": [
+    "backend/server.py L296-316: GET /v1/ads/quota correctly enforces 4<=len(userId)<=200, reads override -> default (30) with proper fallback, returns full contract {userId, cap, ssvConfirmedToday, remaining, utcDay}. ssvConfirmedToday hardcoded to 0 is fine for preview mirror (production TS backend tracks real SSV usage).",
+    "frontend/src/screens/gameplay-screen.tsx L740-782 (countdown overlay): input gating verified — HUD time did not decrement while countdown visible (60s -> 60s over 1.4s window). Finish button aria-disabled=true confirmed during countdown. Overlay clears after 'GO!' animation completes (~2.8s total).",
+    "frontend/src/screens/shop-screen.tsx L825-839: per-style tile preview row correctly reads theme.tileGradients[tileType] and theme.tileShape; visually confirmed cyan-circuit = square chips, violet-neon + vaultpass-prism = gem silhouette.",
+    "frontend/src/screens/shop-screen.tsx L960-967: Buy button disabled = !available || busyProductId !== null — busyProductId branch is a NON-STUCK gate (Build 20 fix ensures onError paths clear it). On web (StoreKit inert), 'available' is false so buttons stay disabled with label 'Available on the App Store' — not a bug.",
+    "frontend/src/screens/round-result-screen.tsx L298-330: result-summary now contains 6 metrics in 2 rows (BEST/CHAIN/VAULTS + BEST GROUP/POPS/HIDDEN BOOSTERS) and testID result-boosters-chip renders when boosters > 0. Verified default 0-hidden path (no chip on zero-play round)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_build20_quota.py (new pytest suite: 5 tests)",
+    "/app/test_reports/pytest/build20_results.xml (JUnit)",
+    "/app/test_reports/iteration_13.json (this report)"
+  ],
+  "success_rate": {
+    "backend": "100% (5/5: quota valid shape, quota short 400, quota missing 400, /api reachable, player login 200)",
+    "frontend": "100% (countdown gates input+timer, 5/5 style previews render with correct shapes, rewarded copy per-account, round summary two-row layout, admin console gating, auth regression, no console errors)"
+  },
+  "seed_data_creation": "None — reused qa.player@vaultpop.app and qa.owner.b15@vaultpop.test. Reused install-qa-1 as ad-quota userId (read-only, no mutation).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Build 20 FINAL green on preview. Countdown lasts ~2.8s; test by capturing HUD timer text at t~0.5s and t~1.9s — both should read 60s. Testable testIDs: gameplay-countdown, hud-time, gameplay-finish-button, result-summary, result-boosters-chip (only when boosters>0), cosmetic-theme-{style-id} for all 5 styles, shop-buy-app.vaultpop.coins.small, shop-rewarded-button, account-admin-console-button, account-signin-button, account-email-input, account-password-input, account-signout-button. Rewarded/StoreKit paths are NATIVE-only — 'Available on the App Store' label + aria-disabled=true on buy buttons is the EXPECTED terminal state on web (busy-state stuck fix only exercisable on native). Production TS backend (/v1/ads/quota, /v1/admin/rewarded-caps) was pre-verified by main agent — do not hit fly.dev.",
+  "rca_of_issue": "N/A — Build 20 FINAL delta shipped clean; no bugs surfaced during regression pass."
+}

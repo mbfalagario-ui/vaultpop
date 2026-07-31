@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { accessSync, constants as fsConstants } from "node:fs";
 import { dirname } from "node:path";
 
-import { ADMOB_IOS, REWARDED_DAILY_CAP } from "../src/ads/constants";
+import { ADMOB_IOS } from "../src/ads/constants";
 import { getProductDefinition } from "../src/monetization/catalog";
 import { FAQ_CATEGORIES } from "../src/support/faq-data";
 import { adminPage } from "./admin-page";
@@ -141,7 +141,8 @@ export function createApiHandler(dependencies: {
         url,
         dependencies.ssvKeys,
         dependencies.rewards,
-        request.headers.get("x-vaultpop-raw-query") ?? undefined
+        request.headers.get("x-vaultpop-raw-query") ?? undefined,
+        (userId) => dependencies.ops.getEffectiveRewardedCap(userId)
       );
     }
     if (request.method === "GET" && url.pathname === "/support") {
@@ -153,7 +154,8 @@ export function createApiHandler(dependencies: {
           url,
           dependencies.ssvKeys,
           dependencies.rewards,
-          request.headers.get("x-vaultpop-raw-query") ?? undefined
+          request.headers.get("x-vaultpop-raw-query") ?? undefined,
+          (userId) => dependencies.ops.getEffectiveRewardedCap(userId)
         );
       }
       return new Response(renderSupportPage(), {
@@ -333,7 +335,13 @@ export function createApiHandler(dependencies: {
     }
 
     if (url.pathname.startsWith("/v1/admin/")) {
-      return handleAdminRequest(request, url, dependencies.accounts, dependencies.ops);
+      return handleAdminRequest(
+        request,
+        url,
+        dependencies.accounts,
+        dependencies.ops,
+        dependencies.rewards
+      );
     }
 
     if (request.method === "POST" && url.pathname === "/v1/ads/events") {
@@ -354,6 +362,30 @@ export function createApiHandler(dependencies: {
         rewardType: body.rewardType
       });
       return json({ recorded: true }, 202);
+    }
+
+    if (request.method === "GET" && url.pathname === "/v1/ads/quota") {
+      // Public per-user rewarded quota: effective cap (default or admin
+      // override) plus this user's SSV-confirmed usage for the current UTC
+      // day. Read-only; grants nothing.
+      const userId = (url.searchParams.get("userId") ?? "").trim();
+      if (userId.length < 4 || userId.length > 200) {
+        return json({ error: "A valid user ID is required." }, 400);
+      }
+      const cap = dependencies.ops.getEffectiveRewardedCap(userId);
+      const utcDayStart = new Date();
+      utcDayStart.setUTCHours(0, 0, 0, 0);
+      const used = dependencies.rewards.countRecentForUser(
+        userId,
+        utcDayStart.toISOString()
+      );
+      return json({
+        userId,
+        cap,
+        ssvConfirmedToday: used,
+        remaining: Math.max(0, cap - used),
+        utcDay: utcDayStart.toISOString().slice(0, 10)
+      });
     }
 
     if (request.method === "POST" && url.pathname === "/v1/purchases/verify") {
@@ -460,7 +492,8 @@ async function handleAdminRequest(
   request: Request,
   url: URL,
   accounts: AccountStore,
-  ops: OpsStore
+  ops: OpsStore,
+  rewards: RewardEventStore
 ): Promise<Response> {
   const actor = authenticatedAccount(request, accounts);
   if (!actor || actor.role !== "admin") {
@@ -516,7 +549,8 @@ async function handleAdminRequest(
       return json({
         ads: {
           ...ops.adsAnalytics(now),
-          dailyCap: REWARDED_DAILY_CAP,
+          dailyCap: ops.getDefaultRewardedCap(),
+          capScope: "per account/install + UTC day",
           ssvUrl: "https://vaultpop-api.fly.dev/support",
           adUnits: {
             bonusLife: ADMOB_IOS.rewarded,
@@ -536,6 +570,90 @@ async function handleAdminRequest(
           categoriesCovered: FAQ_CATEGORIES
         },
         passwordResets: { pending: ops.countPendingPasswordResets() }
+      });
+    }
+
+    // ---- Rewarded-ad cap controls (per account/install + UTC day) ----
+    if (request.method === "GET" && url.pathname === "/v1/admin/rewarded-caps") {
+      const utcDayStart = new Date();
+      utcDayStart.setUTCHours(0, 0, 0, 0);
+      const sinceIso = utcDayStart.toISOString();
+      return json({
+        defaultCap: ops.getDefaultRewardedCap(),
+        capScope: "per account/install + UTC day",
+        overrides: ops.listRewardedCapOverrides().map((override) => {
+          const used = rewards.countRecentForUser(override.userId, sinceIso);
+          return {
+            ...override,
+            usedToday: used,
+            remaining: Math.max(0, override.cap - used)
+          };
+        })
+      });
+    }
+
+    if (request.method === "POST" && url.pathname === "/v1/admin/rewarded-caps/default") {
+      const body = await readJson(request);
+      const cap = Number(body.cap);
+      if (!Number.isInteger(cap) || cap < 1 || cap > 500) {
+        return json({ error: "Default cap must be an integer between 1 and 500." }, 400);
+      }
+      ops.setDefaultRewardedCap(cap);
+      ops.logAdminAction(actor, "ads.cap.default", String(cap));
+      return json({ defaultCap: ops.getDefaultRewardedCap() });
+    }
+
+    if (request.method === "GET" && url.pathname === "/v1/admin/rewarded-caps/usage") {
+      const userId = (url.searchParams.get("userId") ?? "").trim();
+      if (userId.length < 4 || userId.length > 200) {
+        return json({ error: "A valid user/install ID is required." }, 400);
+      }
+      const utcDayStart = new Date();
+      utcDayStart.setUTCHours(0, 0, 0, 0);
+      const override = ops.getRewardedCapOverride(userId);
+      const effectiveCap = ops.getEffectiveRewardedCap(userId);
+      const used = rewards.countRecentForUser(userId, utcDayStart.toISOString());
+      return json({
+        userId,
+        defaultCap: ops.getDefaultRewardedCap(),
+        override,
+        effectiveCap,
+        usedToday: used,
+        remaining: Math.max(0, effectiveCap - used),
+        utcDay: utcDayStart.toISOString().slice(0, 10)
+      });
+    }
+
+    if (request.method === "POST" && url.pathname === "/v1/admin/rewarded-caps/override") {
+      const body = await readJson(request);
+      const userId = typeof body.userId === "string" ? body.userId.trim() : "";
+      const cap = Number(body.cap);
+      if (userId.length < 4 || userId.length > 200) {
+        return json({ error: "A valid user/install ID is required." }, 400);
+      }
+      if (!Number.isInteger(cap) || cap < 0 || cap > 500) {
+        return json({ error: "Override cap must be an integer between 0 and 500." }, 400);
+      }
+      ops.setRewardedCapOverride(userId, cap);
+      ops.logAdminAction(actor, "ads.cap.override", `${userId}=${cap}`);
+      return json({ userId, override: ops.getRewardedCapOverride(userId) });
+    }
+
+    if (
+      request.method === "POST" &&
+      url.pathname === "/v1/admin/rewarded-caps/override/reset"
+    ) {
+      const body = await readJson(request);
+      const userId = typeof body.userId === "string" ? body.userId.trim() : "";
+      if (userId.length < 4 || userId.length > 200) {
+        return json({ error: "A valid user/install ID is required." }, 400);
+      }
+      ops.clearRewardedCapOverride(userId);
+      ops.logAdminAction(actor, "ads.cap.override.reset", userId);
+      return json({
+        userId,
+        override: null,
+        effectiveCap: ops.getEffectiveRewardedCap(userId)
       });
     }
 

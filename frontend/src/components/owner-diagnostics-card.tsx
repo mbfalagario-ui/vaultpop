@@ -2,7 +2,10 @@ import {
   getAdsDiagnostics,
   subscribeToAdsDiagnostics
 } from "@/ads/ad-service";
-import { getStoreDiagnostics } from "@/monetization/purchase-service";
+import {
+  getPurchaseDiagnostics,
+  getStoreDiagnostics
+} from "@/monetization/purchase-service";
 import { colors, radius, spacing, typography } from "@/theme";
 import { useSyncExternalStore } from "react";
 import { Text, View } from "react-native";
@@ -72,6 +75,24 @@ export function OwnerDiagnosticsCard() {
           {line}
         </Text>
       ))}
+      <Text selectable style={[typography.eyebrow, { color: colors.violet, marginTop: spacing.xs }]}>
+        PURCHASE OUTCOMES
+      </Text>
+      {getPurchaseDiagnostics().length === 0 ? (
+        <Text selectable style={[typography.caption, { color: colors.textMuted, fontSize: 11 }]}>
+          No purchase attempts this session.
+        </Text>
+      ) : (
+        getPurchaseDiagnostics().map((line, index) => (
+          <Text
+            key={`purchase-${index}`}
+            selectable
+            style={[typography.caption, { color: colors.textSecondary, fontSize: 11.5 }]}
+          >
+            {line}
+          </Text>
+        ))
+      )}
     </View>
   );
 }

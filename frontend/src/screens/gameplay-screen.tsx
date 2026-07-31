@@ -11,12 +11,14 @@ import {
   applyBonusLife,
   applyChainBoost,
   applyVaultBurst,
+  beginRound,
   createInitialRound,
   finishRound,
   getConnectedGroup,
   resolveTap
 } from "@/game/engine";
 import type { GameModeId, RoundState } from "@/game/models";
+import { PopParticles } from "@/components/pop-particles";
 import { consumeBooster, type BoosterKind } from "@/monetization/economy";
 import { hasPremiumThemeAccess } from "@/monetization/entitlements";
 import { applyRoundResult, type DailyVaultSave } from "@/storage";
@@ -47,14 +49,23 @@ function normalizeMode(value: unknown): GameModeId {
     : "classic";
 }
 
-async function playHaptic(enabled: boolean) {
+async function playHaptic(
+  enabled: boolean,
+  kind: "tick" | "medium" | "success" = "tick"
+) {
   if (!enabled || process.env.EXPO_OS !== "ios") {
     return;
   }
 
   try {
     const Haptics = await import("expo-haptics");
-    await Haptics.selectionAsync();
+    if (kind === "success") {
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } else if (kind === "medium") {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    } else {
+      await Haptics.selectionAsync();
+    }
   } catch {
     // Haptics are optional and must never block gameplay.
   }
@@ -70,33 +81,84 @@ export function GameplayScreen() {
     !hasPremiumThemeAccess(profile)
       ? "midnight-vault"
       : profile.cosmetics.activeThemeId;
-  const cosmeticGlow = getVisualTheme(activeThemeId);
+  const activeTheme = getVisualTheme(activeThemeId);
   const seed = useMemo(
     () => (modeId === "dailyVault" ? getDailySeed() : `${modeId}-${Date.now()}`),
     [modeId]
   );
   const [round, setRound] = useState<RoundState>(() =>
-    createInitialRound(modeId, { seed })
+    createInitialRound(modeId, { seed, startPhase: "ready" })
   );
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [feedback, setFeedback] = useState("");
   const [boardWidth, setBoardWidth] = useState(0);
+  const [countdown, setCountdown] = useState<number | "GO" | null>(null);
+  const [burst, setBurst] = useState<{ key: number; color: string } | null>(null);
   const feedbackMotion = useRef(new Animated.Value(0)).current;
   const scorePulse = useRef(new Animated.Value(1)).current;
   const vaultFlash = useRef(new Animated.Value(0)).current;
+  const countdownScale = useRef(new Animated.Value(1)).current;
   const clearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const countdownTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const inputLockedRef = useRef(false);
   const completedRoundRef = useRef<string | null>(null);
+  const boostersFoundRef = useRef(0);
+  const comboMilestoneRef = useRef(1);
+  const settingsRef = useRef(profile.settings);
+
+  useEffect(() => {
+    settingsRef.current = profile.settings;
+  }, [profile.settings]);
+
+  // 3-2-1-GO start sequence: input and the timer stay blocked (phase
+  // "ready") until GO. Ticks play a sound + haptic cue; GO gets a success
+  // cue. Reduced Motion keeps the numbers static (no scale pulse).
+  const runCountdown = useCallback(() => {
+    countdownTimersRef.current.forEach(clearTimeout);
+    countdownTimersRef.current = [];
+    const steps: (number | "GO")[] = [3, 2, 1, "GO"];
+    steps.forEach((step, index) => {
+      countdownTimersRef.current.push(
+        setTimeout(() => {
+          setCountdown(step);
+          if (!settingsRef.current.reducedMotion) {
+            countdownScale.setValue(0.55);
+            Animated.spring(countdownScale, {
+              damping: 11,
+              stiffness: 260,
+              toValue: 1,
+              useNativeDriver: true
+            }).start();
+          }
+          if (step === "GO") {
+            playSfx("zap", settingsRef.current.soundEnabled);
+            void playHaptic(settingsRef.current.hapticsEnabled, "success");
+            setRound((current) => beginRound(current));
+            countdownTimersRef.current.push(
+              setTimeout(() => setCountdown(null), 620)
+            );
+          } else {
+            playSfx("thud", settingsRef.current.soundEnabled);
+            void playHaptic(settingsRef.current.hapticsEnabled, "tick");
+          }
+        }, index * 700)
+      );
+    });
+  }, [countdownScale]);
 
   const restart = useCallback(() => {
     const nextSeed =
       modeId === "dailyVault" ? getDailySeed() : `${modeId}-${Date.now()}`;
     completedRoundRef.current = null;
     inputLockedRef.current = false;
+    boostersFoundRef.current = 0;
+    comboMilestoneRef.current = 1;
     setSelectedIds(new Set());
     setFeedback("");
-    setRound(createInitialRound(modeId, { seed: nextSeed }));
-  }, [modeId]);
+    setBurst(null);
+    setRound(createInitialRound(modeId, { seed: nextSeed, startPhase: "ready" }));
+    runCountdown();
+  }, [modeId, runCountdown]);
 
   useEffect(() => {
     restart();
@@ -104,6 +166,7 @@ export function GameplayScreen() {
       if (clearTimerRef.current) {
         clearTimeout(clearTimerRef.current);
       }
+      countdownTimersRef.current.forEach(clearTimeout);
     };
   }, [restart]);
 
@@ -162,6 +225,47 @@ export function GameplayScreen() {
     vaultFlash
   ]);
 
+  // Hidden in-board booster reveals: celebratory feedback + cue. The effect
+  // was already applied by the engine (round-only — inventory untouched).
+  useEffect(() => {
+    if (round.score.hiddenBoosters <= boostersFoundRef.current) {
+      return;
+    }
+    boostersFoundRef.current = round.score.hiddenBoosters;
+    const label =
+      round.lastBooster === "bonusLives"
+        ? "HIDDEN BOOSTER  +15 SEC"
+        : round.lastBooster === "chainBoosts"
+          ? "HIDDEN BOOSTER  CHAIN +2"
+          : "HIDDEN VAULT BURST";
+    animateFeedback(`★ ${label}`);
+    playSfx("zap", settingsRef.current.soundEnabled);
+    void playHaptic(settingsRef.current.hapticsEnabled, "medium");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [round.score.hiddenBoosters]);
+
+  // Combo escalation milestones: x4 / x8 / x12 get their own moment.
+  useEffect(() => {
+    const combo = round.score.comboMultiplier;
+    if (combo === 1) {
+      comboMilestoneRef.current = 1;
+      return;
+    }
+    const milestone = [12, 8, 4].find(
+      (value) => combo >= value && comboMilestoneRef.current < value
+    );
+    if (!milestone) {
+      return;
+    }
+    comboMilestoneRef.current = milestone;
+    animateFeedback(
+      milestone === 12 ? "MAX CHAIN x12!" : milestone === 8 ? "ON FIRE x8!" : "COMBO x4!"
+    );
+    playSfx("chime", settingsRef.current.soundEnabled);
+    void playHaptic(settingsRef.current.hapticsEnabled, "medium");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [round.score.comboMultiplier]);
+
   useEffect(() => {
     if (
       round.phase !== "complete" ||
@@ -201,7 +305,9 @@ export function GameplayScreen() {
         combo: String(round.score.comboMultiplier),
         group: String(round.score.bestGroupSize),
         streak: String(round.score.streakCount),
-        vaults: String(round.score.vaultBonuses)
+        vaults: String(round.score.vaultBonuses),
+        boosters: String(round.score.hiddenBoosters),
+        misses: String(round.score.misses)
       }
     });
   }, [profile.dailyVault?.bestScore, round, setProfile]);
@@ -264,6 +370,10 @@ export function GameplayScreen() {
 
       inputLockedRef.current = true;
       setSelectedIds(new Set(ids));
+      if (!profile.settings.reducedMotion) {
+        const tileType = round.board.tiles[row]?.[column]?.type ?? "gold";
+        setBurst({ key: Date.now(), color: activeTheme.tileGradients[tileType][1] });
+      }
       animateFeedback(
         projected.vaultMeter.opening
           ? `VAULT OPEN +${scoreDelta}`
@@ -284,6 +394,7 @@ export function GameplayScreen() {
       }, delay);
     },
     [
+      activeTheme,
       animateFeedback,
       modeId,
       profile.settings.hapticsEnabled,
@@ -354,6 +465,11 @@ export function GameplayScreen() {
   const feedbackScale = feedbackMotion.interpolate({
     inputRange: [0, 1],
     outputRange: [0.7, 1]
+  });
+  // Floating-score rise: the feedback chip drifts upward as it appears.
+  const feedbackRise = feedbackMotion.interpolate({
+    inputRange: [0, 1],
+    outputRange: profile.settings.reducedMotion ? [0, 0] : [12, -6]
   });
   const tileSize = boardWidth > 0 ? boardWidth / 8 : 0;
   const lowTime = round.secondsRemaining <= 10;
@@ -522,7 +638,7 @@ export function GameplayScreen() {
             style={{
               opacity: feedbackMotion,
               pointerEvents: "none",
-              transform: [{ scale: feedbackScale }]
+              transform: [{ scale: feedbackScale }, { translateY: feedbackRise }]
             }}
           >
             <View
@@ -554,18 +670,19 @@ export function GameplayScreen() {
         ) : null}
       </View>
 
-      {/* Board */}
+      {/* Board — surface, border, tiles, and selection ring all come from the
+          active customization style */}
       <View style={{ alignSelf: "center", maxWidth: boardSide, position: "relative", width: "100%" }}>
         <LinearGradient
-          colors={[visual.surfaceRaised, visual.board]}
+          colors={[activeTheme.boardColors[0], activeTheme.boardColors[1]]}
           start={{ x: 0.5, y: 0 }}
           end={{ x: 0.5, y: 1 }}
           style={{
-            borderColor: `${visual.accent}44`,
+            borderColor: `${activeTheme.boardBorder}55`,
             borderCurve: "continuous",
             borderRadius: radius.lg,
             borderWidth: 1,
-            boxShadow: `0 22px 44px #000000AA, 0 0 34px ${cosmeticGlow.accent}22`,
+            boxShadow: `0 22px 44px #000000AA, 0 0 34px ${activeTheme.accent}30`,
             padding: 8
           }}
         >
@@ -596,11 +713,16 @@ export function GameplayScreen() {
                   onPress={() => handleTilePress(tile.row, tile.column)}
                   reducedMotion={profile.settings.reducedMotion}
                   selected={selectedIds.has(tile.id)}
+                  theme={activeTheme}
                   tile={tile}
                 />
               ))}
             </View>
           </View>
+          {/* Tile-clear particle burst */}
+          {burst && !profile.settings.reducedMotion ? (
+            <PopParticles key={burst.key} color={burst.color} />
+          ) : null}
           {/* Vault-open gold flash */}
           <Animated.View
             pointerEvents="none"
@@ -615,6 +737,51 @@ export function GameplayScreen() {
               top: 0
             }}
           />
+          {/* 3-2-1-GO countdown overlay: blocks nothing itself (input is
+              already phase-gated) but visually holds the round until GO */}
+          {countdown !== null ? (
+            <View
+              pointerEvents="none"
+              testID="gameplay-countdown"
+              style={{
+                alignItems: "center",
+                backgroundColor: "#05040FB0",
+                borderRadius: radius.lg,
+                bottom: 0,
+                gap: 4,
+                justifyContent: "center",
+                left: 0,
+                position: "absolute",
+                right: 0,
+                top: 0,
+                zIndex: 8
+              }}
+            >
+              <Animated.Text
+                selectable={false}
+                style={{
+                  color: countdown === "GO" ? visual.energy : colors.textPrimary,
+                  fontSize: countdown === "GO" ? 58 : 76,
+                  fontStyle: "italic",
+                  fontVariant: ["tabular-nums"],
+                  fontWeight: "900",
+                  textShadowColor:
+                    countdown === "GO" ? `${visual.energy}88` : `${visual.accent}66`,
+                  textShadowOffset: { height: 0, width: 0 },
+                  textShadowRadius: 26,
+                  transform: [{ scale: countdownScale }]
+                }}
+              >
+                {countdown === "GO" ? "GO!" : countdown}
+              </Animated.Text>
+              <Text
+                selectable={false}
+                style={[typography.eyebrow, { color: visual.secondary, fontSize: 10, letterSpacing: 3 }]}
+              >
+                {countdown === "GO" ? "POP EVERYTHING" : "GET READY"}
+              </Text>
+            </View>
+          ) : null}
         </LinearGradient>
       </View>
 
@@ -710,6 +877,7 @@ export function GameplayScreen() {
               <ActionButton
                 label="Pause"
                 tone="quiet"
+                disabled={round.phase === "ready"}
                 testID="gameplay-pause-button"
                 onPress={pauseRound}
               />
@@ -718,6 +886,7 @@ export function GameplayScreen() {
               <ActionButton
                 label="Restart"
                 tone="quiet"
+                disabled={round.phase === "ready"}
                 testID="gameplay-restart-button"
                 onPress={restart}
               />
@@ -726,6 +895,7 @@ export function GameplayScreen() {
               <ActionButton
                 label="Finish"
                 tone="quiet"
+                disabled={round.phase === "ready"}
                 testID="gameplay-finish-button"
                 onPress={endRound}
               />

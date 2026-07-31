@@ -1,6 +1,6 @@
 import { CoinFace } from "@/components/coin-face";
 import type { BoardTile, GameModeId } from "@/game/models";
-import { getModeVisual } from "@/theme";
+import { getModeVisual, type VisualTheme } from "@/theme";
 import { useEffect, useRef } from "react";
 import { Animated, Pressable, View } from "react-native";
 
@@ -10,6 +10,8 @@ type CoinTileProps = {
   size: number;
   selected?: boolean;
   reducedMotion?: boolean;
+  /** Active customization style — drives tile palette, shape, selection ring. */
+  theme?: VisualTheme;
   onPress: () => void;
 };
 
@@ -19,11 +21,13 @@ export function CoinTile({
   size,
   selected = false,
   reducedMotion = false,
+  theme,
   onPress
 }: CoinTileProps) {
   const visual = getModeVisual(modeId);
-  const gradient = visual.tileGradients[tile.type];
+  const gradient = theme?.tileGradients[tile.type] ?? visual.tileGradients[tile.type];
   const accent = gradient[1];
+  const selectionColor = theme?.selectionColor ?? "#FFFFFF";
   const pulse = useRef(new Animated.Value(0)).current;
   const burst = useRef(new Animated.Value(0)).current;
   const entrance = useRef(new Animated.Value(reducedMotion ? 1 : 0)).current;
@@ -86,9 +90,16 @@ export function CoinTile({
     }
   }, [burst, pulse, reducedMotion, selected]);
 
-  const scale = pulse.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1, reducedMotion ? 1.1 : 1.18]
+  // Squash-then-pop: the coin briefly squashes vertically before springing
+  // into its enlarged selected state — classic game-feel. Reduced Motion
+  // keeps a uniform, gentler scale with no squash.
+  const squashX = pulse.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: reducedMotion ? [1, 1.05, 1.1] : [1, 1.26, 1.18]
+  });
+  const squashY = pulse.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: reducedMotion ? [1, 1.05, 1.1] : [1, 0.78, 1.18]
   });
   const burstScale = burst.interpolate({
     inputRange: [0, 1],
@@ -135,7 +146,8 @@ export function CoinTile({
             opacity: entranceOpacity,
             transform: [
               { translateY: fallShift },
-              { scale: Animated.multiply(entranceScale, scale) },
+              { scaleX: Animated.multiply(entranceScale, squashX) },
+              { scaleY: Animated.multiply(entranceScale, squashY) },
               { scale: pressed && !reducedMotion ? 0.9 : 1 }
             ],
             width: coinSize
@@ -144,7 +156,7 @@ export function CoinTile({
           <Animated.View
             style={{
               pointerEvents: "none",
-              borderColor: "#FFFFFF",
+              borderColor: selectionColor,
               borderRadius: 999,
               borderWidth: 2,
               height: coinSize,
@@ -159,7 +171,7 @@ export function CoinTile({
             <View
               style={{
                 pointerEvents: "none",
-                borderColor: "#FFFFFF",
+                borderColor: selectionColor,
                 borderRadius: 999,
                 borderWidth: 2,
                 boxShadow: `0 0 16px ${accent}EE`,
@@ -170,7 +182,12 @@ export function CoinTile({
               }}
             />
           ) : null}
-          <CoinFace type={tile.type} size={coinSize} gradient={gradient} />
+          <CoinFace
+            type={tile.type}
+            size={coinSize}
+            gradient={gradient}
+            shape={theme?.tileShape ?? "coin"}
+          />
         </Animated.View>
       )}
     </Pressable>

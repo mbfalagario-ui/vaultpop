@@ -1,4 +1,4 @@
-import { reportRewardedAdEvent } from "@/ads/ad-events";
+import { reportRewardedAdEvent, fetchRewardedCap } from "@/ads/ad-events";
 import { canShowRewarded } from "@/ads/ad-policy";
 import {
   initializeAdsAfterHome,
@@ -13,12 +13,13 @@ import { ActionButton } from "@/components/action-button";
 import { CoinFace } from "@/components/coin-face";
 import { HudStat } from "@/components/hud-stat";
 import { ScreenShell } from "@/components/screen-shell";
-import { getLocalDateKey } from "@/game/daily-seed";
+import { getUtcDateKey } from "@/game/daily-seed";
 import type { TileType } from "@/game/models";
 import { IAP_PRODUCTS, type IapProductId } from "@/monetization/catalog";
 import {
   applyVerifiedPurchase,
   BOOSTER_COSTS,
+  classifyVerifiedPurchase,
   getRewardedCount,
   grantRewardedBonusLife,
   grantRewardedVaultCoins,
@@ -29,6 +30,7 @@ import { BOOSTER_GUIDE } from "@/monetization/booster-guide";
 import { hasActiveVaultPass, hasPremiumThemeAccess, isAdFree } from "@/monetization/entitlements";
 import {
   createStoreSession,
+  recordPurchaseDiagnostic,
   verifyPurchaseWithServer,
   type StoreProduct,
   type StoreSession
@@ -89,9 +91,12 @@ export function ShopScreen() {
   const [catalogDiag, setCatalogDiag] = useState("");
   const [forgeResult, setForgeResult] = useState<{ id: BoosterKind; text: string } | null>(null);
   const [watchingAd, setWatchingAd] = useState<"life" | "coins" | null>(null);
-  const dateKey = getLocalDateKey();
+  // Per-user rewarded cap: backend default or per-user admin override.
+  // Falls back to the built-in default when the network is unavailable.
+  const [dailyCap, setDailyCap] = useState(REWARDED_DAILY_CAP);
+  const dateKey = getUtcDateKey();
   const rewardedCount = getRewardedCount(profile, dateKey);
-  const capped = rewardedCount >= REWARDED_DAILY_CAP;
+  const capped = rewardedCount >= dailyCap;
   const adFree = isAdFree(profile);
   const premiumAccess = hasPremiumThemeAccess(profile);
   const vaultPassActive = hasActiveVaultPass(profile);
@@ -100,6 +105,20 @@ export function ShopScreen() {
   useEffect(() => {
     profileRef.current = profile;
   }, [profile]);
+
+  useEffect(() => {
+    let active = true;
+    void fetchRewardedCap(profile.support.installId).then((cap) => {
+      if (active && cap !== null) {
+        setDailyCap(cap);
+      }
+    });
+    return () => {
+      active = false;
+    };
+    // Fetch once per shop visit for this install.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const mountedRef = useRef(true);
 
@@ -113,7 +132,7 @@ export function ShopScreen() {
   );
 
   const processPurchase = useCallback(
-    async (purchase: Purchase) => {
+    async (purchase: Purchase, context: "purchase" | "restore" = "purchase") => {
       const session = sessionRef.current;
       if (!session) {
         return;
@@ -124,11 +143,34 @@ export function ShopScreen() {
           purchase,
           profileRef.current.support.installId
         );
+        // Owner diagnostics: initial purchase vs renewal vs restore vs
+        // duplicate ignored vs no grant due — classified BEFORE applying.
+        const grantClass = classifyVerifiedPurchase(profileRef.current, verified);
+        recordPurchaseDiagnostic(
+          `${verified.productId}: ${context === "restore" ? "restore — " : ""}${
+            grantClass === "duplicate-ignored"
+              ? "duplicate ignored (already granted, no new grant)"
+              : grantClass === "no-grant-due"
+                ? "no grant due (revoked or unknown product)"
+                : grantClass === "renewal"
+                  ? "renewal — monthly benefits granted once"
+                  : "initial purchase — benefits granted once"
+          }`
+        );
         setProfile((current) => applyVerifiedPurchase(current, verified));
         await session.finish(purchase);
-        setStatus("Purchase verified and delivered.");
+        setStatus(
+          grantClass === "duplicate-ignored"
+            ? "Already delivered — nothing was granted twice."
+            : grantClass === "no-grant-due"
+              ? "Purchase verified. No grant was due for this transaction."
+              : "Purchase verified and delivered."
+        );
       } catch (error) {
-        setStatus(error instanceof Error ? error.message : "Purchase verification failed.");
+        const message =
+          error instanceof Error ? error.message : "Purchase verification failed.";
+        recordPurchaseDiagnostic(`Verification failed: ${message}`);
+        setStatus(message);
       } finally {
         setBusyProductId(null);
       }
@@ -146,7 +188,14 @@ export function ShopScreen() {
         // would otherwise delay or block the store session).
         session = await createStoreSession({
           onPurchase: processPurchase,
-          onError: setStatus
+          onError: (message) => {
+            // Cancellation and failure must ALWAYS clear the purchase-busy
+            // state — a stuck busyProductId froze every Shop button (Build 19
+            // "swallowed taps" regression).
+            setStatus(message);
+            setBusyProductId(null);
+            recordPurchaseDiagnostic(`Purchase ended without grant: ${message}`);
+          }
         });
         if (!mountedRef.current) {
           await session.close();
@@ -202,6 +251,10 @@ export function ShopScreen() {
   }, [loadCatalog]);
 
   const buy = async (productId: IapProductId) => {
+    if (busyProductId) {
+      // A purchase is already in flight — never overlap StoreKit requests.
+      return;
+    }
     const session = sessionRef.current;
     if (!session) {
       setStatus("The App Store is unavailable right now.");
@@ -232,7 +285,7 @@ export function ShopScreen() {
           purchase.productId === "app.vaultpop.vaultpass.plus.monthly"
       );
       for (const purchase of restorable) {
-        await processPurchase(purchase);
+        await processPurchase(purchase, "restore");
       }
       setStatus(
         restorable.length > 0
@@ -263,6 +316,7 @@ export function ShopScreen() {
           lastInterstitialRound: profile.ads.lastInterstitialRound,
           fullScreenAdShowing: isFullScreenAdShowing(),
           rewardedCountToday: rewardedCount,
+          rewardedDailyCap: dailyCap,
           rewardedJustShown: wasRewardedJustShown(),
           firstColdLaunch: false,
           gameplayActive: false
@@ -276,7 +330,9 @@ export function ShopScreen() {
         return;
       }
       const result =
-        kind === "life" ? await showRewardedBonusLifeAd() : await showRewardedCoinsAd();
+        kind === "life"
+          ? await showRewardedBonusLifeAd(profile.support.installId)
+          : await showRewardedCoinsAd(profile.support.installId);
       if (!result.shown) {
         reportRewardedAdEvent(profile.support.installId, { event: "failed", rewardType });
         setRewardStatus({
@@ -295,10 +351,14 @@ export function ShopScreen() {
       }
       reportRewardedAdEvent(profile.support.installId, { event: "granted", rewardType });
       if (kind === "life") {
-        setProfile((current) => grantRewardedBonusLife(current, dateKey, result.rewardId!));
+        setProfile((current) =>
+          grantRewardedBonusLife(current, dateKey, result.rewardId!, new Date(), dailyCap)
+        );
         setRewardStatus({ text: "✓ 1 Bonus Life added to your supply.", tone: "success" });
       } else {
-        setProfile((current) => grantRewardedVaultCoins(current, dateKey, result.rewardId!));
+        setProfile((current) =>
+          grantRewardedVaultCoins(current, dateKey, result.rewardId!, new Date(), dailyCap)
+        );
         setRewardStatus({ text: "✓ 10 Vault Coins added to your supply.", tone: "success" });
       }
     } catch {
@@ -543,7 +603,8 @@ export function ShopScreen() {
             selectable
             style={[typography.caption, { color: colors.textMuted, fontSize: 11.5 }]}
           >
-            Watch optional rewarded ads for in-game rewards. Shared daily limit: 30.
+            Watch optional rewarded ads for in-game rewards. Daily limit per
+            player: {dailyCap}.
           </Text>
           <View style={{ flexDirection: "row", gap: spacing.sm }}>
             <RewardCard
@@ -581,7 +642,7 @@ export function ShopScreen() {
                   backgroundColor: capped ? colors.ruby : colors.emerald,
                   borderRadius: 999,
                   height: 4,
-                  width: `${Math.min(100, (rewardedCount / REWARDED_DAILY_CAP) * 100)}%`
+                  width: `${Math.min(100, (rewardedCount / Math.max(1, dailyCap)) * 100)}%`
                 }}
               />
             </View>
@@ -589,7 +650,7 @@ export function ShopScreen() {
               selectable
               style={[typography.caption, { color: colors.textMuted, fontSize: 11, textAlign: "center" }]}
             >
-              {rewardedCount} / {REWARDED_DAILY_CAP} rewarded ads used today
+              {rewardedCount} / {dailyCap} rewarded ads used today (your account)
             </Text>
           </View>
           {rewardStatus ? (
@@ -761,6 +822,21 @@ export function ShopScreen() {
                     ? "Included with active VaultPass Plus."
                     : theme.description}
                 </Text>
+                {/* Live renderer preview: exact tile palette + silhouette
+                    this style applies during play */}
+                <View style={{ flexDirection: "row", gap: 5, paddingTop: 5 }}>
+                  {(["gold", "cyan", "emerald", "violet", "ruby"] as const).map(
+                    (tileType) => (
+                      <CoinFace
+                        key={tileType}
+                        type={tileType}
+                        size={20}
+                        gradient={theme.tileGradients[tileType]}
+                        shape={theme.tileShape}
+                      />
+                    )
+                  )}
+                </View>
               </View>
               <View style={{ minWidth: 92 }}>
                 <ActionButton

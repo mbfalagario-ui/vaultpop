@@ -1,5 +1,13 @@
 export type TileType = "gold" | "cyan" | "emerald" | "violet" | "ruby";
 
+/**
+ * Hidden in-board booster kinds. They reuse the existing booster mechanics
+ * (Bonus Life = +15s, Chain Boost = combo +2, Vault Burst = 750 x combo +
+ * board refresh) but apply ONLY to the active round — they never touch the
+ * player's persistent booster inventory.
+ */
+export type HiddenBoosterType = "bonusLives" | "chainBoosts" | "vaultBursts";
+
 export type GameModeId = "classic" | "dailyVault" | "streak" | "blitz";
 
 export type GameModeDefinition = {
@@ -18,6 +26,8 @@ export type BoardTile = BoardPosition & {
   id: string;
   type: TileType;
   selected: boolean;
+  /** Hidden until the tile is cleared as part of a matching group. */
+  booster?: HiddenBoosterType;
 };
 
 export type BoardState = {
@@ -34,6 +44,8 @@ export type ScoreState = {
   bestGroupSize: number;
   vaultBonuses: number;
   misses: number;
+  /** Hidden in-board boosters revealed this round. */
+  hiddenBoosters: number;
 };
 
 export type VaultMeterState = {
@@ -54,6 +66,8 @@ export type RoundState = {
   startedAt: string;
   completedAt: string | null;
   lastEvent: string;
+  /** Most recently revealed hidden booster (for UI feedback). */
+  lastBooster: HiddenBoosterType | null;
 };
 
 export type ClearResult = {

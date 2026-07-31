@@ -116,6 +116,17 @@ export interface OpsStore {
    * requests for the deleted email.
    */
   purgeAccountData(installId: string | null, email: string | null): void;
+  /* ---- Rewarded-ad daily caps (per account/install + UTC day) ---- */
+  /** App-wide default per-user daily rewarded cap (falls back to 30). */
+  getDefaultRewardedCap(): number;
+  setDefaultRewardedCap(cap: number): void;
+  /** Per-user override, or null when the user follows the default. */
+  getRewardedCapOverride(userId: string): number | null;
+  setRewardedCapOverride(userId: string, cap: number): void;
+  clearRewardedCapOverride(userId: string): void;
+  listRewardedCapOverrides(): { userId: string; cap: number; updatedAt: string }[];
+  /** Override when present, otherwise the default cap. */
+  getEffectiveRewardedCap(userId: string): number;
   logAdminAction(
     actor: PublicAccount,
     action: string,
@@ -125,6 +136,12 @@ export interface OpsStore {
 }
 
 const DAY_MS = 24 * 60 * 60 * 1_000;
+const DEFAULT_REWARDED_DAILY_CAP = 30;
+const MAX_REWARDED_DAILY_CAP = 500;
+
+function clampCap(cap: number): number {
+  return Math.max(0, Math.min(MAX_REWARDED_DAILY_CAP, Math.floor(cap)));
+}
 
 function ticketNumber(ticketId: string): number {
   const value = Number(ticketId.replace(/^VP-/, ""));
@@ -178,6 +195,15 @@ export class SqliteOpsStore implements OpsStore {
         created_at TEXT NOT NULL,
         handled_at TEXT,
         handled_by TEXT
+      );
+      CREATE TABLE IF NOT EXISTS rewarded_cap_settings (
+        key TEXT PRIMARY KEY,
+        value INTEGER NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS rewarded_cap_overrides (
+        user_id TEXT PRIMARY KEY,
+        cap INTEGER NOT NULL,
+        updated_at TEXT NOT NULL
       );
     `);
     // Existing production support_tickets rows predate ticket operations —
@@ -511,12 +537,72 @@ export class SqliteOpsStore implements OpsStore {
       this.database
         .prepare("DELETE FROM ad_events WHERE install_id = ?")
         .run(installId);
+      this.database
+        .prepare("DELETE FROM rewarded_cap_overrides WHERE user_id = ?")
+        .run(installId);
     }
     if (email) {
       this.database
         .prepare("DELETE FROM password_reset_requests WHERE email = ?")
         .run(email.trim().toLowerCase());
     }
+  }
+
+  getDefaultRewardedCap(): number {
+    const row = this.database
+      .prepare("SELECT value FROM rewarded_cap_settings WHERE key = 'default_cap'")
+      .get() as { value: number } | undefined;
+    return row ? clampCap(Number(row.value)) : DEFAULT_REWARDED_DAILY_CAP;
+  }
+
+  setDefaultRewardedCap(cap: number): void {
+    this.database
+      .prepare(`
+        INSERT INTO rewarded_cap_settings (key, value) VALUES ('default_cap', ?)
+        ON CONFLICT(key) DO UPDATE SET value = excluded.value
+      `)
+      .run(clampCap(cap));
+  }
+
+  getRewardedCapOverride(userId: string): number | null {
+    const row = this.database
+      .prepare("SELECT cap FROM rewarded_cap_overrides WHERE user_id = ?")
+      .get(userId) as { cap: number } | undefined;
+    return row ? clampCap(Number(row.cap)) : null;
+  }
+
+  setRewardedCapOverride(userId: string, cap: number): void {
+    this.database
+      .prepare(`
+        INSERT INTO rewarded_cap_overrides (user_id, cap, updated_at)
+        VALUES (?, ?, ?)
+        ON CONFLICT(user_id) DO UPDATE SET
+          cap = excluded.cap, updated_at = excluded.updated_at
+      `)
+      .run(userId, clampCap(cap), new Date().toISOString());
+  }
+
+  clearRewardedCapOverride(userId: string): void {
+    this.database
+      .prepare("DELETE FROM rewarded_cap_overrides WHERE user_id = ?")
+      .run(userId);
+  }
+
+  listRewardedCapOverrides(): { userId: string; cap: number; updatedAt: string }[] {
+    const rows = this.database
+      .prepare(
+        "SELECT user_id, cap, updated_at FROM rewarded_cap_overrides ORDER BY updated_at DESC LIMIT 100"
+      )
+      .all() as { user_id: string; cap: number; updated_at: string }[];
+    return rows.map((row) => ({
+      userId: row.user_id,
+      cap: clampCap(Number(row.cap)),
+      updatedAt: row.updated_at
+    }));
+  }
+
+  getEffectiveRewardedCap(userId: string): number {
+    return this.getRewardedCapOverride(userId) ?? this.getDefaultRewardedCap();
   }
 
   logAdminAction(
@@ -659,6 +745,8 @@ export class MemoryOpsStore implements OpsStore {
     [];
   private resets: PasswordResetRequest[] = [];
   private adminActions: { action: string; target: string; createdAt: string }[] = [];
+  private defaultRewardedCap = DEFAULT_REWARDED_DAILY_CAP;
+  private capOverrides = new Map<string, { cap: number; updatedAt: string }>();
 
   constructor(private accounts?: AccountStore) {}
 
@@ -861,11 +949,46 @@ export class MemoryOpsStore implements OpsStore {
     if (installId) {
       this.tickets = this.tickets.filter((ticket) => ticket.installId !== installId);
       this.adEvents = this.adEvents.filter((event) => event.installId !== installId);
+      this.capOverrides.delete(installId);
     }
     if (email) {
       const normalized = email.trim().toLowerCase();
       this.resets = this.resets.filter((item) => item.email !== normalized);
     }
+  }
+
+  getDefaultRewardedCap(): number {
+    return this.defaultRewardedCap;
+  }
+
+  setDefaultRewardedCap(cap: number): void {
+    this.defaultRewardedCap = clampCap(cap);
+  }
+
+  getRewardedCapOverride(userId: string): number | null {
+    return this.capOverrides.get(userId)?.cap ?? null;
+  }
+
+  setRewardedCapOverride(userId: string, cap: number): void {
+    this.capOverrides.set(userId, {
+      cap: clampCap(cap),
+      updatedAt: new Date().toISOString()
+    });
+  }
+
+  clearRewardedCapOverride(userId: string): void {
+    this.capOverrides.delete(userId);
+  }
+
+  listRewardedCapOverrides(): { userId: string; cap: number; updatedAt: string }[] {
+    return [...this.capOverrides.entries()]
+      .map(([userId, value]) => ({ userId, ...value }))
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+      .slice(0, 100);
+  }
+
+  getEffectiveRewardedCap(userId: string): number {
+    return this.getRewardedCapOverride(userId) ?? this.defaultRewardedCap;
   }
 
   logAdminAction(_actor: PublicAccount, action: string, target: string): void {

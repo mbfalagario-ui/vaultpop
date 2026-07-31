@@ -200,23 +200,26 @@ export async function showAppOpenAd(): Promise<boolean> {
   return shown;
 }
 
-export async function showRewardedBonusLifeAd(): Promise<{
+export async function showRewardedBonusLifeAd(userId?: string): Promise<{
   rewarded: boolean;
   shown: boolean;
   rewardId?: string;
 }> {
-  return showRewardedAdForUnit(ADMOB_IOS.rewarded);
+  return showRewardedAdForUnit(ADMOB_IOS.rewarded, userId);
 }
 
-export async function showRewardedCoinsAd(): Promise<{
+export async function showRewardedCoinsAd(userId?: string): Promise<{
   rewarded: boolean;
   shown: boolean;
   rewardId?: string;
 }> {
-  return showRewardedAdForUnit(ADMOB_IOS.rewardedCoins);
+  return showRewardedAdForUnit(ADMOB_IOS.rewardedCoins, userId);
 }
 
-async function showRewardedAdForUnit(unitId: string): Promise<{
+async function showRewardedAdForUnit(
+  unitId: string,
+  userId?: string
+): Promise<{
   rewarded: boolean;
   shown: boolean;
   rewardId?: string;
@@ -225,8 +228,11 @@ async function showRewardedAdForUnit(unitId: string): Promise<{
     return { rewarded: false, shown: false };
   }
   const ads = await import("react-native-google-mobile-ads");
+  // serverSideVerificationOptions.userId makes Google's SSV callback carry
+  // user_id, so the backend ledger caps THIS user only — never a global pool.
   const ad = ads.RewardedAd.createForAdRequest(unitId, {
-    requestNonPersonalizedAdsOnly
+    requestNonPersonalizedAdsOnly,
+    ...(userId ? { serverSideVerificationOptions: { userId } } : {})
   });
 
   return new Promise((resolve) => {

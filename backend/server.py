@@ -293,6 +293,29 @@ async def record_ad_event(payload: dict):
     return {"recorded": True}
 
 
+@api_router.get("/v1/ads/quota")
+async def get_rewarded_quota(userId: str = ""):
+    """Preview mirror of the production per-user rewarded quota endpoint."""
+    user_id = userId.strip()
+    if len(user_id) < 4 or len(user_id) > 200:
+        return JSONResponse(status_code=400, content={"error": "A valid user ID is required."})
+    override = await db.vaultpop_rewarded_cap_overrides.find_one({"userId": user_id})
+    default_doc = await db.vaultpop_rewarded_cap_settings.find_one({"key": "default_cap"})
+    cap = int(
+        (override or {}).get("cap")
+        if override is not None
+        else (default_doc or {}).get("value", 30)
+    )
+    utc_day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    return {
+        "userId": user_id,
+        "cap": cap,
+        "ssvConfirmedToday": 0,
+        "remaining": cap,
+        "utcDay": utc_day,
+    }
+
+
 @api_router.post("/v1/auth/logout")
 async def logout_account(authorization: Optional[str] = Header(default=None)):
     if authorization and authorization.startswith("Bearer "):

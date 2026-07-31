@@ -18,6 +18,41 @@ export type VerifiedPurchaseGrant = {
   revokedAt?: string | null;
 };
 
+/**
+ * Owner-diagnostic classification for a verified purchase BEFORE it is
+ * applied to the profile:
+ * - "duplicate-ignored": transaction already processed — no grant will occur;
+ * - "no-grant-due": revoked/unknown product — nothing is granted;
+ * - "renewal": a NEW VaultPass transaction for a member who already had
+ *   VaultPass (monthly benefits provision once per renewal transaction);
+ * - "initial": first-time grant for this transaction.
+ */
+export type PurchaseGrantClass =
+  | "initial"
+  | "renewal"
+  | "duplicate-ignored"
+  | "no-grant-due";
+
+export function classifyVerifiedPurchase(
+  profile: SaveProfile,
+  purchase: VerifiedPurchaseGrant
+): PurchaseGrantClass {
+  if (profile.economy.processedTransactionIds.includes(purchase.transactionId)) {
+    return "duplicate-ignored";
+  }
+  if (!getProductDefinition(purchase.productId) || purchase.revokedAt) {
+    return "no-grant-due";
+  }
+  if (purchase.productId === "app.vaultpop.vaultpass.plus.monthly") {
+    const hadVaultPass = Boolean(
+      profile.entitlements.vaultPassTransactionId ||
+        profile.entitlements.vaultPassExpiresAt
+    );
+    return hadVaultPass ? "renewal" : "initial";
+  }
+  return "initial";
+}
+
 export function applyVerifiedPurchase(
   profile: SaveProfile,
   purchase: VerifiedPurchaseGrant,
@@ -122,19 +157,21 @@ export function grantRewardedBonusLife(
   profile: SaveProfile,
   dateKey: string,
   rewardId: string,
-  now = new Date()
+  now = new Date(),
+  cap = 30
 ): SaveProfile {
-  return grantRewarded(profile, dateKey, rewardId, { bonusLives: 1 }, now);
+  return grantRewarded(profile, dateKey, rewardId, { bonusLives: 1 }, now, cap);
 }
 
-/** Rewarded "Watch for 10 Vault Coins" grant — shares the daily 30-ad cap. */
+/** Rewarded "Watch for 10 Vault Coins" grant — shares the daily per-user cap. */
 export function grantRewardedVaultCoins(
   profile: SaveProfile,
   dateKey: string,
   rewardId: string,
-  now = new Date()
+  now = new Date(),
+  cap = 30
 ): SaveProfile {
-  return grantRewarded(profile, dateKey, rewardId, { vaultCoins: 10 }, now);
+  return grantRewarded(profile, dateKey, rewardId, { vaultCoins: 10 }, now, cap);
 }
 
 function grantRewarded(
@@ -142,15 +179,17 @@ function grantRewarded(
   dateKey: string,
   rewardId: string,
   grant: { bonusLives?: number; vaultCoins?: number },
-  now: Date
+  now: Date,
+  cap: number
 ): SaveProfile {
   const rewardState =
     profile.economy.rewardedAds.dateKey === dateKey
       ? profile.economy.rewardedAds
       : { dateKey, count: 0, rewardIds: [] };
 
-  // Shared cap across ALL rewarded placements + per-reward idempotency.
-  if (rewardState.count >= 30 || rewardState.rewardIds.includes(rewardId)) {
+  // Shared per-user cap across ALL rewarded placements + per-reward
+  // idempotency. The cap value may be overridden per user by the backend.
+  if (rewardState.count >= cap || rewardState.rewardIds.includes(rewardId)) {
     return profile;
   }
 

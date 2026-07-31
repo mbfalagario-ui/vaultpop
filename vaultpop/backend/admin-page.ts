@@ -131,8 +131,38 @@ export function adminPage(): Response {
           <div class="kv"><span class="k">1 Bonus Life</span><span class="v" id="ads-life">&mdash;</span></div>
           <div class="kv"><span class="k">10 Vault Coins</span><span class="v" id="ads-coins">&mdash;</span></div>
           <div class="kv"><span class="k">SSV-confirmed grants</span><span class="v" id="ads-ssv">&mdash;</span></div>
-          <div class="kv"><span class="k">Shared daily cap</span><span class="v" id="ads-cap">&mdash;</span></div>
+          <div class="kv"><span class="k">Per-user daily cap</span><span class="v" id="ads-cap">&mdash;</span></div>
         </div>
+      </div>
+      <div class="card wide">
+        <div class="card-head"><span class="dot" style="background:${PALETTE.cyan};box-shadow:0 0 8px ${PALETTE.cyan}"></span><h2>Rewarded Ad Caps</h2><span class="pill cyan" style="margin-left:auto">PER ACCOUNT / INSTALL + UTC DAY</span></div>
+        <div class="kv"><span class="k">Default cap (all users)</span><span class="v" id="cap-default">&mdash;</span></div>
+        <form id="cap-default-form" class="row" style="align-items:flex-end">
+          <label>New default cap<input id="cap-default-input" type="number" min="1" max="500" placeholder="30" style="width:110px" required></label>
+          <button class="small" style="min-height:40px">Set Default Cap</button>
+        </form>
+        <form id="cap-usage-form" class="row" style="align-items:flex-end">
+          <label>User / install ID<input id="cap-usage-user" placeholder="Account ID or install ID" style="min-width:260px" required></label>
+          <button class="small quiet" style="min-height:40px">Check Usage</button>
+        </form>
+        <div id="cap-usage-panel" class="panel" hidden>
+          <div class="kv"><span class="k">User</span><span class="v" id="cap-usage-id">&mdash;</span></div>
+          <div class="kv"><span class="k">Effective cap</span><span class="v" id="cap-usage-cap">&mdash;</span></div>
+          <div class="kv"><span class="k">Override</span><span class="v" id="cap-usage-override">&mdash;</span></div>
+          <div class="kv"><span class="k">SSV-confirmed used today (UTC)</span><span class="v" id="cap-usage-used">&mdash;</span></div>
+          <div class="kv"><span class="k">Remaining allowance</span><span class="v" id="cap-usage-remaining">&mdash;</span></div>
+        </div>
+        <form id="cap-override-form" class="row" style="align-items:flex-end">
+          <label>User / install ID<input id="cap-override-user" placeholder="Account ID or install ID" style="min-width:260px" required></label>
+          <label>Override cap<input id="cap-override-value" type="number" min="0" max="500" style="width:110px" required></label>
+          <button class="small" style="min-height:40px">Set Override</button>
+          <button type="button" id="cap-reset-button" class="danger small" style="min-height:40px">Reset Override</button>
+        </form>
+        <div class="tablewrap"><table>
+          <thead><tr><th>User / install</th><th>Override cap</th><th>Used today</th><th>Remaining</th><th>Updated</th></tr></thead>
+          <tbody id="cap-override-rows"></tbody>
+        </table></div>
+        <p class="muted" id="cap-override-empty" hidden style="margin:0">No per-user overrides — everyone follows the default cap.</p>
       </div>
       <div class="card">
         <div class="card-head"><span class="dot" style="background:${PALETTE.violet};box-shadow:0 0 8px ${PALETTE.violet}"></span><h2>Purchases &amp; Premium</h2></div>
@@ -359,7 +389,7 @@ async function loadAnalytics(){
   $("ads-life").textContent=data.ads.byType.bonusLife+" granted";
   $("ads-coins").textContent=data.ads.byType.vaultCoins+" granted";
   $("ads-ssv").textContent=String(data.ads.ssvGranted24h);
-  $("ads-cap").textContent=data.ads.dailyCap+" / day (shared)";
+  $("ads-cap").textContent=data.ads.dailyCap+" / user / UTC day";
   $("ops-ssv-url").textContent=data.ads.ssvUrl;
   $("kpi-purch-total").firstChild.textContent=data.purchases.total;
   $("kpi-purch-24h").firstChild.textContent=data.purchases.last24h;
@@ -368,6 +398,61 @@ async function loadAnalytics(){
   $("kpi-gross").textContent="$"+data.purchases.estimatedGrossUsd.toFixed(2);
   $("revenue-note").textContent=data.purchases.revenueNote;
 }
+
+// ---- Rewarded ad caps (per account/install + UTC day) ----
+async function loadCaps(){
+  const data=await api("/v1/admin/rewarded-caps");
+  $("cap-default").textContent=data.defaultCap+" ads / user / UTC day";
+  const body=$("cap-override-rows");body.replaceChildren();
+  $("cap-override-empty").hidden=data.overrides.length>0;
+  data.overrides.forEach(o=>{
+    const row=document.createElement("tr");
+    cell(row,o.userId);
+    cell(row,o.cap);
+    cell(row,o.usedToday);
+    cell(row,o.remaining);
+    cell(row,when(o.updatedAt));
+    body.appendChild(row);
+  });
+}
+$("cap-default-form").onsubmit=async event=>{
+  event.preventDefault();
+  try{
+    await api("/v1/admin/rewarded-caps/default",{method:"POST",body:JSON.stringify({cap:Number($("cap-default-input").value)})});
+    status("Default rewarded cap updated.");
+    await Promise.all([loadCaps(),loadAnalytics()]);
+  }catch(error){handleError(error)}
+};
+$("cap-usage-form").onsubmit=async event=>{
+  event.preventDefault();
+  try{
+    const data=await api("/v1/admin/rewarded-caps/usage?userId="+encodeURIComponent($("cap-usage-user").value.trim()));
+    $("cap-usage-panel").hidden=false;
+    $("cap-usage-id").textContent=data.userId;
+    $("cap-usage-cap").textContent=data.effectiveCap+" / UTC day";
+    $("cap-usage-override").textContent=data.override==null?"None (default "+data.defaultCap+")":String(data.override);
+    $("cap-usage-used").textContent=String(data.usedToday);
+    $("cap-usage-remaining").textContent=String(data.remaining);
+    status("Cap usage loaded.");
+  }catch(error){handleError(error)}
+};
+$("cap-override-form").onsubmit=async event=>{
+  event.preventDefault();
+  try{
+    await api("/v1/admin/rewarded-caps/override",{method:"POST",body:JSON.stringify({userId:$("cap-override-user").value.trim(),cap:Number($("cap-override-value").value)})});
+    status("Per-user cap override saved.");
+    await loadCaps();
+  }catch(error){handleError(error)}
+};
+$("cap-reset-button").onclick=async()=>{
+  const userId=$("cap-override-user").value.trim()||$("cap-usage-user").value.trim();
+  if(!userId){status("Enter a user/install ID to reset.",true);return}
+  try{
+    await api("/v1/admin/rewarded-caps/override/reset",{method:"POST",body:JSON.stringify({userId})});
+    status("Override reset — user follows the default cap.");
+    await loadCaps();
+  }catch(error){handleError(error)}
+};
 
 // ---- AI escalations ----
 async function loadEscalations(){
@@ -612,6 +697,7 @@ $("run-checks").onclick=()=>{status("Running checks...");Promise.all([runChecks(
 async function refreshAll(){
   await Promise.all([
     loadAnalytics().catch(handleError),
+    loadCaps().catch(()=>{}),
     loadTickets().catch(()=>{}),
     loadEscalations().catch(()=>{}),
     search().catch(()=>{}),

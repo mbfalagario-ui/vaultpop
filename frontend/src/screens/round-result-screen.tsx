@@ -48,6 +48,8 @@ export function RoundResultScreen() {
     group?: string;
     streak?: string;
     vaults?: string;
+    boosters?: string;
+    misses?: string;
   }>();
   const [profile, setProfile] = useSaveProfile();
   const attemptedInterstitialRef = useRef(false);
@@ -283,7 +285,7 @@ export function RoundResultScreen() {
         </View>
       </View>
 
-      {/* Run summary */}
+      {/* Run summary — full round breakdown */}
       <View
         style={{
           backgroundColor: colors.surfaceGlass,
@@ -291,16 +293,54 @@ export function RoundResultScreen() {
           borderCurve: "continuous",
           borderRadius: radius.md,
           borderWidth: 1,
-          flexDirection: "row",
           paddingVertical: spacing.md
         }}
+        testID="result-summary"
       >
-        <HudStat label="BEST" value={bestScore.toLocaleString()} accent={visual.energy} />
-        <View style={{ backgroundColor: colors.border, width: 1 }} />
-        <HudStat label="CHAIN" value={`${params.combo ?? "1"}x`} accent={visual.accent} />
-        <View style={{ backgroundColor: colors.border, width: 1 }} />
-        <HudStat label="VAULTS" value={params.vaults ?? "0"} accent={visual.secondary} />
+        <View style={{ flexDirection: "row" }}>
+          <HudStat label="BEST" value={bestScore.toLocaleString()} accent={visual.energy} />
+          <View style={{ backgroundColor: colors.border, width: 1 }} />
+          <HudStat label="CHAIN" value={`${params.combo ?? "1"}x`} accent={visual.accent} />
+          <View style={{ backgroundColor: colors.border, width: 1 }} />
+          <HudStat label="VAULTS" value={params.vaults ?? "0"} accent={visual.secondary} />
+        </View>
+        <View
+          style={{
+            backgroundColor: colors.border,
+            height: 1,
+            marginVertical: spacing.sm
+          }}
+        />
+        <View style={{ flexDirection: "row" }}>
+          <HudStat label="BEST GROUP" value={params.group ?? "0"} accent={colors.cyan} />
+          <View style={{ backgroundColor: colors.border, width: 1 }} />
+          <HudStat label="POPS" value={params.streak ?? "0"} accent={colors.emerald} />
+          <View style={{ backgroundColor: colors.border, width: 1 }} />
+          <HudStat
+            label="HIDDEN BOOSTERS"
+            value={params.boosters ?? "0"}
+            accent={colors.gold}
+          />
+        </View>
       </View>
+      {Number(params.boosters ?? 0) > 0 ? (
+        <View
+          testID="result-boosters-chip"
+          style={{
+            alignSelf: "center",
+            backgroundColor: `${colors.violet}18`,
+            borderColor: `${colors.violet}66`,
+            borderRadius: radius.pill,
+            borderWidth: 1,
+            paddingHorizontal: spacing.md,
+            paddingVertical: 4
+          }}
+        >
+          <Text selectable style={[typography.eyebrow, { color: colors.violet, fontSize: 10 }]}>
+            ★ {params.boosters} HIDDEN BOOSTER{Number(params.boosters) > 1 ? "S" : ""} FOUND
+          </Text>
+        </View>
+      ) : null}
 
       {/* Rewards */}
       <LinearGradient

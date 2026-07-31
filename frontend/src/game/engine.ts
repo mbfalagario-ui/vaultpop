@@ -13,6 +13,7 @@ import type {
   BoardTile,
   ClearResult,
   GameModeId,
+  HiddenBoosterType,
   RoundState,
   TileType
 } from "@/game/models";
@@ -20,7 +21,22 @@ import type {
 type CreateRoundOptions = {
   now?: Date;
   seed?: string;
+  /**
+   * "ready" starts the round in the pre-countdown phase: taps and the timer
+   * are blocked until beginRound() flips it to "playing" after 3-2-1-GO.
+   */
+  startPhase?: "ready" | "playing";
 };
+
+const HIDDEN_BOOSTER_TYPES: HiddenBoosterType[] = [
+  "bonusLives",
+  "chainBoosts",
+  "vaultBursts"
+];
+/** Hidden boosters seeded into every fresh board (deterministic per seed). */
+const INITIAL_HIDDEN_BOOSTERS = 2;
+/** Chance for each refilled tile to carry a hidden booster. */
+const REFILL_HIDDEN_BOOSTER_CHANCE = 0.02;
 
 function stringToSeedNumber(value: string): number {
   let total = 2166136261;
@@ -61,12 +77,34 @@ export function createBoard(seed: string, turn = 0): BoardState {
     tiles.push(line);
   }
 
+  // Hidden boosters use a SEPARATE random stream so tile-type layouts remain
+  // identical to previous builds for the same seed (daily boards stay shared).
+  seedHiddenBoosters(tiles, `${seed}:boosters:${turn}`);
+
   return {
     size: BOARD_SIZE,
     seed,
     tiles,
     turn
   };
+}
+
+function seedHiddenBoosters(tiles: BoardTile[][], seed: string): void {
+  const random = createRandom(seed);
+  let placed = 0;
+  let attempts = 0;
+  while (placed < INITIAL_HIDDEN_BOOSTERS && attempts < 64) {
+    attempts += 1;
+    const row = Math.floor(random() * BOARD_SIZE);
+    const column = Math.floor(random() * BOARD_SIZE);
+    const tile = tiles[row]?.[column];
+    if (tile && !tile.booster) {
+      tile.booster =
+        HIDDEN_BOOSTER_TYPES[Math.floor(random() * HIDDEN_BOOSTER_TYPES.length)] ??
+        HIDDEN_BOOSTER_TYPES[0];
+      placed += 1;
+    }
+  }
 }
 
 export function createInitialRound(modeId: GameModeId, options: CreateRoundOptions = {}): RoundState {
@@ -77,7 +115,7 @@ export function createInitialRound(modeId: GameModeId, options: CreateRoundOptio
 
   return {
     modeId,
-    phase: "playing",
+    phase: options.startPhase ?? "playing",
     board: createBoard(seed),
     score: {
       current: 0,
@@ -85,7 +123,8 @@ export function createInitialRound(modeId: GameModeId, options: CreateRoundOptio
       streakCount: 0,
       bestGroupSize: 0,
       vaultBonuses: 0,
-      misses: 0
+      misses: 0,
+      hiddenBoosters: 0
     },
     vaultMeter: {
       current: 0,
@@ -95,8 +134,17 @@ export function createInitialRound(modeId: GameModeId, options: CreateRoundOptio
     secondsRemaining: getModeDefinition(modeId)?.roundSeconds ?? CLASSIC_ROUND_SECONDS,
     startedAt: now.toISOString(),
     completedAt: null,
-    lastEvent: "Ready"
+    lastEvent: "Ready",
+    lastBooster: null
   };
+}
+
+/** Flips a pre-countdown round into live play (3-2-1-GO completed). */
+export function beginRound(round: RoundState): RoundState {
+  if (round.phase !== "ready") {
+    return round;
+  }
+  return { ...round, phase: "playing", lastEvent: "GO!" };
 }
 
 function isInsideBoard(board: BoardState, position: BoardPosition): boolean {
@@ -173,31 +221,40 @@ function refillBoard(board: BoardState, removed: BoardPosition[]): BoardState {
   const removedKeys = new Set(removed.map((position) => `${position.row}:${position.column}`));
   const nextTurn = board.turn + 1;
   const random = createRandom(`${board.seed}:refill:${nextTurn}`);
+  const boosterRandom = createRandom(`${board.seed}:refill-boosters:${nextTurn}`);
   const nextTiles: BoardTile[][] = Array.from({ length: board.size }, () => []);
 
   for (let column = 0; column < board.size; column += 1) {
-    const remaining: TileType[] = [];
+    const remaining: { type: TileType; booster?: HiddenBoosterType }[] = [];
 
     for (let row = board.size - 1; row >= 0; row -= 1) {
       const tile = board.tiles[row]?.[column];
       if (tile && !removedKeys.has(`${row}:${column}`)) {
-        remaining.push(tile.type);
+        // Surviving tiles keep their hidden booster through the cascade.
+        remaining.push({ type: tile.type, booster: tile.booster });
       }
     }
 
     while (remaining.length < board.size) {
       const type = TILE_TYPES[Math.floor(random() * TILE_TYPES.length)] ?? TILE_TYPES[0];
-      remaining.push(type);
+      const entry: { type: TileType; booster?: HiddenBoosterType } = { type };
+      if (boosterRandom() < REFILL_HIDDEN_BOOSTER_CHANCE) {
+        entry.booster =
+          HIDDEN_BOOSTER_TYPES[Math.floor(boosterRandom() * HIDDEN_BOOSTER_TYPES.length)] ??
+          HIDDEN_BOOSTER_TYPES[0];
+      }
+      remaining.push(entry);
     }
 
     for (let row = board.size - 1; row >= 0; row -= 1) {
-      const type = remaining[board.size - 1 - row] ?? TILE_TYPES[0];
+      const entry = remaining[board.size - 1 - row] ?? { type: TILE_TYPES[0]! };
       nextTiles[row]![column] = {
-        id: `${nextTurn}-${row}-${column}-${type}`,
+        id: `${nextTurn}-${row}-${column}-${entry.type}`,
         row,
         column,
-        type,
-        selected: false
+        type: entry.type,
+        selected: false,
+        ...(entry.booster ? { booster: entry.booster } : {})
       };
     }
   }
@@ -247,18 +304,52 @@ export function resolveTap(round: RoundState, position: BoardPosition): RoundSta
   const clearedTileIds = group
     .map((groupPosition) => getTile(round.board, groupPosition)?.id)
     .filter((id): id is string => Boolean(id));
+
+  // Hidden in-board boosters revealed by this clear. They apply the existing
+  // booster mechanics to THIS round only — persistent inventory is untouched.
+  const revealedBoosters = group
+    .map((groupPosition) => getTile(round.board, groupPosition)?.booster)
+    .filter((booster): booster is HiddenBoosterType => Boolean(booster));
+  let bonusSeconds = 0;
+  let bonusCombo = 0;
+  let boosterScore = 0;
+  let boosterBurst = false;
+  for (const booster of revealedBoosters) {
+    if (booster === "bonusLives") {
+      bonusSeconds += 15;
+    } else if (booster === "chainBoosts") {
+      bonusCombo += 2;
+    } else {
+      boosterScore += 750 * round.score.comboMultiplier;
+      boosterBurst = true;
+    }
+  }
+
   const boardAfterClear = refillBoard(round.board, group);
-  const boardAfterVault = vaultTriggered ? refillWholeBoard(boardAfterClear) : boardAfterClear;
+  const boardAfterVault =
+    vaultTriggered || boosterBurst ? refillWholeBoard(boardAfterClear) : boardAfterClear;
   const vaultScore = vaultTriggered ? 750 * round.score.comboMultiplier : 0;
-  const nextComboMultiplier = Math.min(round.score.comboMultiplier + 1, 12);
+  const nextComboMultiplier = Math.min(
+    round.score.comboMultiplier + 1 + bonusCombo,
+    12
+  );
   const result: ClearResult = {
     clearedTileIds,
     groupSize: group.length,
-    scoreDelta: scoreDelta + vaultScore,
+    scoreDelta: scoreDelta + vaultScore + boosterScore,
     vaultDelta,
     nextComboMultiplier,
     vaultTriggered
   };
+
+  const boosterEvent =
+    revealedBoosters.length === 0
+      ? null
+      : revealedBoosters[0] === "bonusLives"
+        ? "Hidden booster revealed: +15 seconds"
+        : revealedBoosters[0] === "chainBoosts"
+          ? "Hidden booster revealed: Chain +2"
+          : `Hidden booster revealed: Vault Burst +${boosterScore}`;
 
   return {
     ...round,
@@ -268,17 +359,23 @@ export function resolveTap(round: RoundState, position: BoardPosition): RoundSta
       comboMultiplier: result.nextComboMultiplier,
       streakCount: round.score.streakCount + 1,
       bestGroupSize: Math.max(round.score.bestGroupSize, group.length),
-      vaultBonuses: round.score.vaultBonuses + (vaultTriggered ? 1 : 0),
-      misses: round.score.misses
+      vaultBonuses:
+        round.score.vaultBonuses + (vaultTriggered ? 1 : 0) + (boosterBurst ? 1 : 0),
+      misses: round.score.misses,
+      hiddenBoosters: round.score.hiddenBoosters + revealedBoosters.length
     },
+    secondsRemaining: Math.min(99, round.secondsRemaining + bonusSeconds),
     vaultMeter: {
       ...round.vaultMeter,
-      current: vaultTriggered ? 0 : nextVaultValue,
-      opening: vaultTriggered
+      current: vaultTriggered || boosterBurst ? 0 : nextVaultValue,
+      opening: vaultTriggered || boosterBurst
     },
-    lastEvent: vaultTriggered
-      ? `Vault bonus +${vaultScore}`
-      : `Cleared ${group.length} coin tiles`
+    lastBooster: revealedBoosters[0] ?? null,
+    lastEvent:
+      boosterEvent ??
+      (vaultTriggered
+        ? `Vault bonus +${vaultScore}`
+        : `Cleared ${group.length} coin tiles`)
   };
 }
 

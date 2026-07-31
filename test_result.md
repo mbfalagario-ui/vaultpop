@@ -238,3 +238,44 @@ notes: |
   Production TS backend diagnostics endpoint deployed + verified by main agent (200 w/ admin auth locally,
   403 anon in production; /admin page serves new Run Checks UI). Preview FastAPI mirror does NOT implement
   /v1/admin/diagnostics — do not test it there, not a bug. Ads/StoreKit/WebView native-only on web preview.
+
+## Build 20 FINAL: Shop reliability + per-user ad caps + live customization + gameplay polish (2026-07-31) — pending testing_agent verification
+user_problem_statement: |
+  BUILD 20 consolidated regression fix: (1) Shop purchase-busy state now ALWAYS clears on cancel/failure
+  (root cause of swallowed taps: onError never cleared busyProductId); purchase diagnostics classify
+  initial/renewal/restore/duplicate-ignored/no-grant-due. (2) Rewarded cap is per account/install + UTC day:
+  client SSV options now send userId, backend cap is admin-configurable (default + per-user override +
+  usage + reset) via /v1/admin/rewarded-caps*, public GET /v1/ads/quota; client fetches its cap.
+  (3) Customization styles now drive the real renderer: per-style tile gradients, tile shape
+  (coin/square/gem), board surface/border, selection ring; preview rows in shop. (4) Gameplay: 3-2-1-GO
+  countdown blocks input+timer until GO with sound/haptic cues, hidden in-board boosters (round-only
+  effects, never persistent inventory), squash-pop tiles, particles, floating score, combo milestones
+  (x4/x8/x12), richer round summary (two stat rows + hidden-boosters chip).
+backend:
+  - task: "Preview mirror GET /api/v1/ads/quota?userId=... returns {userId,cap:30,remaining,utcDay}; userId <4 chars -> 400"
+    file: /app/backend/server.py
+    status: needs_retesting
+  - task: "Production TS backend (fly.dev) — ALREADY VERIFIED BY MAIN AGENT: /health 200, /v1/ads/quota 200, /v1/admin/rewarded-caps 403 anon, /admin page 200. 91/91 local tests incl. two-user cap isolation + admin cap CRUD. DO NOT hammer production."
+    file: /app/vaultpop/backend/app.ts, /app/vaultpop/backend/ops-store.ts, /app/vaultpop/backend/ssv.ts
+    status: passed
+frontend:
+  - task: "Gameplay countdown: PLAY -> /gameplay shows 3-2-1-GO overlay (testID gameplay-countdown); timer stays at 60s until GO; taps during countdown do nothing; Pause/Restart/Finish disabled during countdown; after GO round plays normally, tiles pop with floating score feedback"
+    file: /app/frontend/src/screens/gameplay-screen.tsx
+    status: needs_retesting
+  - task: "Customization live renderer: Shop -> Styles & Customization shows a 5-coin preview row per style (different palettes; Cyan Circuit = square chips, Violet Neon/VaultPass Prism = gem cut); board in gameplay uses active style surface + tiles"
+    file: /app/frontend/src/screens/shop-screen.tsx, /app/frontend/src/components/coin-face.tsx, /app/frontend/src/components/coin-tile.tsx
+    status: needs_retesting
+  - task: "Shop busy-state never sticks (web preview: StoreKit inert -> tapping buy shows 'App Store is unavailable' and buttons stay tappable); rewarded section reads 'X / 30 rewarded ads used today (your account)' and 'Daily limit per player: 30'"
+    file: /app/frontend/src/screens/shop-screen.tsx
+    status: needs_retesting
+  - task: "Round summary: finish a round -> /results shows two stat rows (BEST/CHAIN/VAULTS + BEST GROUP/POPS/HIDDEN BOOSTERS) and a violet 'HIDDEN BOOSTERS FOUND' chip when boosters > 0"
+    file: /app/frontend/src/screens/round-result-screen.tsx
+    status: needs_retesting
+  - task: "Core regression: sign in (qa.player@vaultpop.app / VaultPopQA2026!x), settings, shop scroll, support, admin console entry for qa.owner.b15@vaultpop.test / B15OwnerVerify!234"
+    file: /app/frontend/src/screens/*
+    status: needs_retesting
+notes: |
+  Ads/StoreKit/haptics are native-only: on web preview rewarded buttons report unavailable and StoreKit
+  buys show 'App Store is unavailable' — NOT bugs. Hidden boosters are invisible by design until popped
+  (feedback chip '★ HIDDEN ...' appears). Countdown lasts ~2.8s. Style unlocks cost style points earned
+  by playing; verifying the preview rows + default style application is sufficient.
